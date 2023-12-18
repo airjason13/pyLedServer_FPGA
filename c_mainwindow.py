@@ -1,3 +1,5 @@
+import logging
+
 from PyQt5.QtCore import QThread, pyqtSignal, QDateTime, QObject, Qt
 from PyQt5.QtWidgets import QMainWindow, QFrame, QSplitter, QGridLayout, QWidget, QStackedLayout, QPushButton, \
     QVBoxLayout
@@ -50,11 +52,6 @@ class MainUi(QMainWindow):
         self.ui_sys_sw_info_frame = None
 
         ''' each pages of right frame'''
-        self.fpga_list_page = None
-        self.media_files_page = None
-        self.hdmi_in_page = None
-        self.led_settings_page = None
-        self.test_page = None
         self.right_frame_page_list = []
         self.right_frame_page_index = 0
 
@@ -101,11 +98,8 @@ class MainUi(QMainWindow):
         self.init_system_and_software_info()
         self.init_page_selector()
 
-        self.init_fpga_list_page()
-        self.init_media_files_page()
-        self.init_hdmi_in_page()
-        self.init_led_settings_page()
-        self.init_test_page()
+        '''Initial each page in stack layout of right frame'''
+        self.init_pages_on_right_frame()
 
         self.right_layout.setCurrentIndex(0)
 
@@ -117,26 +111,16 @@ class MainUi(QMainWindow):
     def init_system_and_software_info(self):
         self.ui_sys_sw_info_frame = UiSystemSoftware(self, self.left_bottom_frame)
 
-    def init_fpga_list_page(self):
-        self.fpga_list_page = FpgaListPage(self, self.right_frame, 'FPGA_List', self.fpga_list)
-        self.right_layout.addWidget(self.fpga_list_page)
-        self.right_frame_page_list.append(self.fpga_list_page)
-
-    def init_media_files_page(self):
-        self.media_files_page = MediaFilesPage(self, self.right_frame, 'Media_Files')
-        self.right_frame_page_list.append(self.media_files_page)
-
-    def init_hdmi_in_page(self):
-        self.hdmi_in_page = HDMIInPage(self, self.right_frame, 'HDMI_In')
-        self.right_frame_page_list.append(self.hdmi_in_page)
-
-    def init_led_settings_page(self):
-        self.led_settings_page = LedSettingsPage(self, self.right_frame, 'Led_Settings', self.fpga_list)
-        self.right_frame_page_list.append(self.led_settings_page)
-
-    def init_test_page(self):
-        self.test_page = TestPage(self, self.right_frame, 'Test')
-        self.right_frame_page_list.append(self.test_page)
+    def init_pages_on_right_frame(self):
+        for k, v in Page_Map.items():
+            # log.debug("Name : %s", k)
+            # log.debug("v : %s", v)
+            if k == "FPGA_List" or k == "Led_Settings":
+                page = v(self, self.right_frame, k, self.fpga_list)
+            else:
+                page = v(self, self.right_frame, k)
+            self.right_frame_page_list.append(page)
+            self.right_layout.addWidget(page)
 
     def slot_right_frame_page_changed(self, tag: str):
         log.debug("tag : %s", tag)

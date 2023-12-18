@@ -53,7 +53,6 @@ class UiFuncFrame(QWidget):
             btn.setStyleSheet(QPushButton_Style)
             btn.setFont(QFont(QFont_Style_Default, QFont_Style_Size_XL))
             btn.clicked.connect(self.btn_clicked_func)
-            print("self.btn_clicked_func :", self.btn_clicked_func)
 
         self.frame.layout().addWidget(self)
 
