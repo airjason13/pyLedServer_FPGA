@@ -12,25 +12,26 @@ QPushButton_Page_Selector_Min_Height = 64
 
 QPushButton_Style = """
             QPushButton {
-                border: 2px solid #223322;
+                border: 2px solid #748CAB;
                 border-radius: 6px;
                 background-color: QLinearGradient(x1: 0, y1: 0, x2: 1, y2: 1,
-                                                  stop: 0 #444444, stop: 1 #aaaaaa);
+                                                  stop: 0 #1D2D44, stop: 1 #748CAB);
                 color: QLinearGradient(x1: 0, y1: 0, x2: 1, y2: 1,
-                                                  stop: 0 #000000, stop: 1 #444444);
+                                                  stop: 0 #000000, stop: 1 #1D2D44);
                 min-width: 80px;
                 max-width: 240px;
                 width: 240px;
                 height:64px;
             }
             QPushButton:hover {
-                color: #ffffff;
+                color: #F0EBD8;
                 background-color: QLinearGradient(x1: 0, y1: 0, x2: 1, y2: 1,
                                                   stop: 0 #000000, stop: 1 #00aaff);
             }
             QPushButton:pressed {
-                background-color: #FFA823;
-                color: #000000;
-                font: bold 14px;
+                background-color: QLinearGradient(x1: 0, y1: 0, x2: 1, y2: 1,
+                                                  stop: 0 #00aaff, stop: 1 #000000);
+                color: #1D2D44;
+                
             }
         """

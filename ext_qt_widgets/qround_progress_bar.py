@@ -1,6 +1,8 @@
 from PyQt5 import QtCore, QtGui, Qt, QtWidgets
 import sys
 
+from PyQt5.QtGui import QBrush
+
 
 class QRoundProgressBar(QtWidgets.QWidget):
 
@@ -163,9 +165,10 @@ class QRoundProgressBar(QtWidgets.QWidget):
     def drawBase(self, p, baseRect):
         bs = self.barStyle
         if bs == self.StyleDonut:
-            p.setPen(QtGui.QPen(self.palette().shadow().color(), self.outlinePenWidth))
-            p.setBrush(self.palette().base())
-            p.drawEllipse(baseRect)
+            pass
+            # p.setPen(QtGui.QPen(self.palette().shadow().color(), self.outlinePenWidth))
+            # p.setBrush(self.palette().base())
+            # p.drawEllipse(baseRect)
         elif bs == self.StylePie:
             p.setPen(QtGui.QPen(self.palette().base().color(), self.outlinePenWidth))
             p.setBrush(self.palette().base())
@@ -199,7 +202,8 @@ class QRoundProgressBar(QtWidgets.QWidget):
         dataPath.lineTo(baseRect.center())
 
         p.setBrush(self.palette().highlight())
-        p.setPen(QtGui.QPen(self.palette().shadow().color(), self.dataPenWidth))
+        # p.setPen(QtGui.QPen(self.palette().shadow().color(), self.dataPenWidth))
+        p.setPen(QtGui.QPen(self.palette().window(), self.dataPenWidth))
         p.drawPath(dataPath)
 
     def calculateInnerRect(self, baseRect, outerRadius):
@@ -215,8 +219,15 @@ class QRoundProgressBar(QtWidgets.QWidget):
 
     def drawInnerBackground(self, p, innerRect):
         if self.barStyle == self.StyleDonut:
-            #p.setBrush(self.palette().alternateBase())
-            p.setBrush(self.palette().shadow())
+            # p.setBrush(self.palette().alternateBase())
+            # brush = QBrush()
+            # brush.setColor(0x1d2d44)
+            # p.setBrush(brush)
+
+            # p.setBrush(self.palette().shadow())
+
+            p.setBrush(self.palette().window())
+            # p.setBrush(self.palette().dark())
 
             cmod = p.compositionMode()
             p.setCompositionMode(QtGui.QPainter.CompositionMode_Source)

@@ -9,6 +9,7 @@ from ui.ui_hdmi_in_page import HDMIInPage
 from ui.ui_led_settings_page import LedSettingsPage
 from ui.ui_test_page import TestPage
 
+
 '''List of Page Selector Button Name '''
 Page_Select_Btn_Name_List = ["FPGA_List", "Media_Files", "HDMI_In", "Led_Settings", "Test"]
 Page_List = [FpgaListPage, MediaFilesPage, HDMIInPage, LedSettingsPage, TestPage]

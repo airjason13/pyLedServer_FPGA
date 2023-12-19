@@ -34,7 +34,7 @@ class TestPage(QWidget):
         self.layout.addWidget(self.label_name, 0, 1)
         self.layout.addWidget(self.test_btn, 1, 2)
         self.setLayout(self.layout)
-        self.frame.layout().addWidget(self)
+        # self.frame.layout().addWidget(self)
 
     def func_test_btn(self):
         log.debug("func test btn clicked")

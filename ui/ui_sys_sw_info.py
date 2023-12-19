@@ -10,7 +10,7 @@ import psutil
 class UiSystemSoftware(QWidget):
 
     CPU_USAGE_MIN = 0
-    CPU_USAGE_DEFAULT = 50
+    CPU_USAGE_DEFAULT = 100
     CPU_USAGE_MAX = 100
     CIRCLE_PROGRESS_DEFAULT_WIDTH = 300
     CIRCLE_PROGRESS_DEFAULT_HEIGHT = 300
@@ -67,9 +67,10 @@ class UiSystemSoftware(QWidget):
                 cp.setValue(self.CPU_USAGE_DEFAULT)
             cp.setDecimals(1)
             cp.setNullPosition(90)
+
             cp.setBarStyle(QRoundProgressBar.StyleDonut)
-            cp.setDataColors([(0., QtGui.QColor.fromRgb(0, 255, 0)),
-                              (0.5, QtGui.QColor.fromRgb(128, 255, 0)),
+            cp.setDataColors([(0., QtGui.QColor.fromRgb(128, 196, 0)),
+                              (0.5, QtGui.QColor.fromRgb(196, 128, 0)),
                               (1., QtGui.QColor.fromRgb(255, 0, 0))])
 
             self.vertical_layout.addWidget(cp)

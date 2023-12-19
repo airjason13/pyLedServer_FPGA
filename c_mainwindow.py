@@ -113,8 +113,6 @@ class MainUi(QMainWindow):
 
     def init_pages_on_right_frame(self):
         for k, v in Page_Map.items():
-            # log.debug("Name : %s", k)
-            # log.debug("v : %s", v)
             if k == "FPGA_List" or k == "Led_Settings":
                 page = v(self, self.right_frame, k, self.fpga_list)
             else:
