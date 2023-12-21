@@ -7,6 +7,8 @@ import pyqtgraph as pg
 import platform
 import os
 import qdarkstyle
+
+import utils.utils_file_access
 from global_def import *
 from PyQt5.QtWidgets import QApplication
 
@@ -17,7 +19,7 @@ from ui.ui_media_files_page import MediaFilesPage
 from ui.ui_hdmi_in_page import HDMIInPage
 from ui.ui_led_settings_page import LedSettingsPage
 from ui.ui_test_page import TestPage
-
+from ext_qt_widgets.media_file_list import MediaFileList
 
 class MainUi(QMainWindow):
 
@@ -62,12 +64,16 @@ class MainUi(QMainWindow):
         ''' fpga_list initial '''
         self.fpga_list = []
 
+
+        log.debug("%s", )
+
         self.init_ui_total()
 
     def init_ui_total(self):
         self.setWindowTitle("GIS FPGA LED Server")
         self.setWindowOpacity(1.0)  # 窗口透明度
         self.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
+        
         log.debug("self.screen.size() : %s", self.screen.size())
         self.resize(self.screen.size())
 

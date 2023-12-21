@@ -1,3 +1,5 @@
+import os
+
 from version import *
 
 import utils.log_utils
@@ -19,3 +21,4 @@ Page_Map = dict(zip(Page_Select_Btn_Name_List, Page_List))
 Version = (
     "{}{}{}_{}{}{}".format(Version_Year, Version_Month, Version_Date,
                            Version_Major, Version_Minor, Version_Patch))
+
