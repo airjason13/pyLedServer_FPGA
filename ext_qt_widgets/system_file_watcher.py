@@ -5,9 +5,11 @@ from global_def import log
 class FileWatcher(QObject):
     signal_folder_changed = pyqtSignal(str)
 
-    def __init__(self, paths, **kwargs):
+    def __init__(self, paths: list, **kwargs):
         super(FileWatcher, self).__init__(**kwargs)
         self.watch_paths = paths
+        self.file_watcher = []
+        log.debug("watch paths : %s", self.watch_paths)
         self.watcher = QFileSystemWatcher(self.watch_paths)
         self.watcher.directoryChanged.connect(self.directory_changed)
 

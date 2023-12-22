@@ -7,6 +7,7 @@ from PyQt5.QtGui import QFont, QMouseEvent, QMovie
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, \
     QAbstractItemView, QTreeWidgetItem, QLabel, QFrame
 
+import utils.utils_file_access
 from ext_qt_widgets.media_file_list import MediaFileList
 from ext_qt_widgets.system_file_watcher import FileWatcher
 from global_def import log
@@ -31,21 +32,26 @@ class MediaFilesPage(QWidget):
         self.frame.setMouseTracking(True)
         self.widget = QWidget(self.frame)
         self.name = _name
-        self.test_btn = None
-        self.label_name = None
         self.media_files_tree_widget = None
         self.layout = None
+
+        ''' 檔案預覽畫面縮圖 '''
         self.preview_file_name = None
         self.preview_file_movie = None
-
-        ''' media file list internal '''
-        self.internal_media_folder = os.path.expanduser("~" + MediaFileFolder)
-        self.media_file_list_internal = MediaFileList(self.internal_media_folder)
-        self.external_media_folder = self.TAG_Str_Media_Folder + os.getlogin()
-        self.media_file_list_external = MediaFileList(self.external_media_folder)
-
         self.internal_media_file_tree_widget_root = None
         self.external_media_file_tree_widget_root = None
+
+        ''' media file list internal '''
+        self.internal_media_folder = []
+        self.internal_media_folder.append(os.path.expanduser("~" + MediaFileFolder))
+        self.media_file_list_internal = []
+        for d in self.internal_media_folder:
+            self.media_file_list_internal.append(MediaFileList(d))
+        log.debug("mount point : %s", utils.utils_file_access.get_mount_points())
+        self.external_media_folder = utils.utils_file_access.get_mount_points()
+        self.media_file_list_external = []
+        for d in self.external_media_folder:
+            self.media_file_list_external.append(MediaFileList(d))
 
         self.init_ui()
 
@@ -57,9 +63,9 @@ class MediaFilesPage(QWidget):
         self.media_preview_widget = media_preview_widget
 
         ''' install file watcher signal/slot'''
-        self.internal_file_watcher = FileWatcher([self.internal_media_folder])
+        self.internal_file_watcher = FileWatcher(self.internal_media_folder)
         self.internal_file_watcher.install_folder_changed_slot(self.internal_media_files_changed)
-        self.external_file_watcher = FileWatcher([self.external_media_folder])
+        self.external_file_watcher = FileWatcher([self.TAG_Str_Media_Folder + os.getlogin()])
         self.external_file_watcher.install_folder_changed_slot(self.external_media_files_changed)
 
     def init_ui(self):
@@ -101,11 +107,14 @@ class MediaFilesPage(QWidget):
         self.setLayout(self.layout)
 
     def refresh_internal_media_file_list_tree_widget(self):
-        self.media_file_list_internal = MediaFileList(self.internal_media_folder)
+        self.media_file_list_internal = []
+        for d in self.internal_media_folder:
+            self.media_file_list_internal.append(MediaFileList(d))
+        # self.media_file_list_internal = MediaFileList(self.internal_media_folder)
         for i in reversed(range(self.internal_media_file_tree_widget_root.childCount())):
             self.internal_media_file_tree_widget_root.removeChild(self.internal_media_file_tree_widget_root.child(i))
         # self.media_files_tree_widget.headerItem().setText(0, "Media Files")
-        for f in self.media_file_list_internal.filelist:
+        for f in self.media_file_list_internal[0].filelist:
             internal_file_item = QTreeWidgetItem()
             internal_file_item.setText(0, os.path.basename(f))
 
@@ -114,23 +123,32 @@ class MediaFilesPage(QWidget):
         # self.refresh_playlist_items()
 
     def refresh_external_media_file_list_tree_widget(self):
-        self.media_file_list_external = MediaFileList(self.external_media_folder)
+        self.media_file_list_external = []
+        for d in self.external_media_folder:
+            self.media_file_list_external.append(MediaFileList(d))
+        # self.media_file_list_external = MediaFileList(self.external_media_folder)
         for i in reversed(range(self.external_media_file_tree_widget_root.childCount())):
-            self.external_media_file_tree_widget_root.removeChild(self.internal_media_file_tree_widget_root.child(i))
+            self.external_media_file_tree_widget_root.removeChild(self.external_media_file_tree_widget_root.child(i))
         # self.media_files_tree_widget.headerItem().setText(0, "Media Files")
-        for f in self.media_file_list_external.filelist:
-            external_file_item = QTreeWidgetItem()
-            external_file_item.setText(0, os.path.basename(f))
-
-            self.gen_external_media_file_thumbnails(os.path.basename(f))
-            self.external_media_file_tree_widget_root.addChild(external_file_item)
+        for i in range(len(self.media_file_list_external)):
+            log.debug("%s", self.media_file_list_external[i].folder_uri)
+            external_folder_tree_widget = QTreeWidgetItem()
+            external_folder_tree_widget.setText(0, os.path.basename(self.media_file_list_external[i].folder_uri))
+            self.external_media_file_tree_widget_root.addChild(external_folder_tree_widget)
+            for f in self.media_file_list_external[i].filelist:
+                external_file_item = QTreeWidgetItem()
+                external_file_item.setText(0, os.path.basename(f))
+                self.gen_external_media_file_thumbnails(self.media_file_list_external[i].folder_uri, os.path.basename(f))
+                self.external_media_file_tree_widget_root.child(i).addChild(external_file_item)
         # self.refresh_playlist_items()
 
     def gen_internal_media_file_thumbnails(self, base_fname):
-        gen_webp_from_video_threading(self.internal_media_folder, os.path.basename(base_fname))
+        for d in self.internal_media_folder:
+            gen_webp_from_video_threading(d, os.path.basename(base_fname))
 
-    def gen_external_media_file_thumbnails(self, base_fname):
-        gen_webp_from_video_threading(self.external_media_folder, os.path.basename(base_fname))
+    def gen_external_media_file_thumbnails(self, folder_path, base_fname):
+        gen_webp_from_video_threading(folder_path, os.path.basename(base_fname))
+        # gen_webp_from_video_threading(self.external_media_folder, os.path.basename(base_fname))
 
     ''' show preview widget or not'''
     def mouse_move_on_tree(self, event: QMouseEvent):
@@ -153,11 +171,10 @@ class MediaFilesPage(QWidget):
                     self.releaseMouse()
                     return
             self.preview_file_name = self.media_files_tree_widget.itemAt(event.x(), event.y()).text(0)
-            # log.debug("self.preview_file_name : %s", self.preview_file_name)
             thumbnail_file_name = hashlib.md5(
                 self.preview_file_name.split(".")[0].encode('utf-8')).hexdigest() + ".webp"
             if os.path.exists(
-                    self.internal_media_folder + ThumbnailFileFolder + thumbnail_file_name) is False:
+                    self.internal_media_folder[0] + ThumbnailFileFolder + thumbnail_file_name) is False:
                 if self.media_preview_widget.isVisible() is True:
                     self.media_preview_widget.hide()
                 self.releaseMouse()
@@ -173,27 +190,22 @@ class MediaFilesPage(QWidget):
 
                 del self.preview_file_movie
                 self.preview_file_movie = QMovie(
-                    self.internal_media_folder + ThumbnailFileFolder + thumbnail_file_name)
+                    self.internal_media_folder[0] + ThumbnailFileFolder + thumbnail_file_name)
 
                 self.media_preview_widget.setMovie(self.preview_file_movie)
                 self.preview_file_movie.start()
                 self.media_preview_widget.show()
-                # self.preview_file_movie.finished.connect(self.preview_file_movie_stop)
         except Exception as e:
             log.debug(e)
         finally:
             self.releaseMouse()
 
-    def preview_file_movie_stop(self):
-        log.debug("")
-        time.sleep(3)
-        self.media_preview_widget.hide()
-        self.media_preview_widget.setVisible(False)
 
     def internal_media_files_changed(self):
-        log.debug("")
         self.refresh_internal_media_file_list_tree_widget()
 
     def external_media_files_changed(self):
-        log.debug("")
+        os.sync()
+        self.external_media_folder = utils.utils_file_access.get_mount_points()
+        log.debug("%s", self.external_media_folder)
         self.refresh_external_media_file_list_tree_widget()

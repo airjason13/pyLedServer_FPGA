@@ -8,14 +8,15 @@ class MediaFileList(QObject):
 
     def __init__(self, uri):
         super().__init__()
-        self.folder_uri = uri
-        self.filelist = self.get_media_file_list(self.folder_uri)
 
-    def get_media_file_list(self, abs_dir_path):
-        log.error("dir : %s", abs_dir_path)
+        self.folder_uri = uri
+        # log.debug("self.folder_uri : %s", self.folder_uri)
+        self.filelist = self.get_media_file_list(self.folder_uri)
+        # log.debug("file_list = %s", self.filelist)
+
+    def get_media_file_list(self, abs_dir_path: str):
+        # log.error("dir : %s", abs_dir_path)
         file_list = []
         for s in self.SUPPORT_FILE_EXTENSION_STR_LIST:
-            file_list += (glob.glob(abs_dir_path + "/*." + s))
-
-        log.debug("file_list = %s", file_list)
+            file_list += (glob.glob(self.folder_uri + "/*." + s))
         return file_list
