@@ -1,4 +1,5 @@
 import glob
+import os.path
 
 import psutil
 import pyudev
@@ -31,4 +32,12 @@ def get_mount_points(devices=None):
     return mount_points
 
 
+def get_playlist_file_list(dir, with_path=False):
+    log.debug("dir : %s", dir)
+    if os.path.isdir(dir) is False:
+        cmd = 'mkdir -p ' + dir
+        os.system(cmd)
+    file_list = glob.glob(dir + "/*.playlist")
+    # print("type(file_list) = %s", type(file_list))
+    return file_list
 

@@ -71,8 +71,6 @@ class MainUi(QMainWindow):
         ''' fpga_list initial '''
         self.fpga_list = []
 
-        log.debug("%s", )
-
         self.init_ui_total()
 
     def init_ui_total(self):

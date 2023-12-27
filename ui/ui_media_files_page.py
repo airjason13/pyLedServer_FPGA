@@ -1,12 +1,16 @@
 import hashlib
 import os
+
+import qdarkstyle
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont, QMouseEvent, QMovie
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, \
-    QAbstractItemView, QTreeWidgetItem, QLabel, QFrame
+    QAbstractItemView, QTreeWidgetItem, QLabel, QFrame, QMenu, QAction
 
-import utils.utils_file_access
+from utils.utils_file_access import get_playlist_file_list, get_mount_points
 from ext_qt_widgets.media_file_list import MediaFileList
+from ext_qt_widgets.media_playlist import PlayList
+from ext_qt_widgets.new_playlist_dialog_widget import NewPlaylistDialog
 from ext_qt_widgets.system_file_watcher import FileWatcher
 from global_def import log
 from ext_qt_widgets.custom_tree_widget import CTreeWidget
@@ -22,6 +26,18 @@ class MediaFilesPage(QWidget):
     TAG_Str_Media_Files = 'Media Files'
     TAG_Str_Internal_Media = 'Internal Media'
     TAG_Str_External_Media = 'External Media'
+    TAG_Str_Playlist = 'Playlist'
+
+    TAG_Str_Popup_Menu_Play = 'Play'
+    TAG_Str_Popup_Menu_Delete = 'Delete'
+    TAG_Str_Popup_Menu_Play_Playlist = "Play Playlist"
+    TAG_Str_Popup_Menu_Delete_Playlist = 'Delete Playlist'
+    TAG_Str_Popup_Menu_Add_to = 'Add to '
+    TAG_Str_Popup_Menu_Add_to_Playlist = 'Add to Playlist'
+    TAG_Str_Popup_Menu_Add_to_New_Playlist = 'New Playlist'
+    TAG_Str_Popup_Menu_Copy_To_Internal = 'Copy to Internal'
+    TAG_Str_Popup_Menu_Remove_From_Playlist = 'Remove From Playlist'
+    TAG_Str_Splash_Mark = "/"
 
     def __init__(self, _main_window, _frame: QWidget, _name, **kwargs):
         super(MediaFilesPage, self).__init__(**kwargs)
@@ -33,11 +49,18 @@ class MediaFilesPage(QWidget):
         self.media_files_tree_widget = None
         self.layout = None
 
+        ''' mouse right click position'''
+        self.right_clicked_pos = None
+
+        ''' 創建 Playlist 對話窗'''
+        self.NewPlaylistDialog = None
+
         ''' 檔案預覽畫面縮圖 '''
         self.preview_file_name = None
         self.preview_file_movie = None
         self.internal_media_file_tree_widget_root = None
         self.external_media_file_tree_widget_root = None
+        self.media_playlist_tree_widget_root = None
 
         ''' media file list internal '''
         self.internal_media_folder = []
@@ -45,11 +68,19 @@ class MediaFilesPage(QWidget):
         self.media_file_list_internal = []
         for d in self.internal_media_folder:
             self.media_file_list_internal.append(MediaFileList(d))
-        log.debug("mount point : %s", utils.utils_file_access.get_mount_points())
-        self.external_media_folder = utils.utils_file_access.get_mount_points()
+        log.debug("mount point : %s", get_mount_points())
+        self.external_media_folder = get_mount_points()
         self.media_file_list_external = []
         for d in self.external_media_folder:
             self.media_file_list_external.append(MediaFileList(d))
+
+        '''handle the playlist'''
+        self.playlist_files_list = get_playlist_file_list(self.internal_media_folder[0] + PlaylistFolder)
+        log.debug("playlist_files_list : %s", self.playlist_files_list)
+        self.media_playlist = []
+        for file in self.playlist_files_list:
+            playlist_tmp = PlayList(file)
+            self.media_playlist.append(playlist_tmp)
 
         self.init_ui()
 
@@ -82,12 +113,6 @@ class MediaFilesPage(QWidget):
         '''Enable 右鍵選單 '''
         self.media_files_tree_widget.setContextMenuPolicy(Qt.CustomContextMenu)
         self.media_files_tree_widget.customContextMenuRequested.connect(self.right_click_context_menu)
-        '''self.media_files_tree_widget.itemClicked.connect(self.file_selected)
-        self.media_files_tree_widget.itemChanged.connect(self.file_changed)
-        self.media_files_tree_widget.itemEntered.connect(self.file_item_entered)
-        self.media_files_tree_widget.itemActivated.connect(self.file_item_activated)
-        self.media_files_tree_widget.itemSelectionChanged.connect(self.file_item_selection_changed)
-        self.media_files_tree_widget.currentItemChanged.connect(self.file_item_currentItemChanged)'''
 
         ''' Handle Internal Media Folder '''
         self.internal_media_file_tree_widget_root = QTreeWidgetItem(self.media_files_tree_widget)
@@ -99,6 +124,11 @@ class MediaFilesPage(QWidget):
         self.external_media_file_tree_widget_root = QTreeWidgetItem(self.media_files_tree_widget)
         self.external_media_file_tree_widget_root.setText(0, self.TAG_Str_External_Media)
         self.refresh_external_media_file_list_tree_widget()
+
+        ''' Handle Media Playlist '''
+        self.media_playlist_tree_widget_root = QTreeWidgetItem(self.media_files_tree_widget)
+        self.media_playlist_tree_widget_root.setText(0, self.TAG_Str_Playlist)
+        self.refresh_media_playlist_tree_widget()
 
         self.media_files_tree_widget.addTopLevelItem(self.internal_media_file_tree_widget_root)
         self.media_files_tree_widget.addTopLevelItem(self.external_media_file_tree_widget_root)
@@ -127,10 +157,8 @@ class MediaFilesPage(QWidget):
         self.media_file_list_external = []
         for d in self.external_media_folder:
             self.media_file_list_external.append(MediaFileList(d))
-        # self.media_file_list_external = MediaFileList(self.external_media_folder)
         for i in reversed(range(self.external_media_file_tree_widget_root.childCount())):
             self.external_media_file_tree_widget_root.removeChild(self.external_media_file_tree_widget_root.child(i))
-        # self.media_files_tree_widget.headerItem().setText(0, "Media Files")
         for i in range(len(self.media_file_list_external)):
             log.debug("%s", self.media_file_list_external[i].folder_uri)
             external_folder_tree_widget = QTreeWidgetItem()
@@ -141,7 +169,21 @@ class MediaFilesPage(QWidget):
                 external_file_item.setText(0, os.path.basename(f))
                 self.gen_external_media_file_thumbnails(self.media_file_list_external[i].folder_uri, os.path.basename(f))
                 self.external_media_file_tree_widget_root.child(i).addChild(external_file_item)
-        # self.refresh_playlist_items()
+
+    def refresh_media_playlist_tree_widget(self):
+        for i in reversed(range(self.media_playlist_tree_widget_root.childCount())):
+            self.media_playlist_tree_widget_root.removeChild(self.media_playlist_tree_widget_root.child(i))
+
+        for i in range(len(self.media_playlist)):
+            log.debug("playlist name : %s", self.media_playlist[i].name)
+            playlist_tree_widget = QTreeWidgetItem()
+            playlist_tree_widget.setText(0, self.media_playlist[i].name)
+            self.media_playlist_tree_widget_root.addChild(playlist_tree_widget)
+            for f in self.media_playlist[i].fileslist:
+                log.debug("f: %s", f)
+                playlist_content_item = QTreeWidgetItem()
+                playlist_content_item.setText(0, os.path.basename(f))
+                self.media_playlist_tree_widget_root.child(i).addChild(playlist_content_item)
 
     def gen_internal_media_file_thumbnails(self, base_fname):
         for d in self.internal_media_folder:
@@ -206,9 +248,220 @@ class MediaFilesPage(QWidget):
 
     def external_media_files_changed(self):
         os.sync()
-        self.external_media_folder = utils.utils_file_access.get_mount_points()
+        self.external_media_folder = get_mount_points()
         log.debug("%s", self.external_media_folder)
         self.refresh_external_media_file_list_tree_widget()
 
-    def right_click_context_menu(self):
+    def right_click_context_menu(self, position):
         log.debug("right_click_context_menu")
+        widgetitem = self.media_files_tree_widget.itemAt(position)
+        self.right_clicked_pos = position
+        log.debug(" %s", widgetitem.text(0))
+        if widgetitem.parent() is None:
+            log.debug("Click on Title")
+            return
+        else:
+            if widgetitem.parent().text(0) == self.TAG_Str_Internal_Media:
+                log.debug("Internal Media")
+                self.show_internal_media_file_popup_menu(self.media_files_tree_widget.mapToGlobal(position))
+            elif widgetitem.parent().text(0) == self.TAG_Str_Playlist:
+                log.debug("Playlist File")
+                self.show_playlist_file_popup_menu(self.media_files_tree_widget.mapToGlobal(position))
+            elif widgetitem.parent().parent() is not None:
+                if widgetitem.parent().parent().text(0) == self.TAG_Str_External_Media:
+                    log.debug("External Media")
+                    self.show_external_media_file_popup_menu(self.media_files_tree_widget.mapToGlobal(position))
+                elif widgetitem.parent().parent().text(0) == self.TAG_Str_Playlist:
+                    log.debug("Playlist Content")
+                    self.show_playlist_content_popup_menu(self.media_files_tree_widget.mapToGlobal(position))
+            # elif widgetitem.parent().text(0) == self.TAG_Str_Playlist:
+            #    log.debug("Playlist")
+                # self.show_internal_media_file_popup_menu(self.media_files_tree_widget.mapToGlobal(position))
+
+    def show_internal_media_file_popup_menu(self, pos):
+        pop_menu = QMenu()
+        try:
+            pop_menu.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5() + \
+                              """
+                              QMenu{
+                                  button-layout : 2;
+                                  font: bold 16pt "Brutal Type";
+                                  border: 3px solid #FFA042;
+                                  border-radius: 8px;
+                                  }
+                              """)
+        except Exception as e:
+            log.error(e)
+        play_act = QAction(self.TAG_Str_Popup_Menu_Play, self)
+        pop_menu.addAction(play_act)
+        del_act = QAction(self.TAG_Str_Popup_Menu_Delete, self)
+        pop_menu.addAction(del_act)
+        pop_menu.addSeparator()
+        add_to_playlist_menu = QMenu(self.TAG_Str_Popup_Menu_Add_to_Playlist)
+        try:
+            add_to_playlist_menu.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5() + \
+                                   """
+                                   QMenu{
+                                       button-layout : 2;
+                                       font: bold 16pt "Brutal Type";
+                                       border: 3px solid #FFA042;
+                                       border-radius: 8px;
+                                       }
+                                   """)
+        except Exception as e:
+            log.error(e)
+        for playlist in self.media_playlist:
+            playlist_name = playlist.name
+            add_to_playlist_menu.addAction(self.TAG_Str_Popup_Menu_Add_to + playlist_name)
+        add_to_playlist_menu.addAction(self.TAG_Str_Popup_Menu_Add_to_New_Playlist)
+        pop_menu.addMenu(add_to_playlist_menu)
+        pop_menu.triggered[QAction].connect(self.pop_menu_trigger_act)
+        pop_menu.exec_(pos)
+
+    def show_playlist_file_popup_menu(self, pos):
+        pop_menu = QMenu()
+        try:
+            pop_menu.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5() + \
+                                   """
+                                   QMenu{
+                                       button-layout : 2;
+                                       font: bold 16pt "Brutal Type";
+                                       border: 3px solid #FFA042;
+                                       border-radius: 8px;
+                                       }
+                                   """)
+        except Exception as e:
+            log.error(e)
+        play_act = QAction(self.TAG_Str_Popup_Menu_Play_Playlist, self)
+        pop_menu.addAction(play_act)
+        del_act = QAction(self.TAG_Str_Popup_Menu_Delete_Playlist, self)
+        pop_menu.addAction(del_act)
+
+        pop_menu.triggered[QAction].connect(self.pop_menu_trigger_act)
+        pop_menu.exec_(pos)
+
+    def show_playlist_content_popup_menu(self, pos):
+        pop_menu = QMenu()
+        try:
+            pop_menu.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5() + \
+                                   """
+                                   QMenu{
+                                       button-layout : 2;
+                                       font: bold 16pt "Brutal Type";
+                                       border: 3px solid #FFA042;
+                                       border-radius: 8px;
+                                       }
+                                   """)
+        except Exception as e:
+            log.error(e)
+        play_act = QAction(self.TAG_Str_Popup_Menu_Play_Playlist, self)
+        pop_menu.addAction(play_act)
+        del_act = QAction(self.TAG_Str_Popup_Menu_Remove_From_Playlist, self)
+        pop_menu.addAction(del_act)
+        pop_menu.triggered[QAction].connect(self.pop_menu_trigger_act)
+        pop_menu.exec_(pos)
+
+    def show_external_media_file_popup_menu(self, pos):
+        pop_menu = QMenu()
+        try:
+            pop_menu.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5() + \
+                              """
+                              QMenu{
+                                  button-layout : 2;
+                                  font: bold 16pt "Brutal Type";
+                                  border: 3px solid #FFA042;
+                                  border-radius: 8px;
+                                  }
+                              """)
+        except Exception as e:
+            log.error(e)
+        play_act = QAction(self.TAG_Str_Popup_Menu_Copy_To_Internal, self)
+        pop_menu.addAction(play_act)
+        del_act = QAction(self.TAG_Str_Popup_Menu_Delete, self)
+        pop_menu.addAction(del_act)
+        ''' I do not want to add external media file to playlist '''
+
+        pop_menu.triggered[QAction].connect(self.pop_menu_trigger_act)
+        pop_menu.exec_(pos)
+
+    def pop_menu_trigger_act(self, q):
+        log.debug("%s", q.text())
+        ''' The function handle all the pop up menu function'''
+        if self.TAG_Str_Popup_Menu_Add_to in q.text():
+            playlist_name = q.text().split(" ")[2]
+            selected_widget = self.media_files_tree_widget.itemAt(self.right_clicked_pos)
+            file_uri_to_add = None
+            if selected_widget.parent().text(0) == self.TAG_Str_Internal_Media:
+                file_uri_to_add = self.internal_media_folder[0] + "/" + selected_widget.text(0)
+            for pl in self.media_playlist:
+                if pl.name == playlist_name:
+                    pl.add_file_uri_to_playlist(file_uri_to_add)
+                    self.refresh_media_playlist_tree_widget()
+        elif q.text() == self.TAG_Str_Popup_Menu_Add_to_New_Playlist:
+            if self.NewPlaylistDialog is None:
+                self.NewPlaylistDialog = NewPlaylistDialog(self.media_playlist)
+            self.NewPlaylistDialog.signal_new_playlist_generate.connect(self.slot_new_playlist)
+            self.NewPlaylistDialog.show()
+        elif q.text() == self.TAG_Str_Popup_Menu_Delete:
+            try:
+                self.delete_selected_file()
+            except Exception as e:
+                log.debug(e)
+        elif q.text() == self.TAG_Str_Popup_Menu_Copy_To_Internal:
+            log.debug("Copy to Internal not Implemented")
+        elif q.text() == self.TAG_Str_Popup_Menu_Play_Playlist:
+            log.debug("Play Playlist not Implemented")
+        elif q.text() == self.TAG_Str_Popup_Menu_Delete_Playlist:
+            log.debug("Delete Playlist not Implemented")
+        elif q.text() == self.TAG_Str_Popup_Menu_Remove_From_Playlist:
+            log.debug("Remove File From Playlist not Implemented")
+        elif q.text() == self.TAG_Str_Popup_Menu_Play:
+            log.debug("Play")
+
+    def delete_selected_file(self):
+        selected_widget = self.media_files_tree_widget.itemAt(self.right_clicked_pos)
+        log.debug("selected_widget.text(0) : %s", selected_widget.text(0))
+        file_uri_to_delete = None
+        # Internal Media file delete
+        if selected_widget.parent().text(0) == self.TAG_Str_Internal_Media:
+            file_uri_to_delete = self.internal_media_folder[0] + "/" + selected_widget.text(0)
+        # External Media File delete
+        elif selected_widget.parent().parent() is not None:
+            # External Media File delete
+            if selected_widget.parent().parent().text(0) == self.TAG_Str_External_Media:
+                file_uri_to_delete = (self.TAG_Str_Media_Folder + os.getlogin() + self.TAG_Str_Splash_Mark
+                                      + selected_widget.parent().text(0) + self.TAG_Str_Splash_Mark
+                                      + selected_widget.text(0))
+        log.debug("file_uri_to_delete : %s", file_uri_to_delete)
+        if os.path.exists(file_uri_to_delete) is True:
+            os.remove(file_uri_to_delete)
+            thumbnail_file_name = hashlib.md5(
+                file_uri_to_delete.split(self.internal_media_folder[0] + "/")[1].split(".")[0].encode(
+                    'utf-8')).hexdigest() + ".webp"
+            thumbnail_file = self.internal_media_folder[0] + ThumbnailFileFolder + thumbnail_file_name
+            if os.path.exists(thumbnail_file) is True:
+                log.debug("thumbnail_file exists")
+                os.remove(thumbnail_file)
+            if selected_widget.parent().text(0) == self.TAG_Str_Internal_Media:
+                self.refresh_internal_media_file_list_tree_widget()
+            elif selected_widget.parent().parent() is not None:
+                self.refresh_external_media_file_list_tree_widget()
+            # Need to refresh playlist
+            for pl in self.media_playlist:
+                pl.remove_file_from_playlist(file_uri_to_delete)
+            self.refresh_media_playlist_tree_widget()
+
+    def slot_new_playlist(self, new_playlist_name):
+        log.debug("new_playlist_name : %s", new_playlist_name)
+        playlist_tmp = PlayList(new_playlist_name)
+        selected_widget = self.media_files_tree_widget.itemAt(self.right_clicked_pos)
+        if selected_widget.parent().text(0) == self.TAG_Str_Internal_Media:
+            file_uri_add_to_playlist = self.internal_media_folder[0] + "/" + selected_widget.text(0)
+        else:
+            log.error("From where??")
+        # elif selected_widget.parent().text(0) == self.TAG_Str_External_Media:
+        #    file_uri_add_to_playlist = self.internal_media_folder[0] + "/" + selected_widget.text(0)
+        log.debug("file_uri_add_to_playlist : %s", file_uri_add_to_playlist)
+        playlist_tmp.add_file_uri_to_playlist(file_uri_add_to_playlist)
+        self.media_playlist.append(playlist_tmp)
+        self.refresh_media_playlist_tree_widget()
