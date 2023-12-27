@@ -1,7 +1,5 @@
 import hashlib
 import os
-import time
-
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont, QMouseEvent, QMovie
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, \
@@ -81,6 +79,9 @@ class MediaFilesPage(QWidget):
         self.media_files_tree_widget.headerItem().setText(0, "Media Files")
         '''Enable mouse tracker on media_files_tree_widget'''
         self.media_files_tree_widget.setMouseTracking(True)
+        '''Enable 右鍵選單 '''
+        self.media_files_tree_widget.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.media_files_tree_widget.customContextMenuRequested.connect(self.right_click_context_menu)
         '''self.media_files_tree_widget.itemClicked.connect(self.file_selected)
         self.media_files_tree_widget.itemChanged.connect(self.file_changed)
         self.media_files_tree_widget.itemEntered.connect(self.file_item_entered)
@@ -200,7 +201,6 @@ class MediaFilesPage(QWidget):
         finally:
             self.releaseMouse()
 
-
     def internal_media_files_changed(self):
         self.refresh_internal_media_file_list_tree_widget()
 
@@ -209,3 +209,6 @@ class MediaFilesPage(QWidget):
         self.external_media_folder = utils.utils_file_access.get_mount_points()
         log.debug("%s", self.external_media_folder)
         self.refresh_external_media_file_list_tree_widget()
+
+    def right_click_context_menu(self):
+        log.debug("right_click_context_menu")
