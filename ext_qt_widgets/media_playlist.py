@@ -49,5 +49,10 @@ class PlayList(QObject):
         log.debug("after fileslist : %s", self.fileslist)
         self.playlist_sync_file()
 
+    def remove_file_from_playlist_by_idex(self, remove_idx):
+        self.fileslist.pop(remove_idx)
+        self.playlist_sync_file()
+
+
     def __del__(self):
         log.debug("playlist del")

@@ -1,5 +1,6 @@
 import hashlib
 import os
+import shutil
 
 import qdarkstyle
 from PyQt5.QtCore import Qt
@@ -16,6 +17,7 @@ from global_def import log
 from ext_qt_widgets.custom_tree_widget import CTreeWidget
 from media_configs.media_path_configs import *
 from utils.gen_thumbnails import gen_webp_from_video_threading
+from utils.utils_ffmpy import get_ffmpeg_cmd_with_playing_media_file_
 
 
 class MediaFilesPage(QWidget):
@@ -38,6 +40,7 @@ class MediaFilesPage(QWidget):
     TAG_Str_Popup_Menu_Copy_To_Internal = 'Copy to Internal'
     TAG_Str_Popup_Menu_Remove_From_Playlist = 'Remove From Playlist'
     TAG_Str_Splash_Mark = "/"
+    TAG_Str_Playlist_Extension = '.playlist'
 
     def __init__(self, _main_window, _frame: QWidget, _name, **kwargs):
         super(MediaFilesPage, self).__init__(**kwargs)
@@ -184,6 +187,7 @@ class MediaFilesPage(QWidget):
                 playlist_content_item = QTreeWidgetItem()
                 playlist_content_item.setText(0, os.path.basename(f))
                 self.media_playlist_tree_widget_root.child(i).addChild(playlist_content_item)
+
 
     def gen_internal_media_file_thumbnails(self, base_fname):
         for d in self.internal_media_folder:
@@ -408,15 +412,62 @@ class MediaFilesPage(QWidget):
             except Exception as e:
                 log.debug(e)
         elif q.text() == self.TAG_Str_Popup_Menu_Copy_To_Internal:
-            log.debug("Copy to Internal not Implemented")
+            self.copy_external_file_to_internal()
         elif q.text() == self.TAG_Str_Popup_Menu_Play_Playlist:
             log.debug("Play Playlist not Implemented")
         elif q.text() == self.TAG_Str_Popup_Menu_Delete_Playlist:
-            log.debug("Delete Playlist not Implemented")
+            self.delete_selected_playlist()
         elif q.text() == self.TAG_Str_Popup_Menu_Remove_From_Playlist:
-            log.debug("Remove File From Playlist not Implemented")
+            self.remove_file_from_playlist()
         elif q.text() == self.TAG_Str_Popup_Menu_Play:
-            log.debug("Play")
+            log.debug("Play not Implemented")
+            # get_ffmpeg_cmd_with_playing_media_file_("/home/venom/Videos/venom.jpeg", width=480, height=320)
+
+    def copy_external_file_to_internal(self):
+        selected_widget = self.media_files_tree_widget.itemAt(self.right_clicked_pos)
+        selected_file_name = selected_widget.text(0)
+        selected_file_uri = (self.TAG_Str_Media_Folder + os.getlogin() + self.TAG_Str_Splash_Mark +
+                             selected_widget.parent().text(0) + self.TAG_Str_Splash_Mark + selected_file_name)
+        shutil.copy(selected_file_uri, self.internal_media_folder[0] + self.TAG_Str_Splash_Mark + selected_file_name)
+        self.refresh_internal_media_file_list_tree_widget()
+
+    def remove_file_from_playlist(self):
+        selected_widget = self.media_files_tree_widget.itemAt(self.right_clicked_pos)
+        playlist_name = selected_widget.parent().text(0)
+        log.debug('handle playlist_name : %s', playlist_name)
+        ''' We do not determinant the name, we determinant the index for remove item'''
+        remove_idx = None
+        for i in range(selected_widget.parent().childCount()):
+            if selected_widget.parent().child(i) == selected_widget:
+                log.debug("i : %d", i)
+                remove_idx = i
+                break
+        if remove_idx is None:
+            log.error("something wrong with remove index")
+            return
+        for playlist in self.media_playlist:
+            if playlist.name == playlist_name:
+                playlist.remove_file_from_playlist_by_idex(remove_idx)
+                self.refresh_media_playlist_tree_widget()
+
+
+    def delete_selected_playlist(self):
+        selected_widget = self.media_files_tree_widget.itemAt(self.right_clicked_pos)
+        log.debug("selected_widget.text(0) : %s", selected_widget.text(0))
+        playlist_uri_to_delete = None
+        playlist_uri_to_delete = self.internal_media_folder[0] + PlaylistFolder + selected_widget.text(0)
+        log.debug("playlist_uri_to_delete : %s", playlist_uri_to_delete)
+        if os.path.exists(playlist_uri_to_delete) is True:
+            os.remove(playlist_uri_to_delete)
+            ''' refresh self.media_playlist'''
+            self.playlist_files_list = get_playlist_file_list(self.internal_media_folder[0] + PlaylistFolder)
+            log.debug("playlist_files_list : %s", self.playlist_files_list)
+            self.media_playlist = []
+            for file in self.playlist_files_list:
+                playlist_tmp = PlayList(file)
+                self.media_playlist.append(playlist_tmp)
+                ''' refresh media playlist UI'''
+            self.refresh_media_playlist_tree_widget()
 
     def delete_selected_file(self):
         selected_widget = self.media_files_tree_widget.itemAt(self.right_clicked_pos)
@@ -453,7 +504,9 @@ class MediaFilesPage(QWidget):
 
     def slot_new_playlist(self, new_playlist_name):
         log.debug("new_playlist_name : %s", new_playlist_name)
-        playlist_tmp = PlayList(new_playlist_name)
+        new_playlist_uri = (self.internal_media_folder[0] + PlaylistFolder
+                            + new_playlist_name + self.TAG_Str_Playlist_Extension)
+        playlist_tmp = PlayList(new_playlist_uri)
         selected_widget = self.media_files_tree_widget.itemAt(self.right_clicked_pos)
         if selected_widget.parent().text(0) == self.TAG_Str_Internal_Media:
             file_uri_add_to_playlist = self.internal_media_folder[0] + "/" + selected_widget.text(0)
