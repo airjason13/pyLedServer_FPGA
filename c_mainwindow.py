@@ -12,6 +12,7 @@ import utils.utils_file_access
 from global_def import *
 from PyQt5.QtWidgets import QApplication
 
+from media_engine.media_engine import MediaEngine
 from ui.ui_fpga_list_page import FpgaListPage
 from ui.ui_functions_frame import UiFuncFrame
 from ui.ui_sys_sw_info import UiSystemSoftware
@@ -68,10 +69,13 @@ class MainUi(QMainWindow):
         self.main_window_layout = None
         self.main_window_widget = None
 
+        self.media_engine = MediaEngine()
+
         ''' fpga_list initial '''
         self.fpga_list = []
 
         self.init_ui_total()
+
 
     def init_ui_total(self):
         self.setWindowTitle("GIS FPGA LED Server")
@@ -124,9 +128,9 @@ class MainUi(QMainWindow):
     def init_pages_on_right_frame(self):
         for k, v in Page_Map.items():
             if k == "FPGA_List" or k == "Led_Settings":
-                page = v(self, self.right_frame, k, self.fpga_list)
+                page = v(self, self.right_frame, k, media_engine=self.media_engine, fpga_list=self.fpga_list)
             else:
-                page = v(self, self.right_frame, k)
+                page = v(self, self.right_frame, k, media_engine=self.media_engine)
             self.right_frame_page_list.append(page)
             self.right_layout.addWidget(page)
 

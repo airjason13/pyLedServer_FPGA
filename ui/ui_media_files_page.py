@@ -8,7 +8,8 @@ from PyQt5.QtGui import QFont, QMouseEvent, QMovie
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, \
     QAbstractItemView, QTreeWidgetItem, QLabel, QFrame, QMenu, QAction
 
-from utils.utils_file_access import get_playlist_file_list, get_mount_points
+from media_engine.media_engine import MediaEngine
+from utils.utils_file_access import get_playlist_file_list, get_mount_points, get_led_config_from_file_uri
 from ext_qt_widgets.media_file_list import MediaFileList
 from ext_qt_widgets.media_playlist import PlayList
 from ext_qt_widgets.new_playlist_dialog_widget import NewPlaylistDialog
@@ -42,10 +43,13 @@ class MediaFilesPage(QWidget):
     TAG_Str_Splash_Mark = "/"
     TAG_Str_Playlist_Extension = '.playlist'
 
-    def __init__(self, _main_window, _frame: QWidget, _name, **kwargs):
-        super(MediaFilesPage, self).__init__(**kwargs)
+    def __init__(self, _main_window, _frame: QWidget, _name: str, media_engine: MediaEngine, **kwargs):
+        super(MediaFilesPage, self).__init__()
         self.main_windows = _main_window
         self.frame = _frame
+        self.media_engine = media_engine
+        self.media_engine.test()
+
         self.frame.setMouseTracking(True)
         self.widget = QWidget(self.frame)
         self.name = _name
@@ -421,6 +425,9 @@ class MediaFilesPage(QWidget):
             self.remove_file_from_playlist()
         elif q.text() == self.TAG_Str_Popup_Menu_Play:
             log.debug("Play not Implemented")
+            w, h = get_led_config_from_file_uri("led_wall_resolution",
+                                                "led_wall_width", "led_wall_height")
+            log.debug("w : %s, h : %s", w, h)
             # get_ffmpeg_cmd_with_playing_media_file_("/home/venom/Videos/venom.jpeg", width=480, height=320)
 
     def copy_external_file_to_internal(self):

@@ -1,5 +1,6 @@
 import glob
 import os.path
+import sys
 
 import psutil
 import pyudev
@@ -38,6 +39,24 @@ def get_playlist_file_list(dir, with_path=False):
         cmd = 'mkdir -p ' + dir
         os.system(cmd)
     file_list = glob.glob(dir + "/*.playlist")
-    # print("type(file_list) = %s", type(file_list))
     return file_list
+
+
+def get_led_config_from_file_uri(file_name, *args):
+    root_dir = os.path.dirname(sys.modules['__main__'].__file__)
+    led_config_dir = os.path.join(root_dir, 'led_config')
+    with open(os.path.join(led_config_dir, file_name), "r") as f:
+        lines = f.readlines()
+    f.close()
+
+    ret_val = ['']*len(args)
+    for i in range(len(args)):
+        log.debug("arg : %s", args[i])
+        for line in lines:
+            if args[i] in line:
+                ret_val[i] = line.split("=")[1].strip("\n")
+
+    return ret_val
+
+
 

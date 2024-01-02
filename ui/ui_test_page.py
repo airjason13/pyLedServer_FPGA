@@ -4,13 +4,14 @@ from PyQt5.QtGui import QFont
 from PyQt5.QtWidgets import QTreeWidget, QTableWidget, QWidget, QVBoxLayout, QTableWidgetItem, QLabel, QGridLayout, \
     QPushButton
 from global_def import *
+from media_engine.media_engine import MediaEngine
 from qt_ui_style.button_qss import *
 
 
 class TestPage(QWidget):
 
-    def __init__(self, _main_window, _frame: QWidget, _name, **kwargs):
-        super(TestPage, self).__init__(**kwargs)
+    def __init__(self, _main_window, _frame: QWidget, _name: str, media_engine: MediaEngine, **kwargs):
+        super(TestPage, self).__init__()
         self.main_windows = _main_window
         self.frame = _frame
         self.widget = QWidget(self.frame)
