@@ -65,9 +65,9 @@ class VideoParams(QObject):
             elif tmp[0] == "led_b_gain":
                 self.led_b_gain = int(tmp[1])
 
-
     def check_video_param_file_valid(self):
-        return False
+        ''' Not Implemented yet'''
+        return True
 
     def sync_video_param_from_file_watcher(self):
         log.debug("")

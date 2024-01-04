@@ -48,7 +48,6 @@ class MediaFilesPage(QWidget):
         self.main_windows = _main_window
         self.frame = _frame
         self.media_engine = media_engine
-        self.media_engine.test()
 
         self.frame.setMouseTracking(True)
         self.widget = QWidget(self.frame)
@@ -191,7 +190,6 @@ class MediaFilesPage(QWidget):
                 playlist_content_item = QTreeWidgetItem()
                 playlist_content_item.setText(0, os.path.basename(f))
                 self.media_playlist_tree_widget_root.child(i).addChild(playlist_content_item)
-
 
     def gen_internal_media_file_thumbnails(self, base_fname):
         for d in self.internal_media_folder:
@@ -425,10 +423,15 @@ class MediaFilesPage(QWidget):
             self.remove_file_from_playlist()
         elif q.text() == self.TAG_Str_Popup_Menu_Play:
             log.debug("Play not Implemented")
-            w, h = get_led_config_from_file_uri("led_wall_resolution",
+            selected_widget = self.media_files_tree_widget.itemAt(self.right_clicked_pos)
+            selected_file_name = selected_widget.text(0)
+            select_file_uri = self.internal_media_folder[0] + "/" + selected_widget.text(0)
+            self.media_engine.single_play(select_file_uri)
+            '''w, h = get_led_config_from_file_uri("led_wall_resolution",
                                                 "led_wall_width", "led_wall_height")
             log.debug("w : %s, h : %s", w, h)
-            # get_ffmpeg_cmd_with_playing_media_file_("/home/venom/Videos/venom.jpeg", width=480, height=320)
+            get_ffmpeg_cmd_with_playing_media_file_("/home/venom/Videos/venom.jpeg", width=480, height=320,
+                                                    target_fps="24/1", image_period=20)'''
 
     def copy_external_file_to_internal(self):
         selected_widget = self.media_files_tree_widget.itemAt(self.right_clicked_pos)
@@ -456,7 +459,6 @@ class MediaFilesPage(QWidget):
             if playlist.name == playlist_name:
                 playlist.remove_file_from_playlist_by_idex(remove_idx)
                 self.refresh_media_playlist_tree_widget()
-
 
     def delete_selected_playlist(self):
         selected_widget = self.media_files_tree_widget.itemAt(self.right_clicked_pos)
