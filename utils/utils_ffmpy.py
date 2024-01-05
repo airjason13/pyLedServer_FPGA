@@ -17,6 +17,10 @@ def get_ffmpeg_cmd_with_playing_media_file_(video_uri: str, **kwargs):
     scale_param = 'scale=' + str(width) + ':' + str(height)
     filter_params = scale_param
     pipe_sink = '-'
+    if platform.machine() in ('arm', 'arm64', 'aarch64'):
+        audio_sink = 'hw:1,0'
+    else:
+        audio_sink = 'hw:0,0'
 
     if video_uri.endswith("mp4"):
         ff = ffmpy.FFmpeg(
@@ -25,7 +29,8 @@ def get_ffmpeg_cmd_with_playing_media_file_(video_uri: str, **kwargs):
                 video_uri: ["-re"]
             },
             outputs={
-                pipe_sink: ["-filter_complex", filter_params, "-r", target_fps, "-pix_fmt", "rgb24", "-f", "rawvideo"]
+                pipe_sink: ["-filter_complex", filter_params, "-r", target_fps, "-pix_fmt", "rgb24", "-f", "rawvideo"],
+                audio_sink: ["-f", "alsa"]
             },
         )
     elif video_uri.endswith("jpeg") or video_uri.endswith("jpg") or video_uri.endswith("png"):
