@@ -2,6 +2,7 @@ import enum
 import os
 import signal
 import subprocess
+import time
 
 import numpy as np
 from PyQt5.QtCore import QObject, pyqtSignal, QMutex, QThread
@@ -15,7 +16,7 @@ from global_def import log
 
 
 class MediaEngine(QObject):
-    signal_media_play_status_changed = pyqtSignal(bool, int)
+    signal_media_play_status_changed = pyqtSignal(bool, str)
 
     def __init__(self):
         super(MediaEngine, self).__init__()
@@ -34,6 +35,9 @@ class MediaEngine(QObject):
         self.play_single_file_thread = None
         self.play_single_file_worker = None
 
+    def install_signal_media_play_status_changed_slot(self, slot_func):
+        self.signal_media_play_status_changed.connect(slot_func)
+
     def set_output_streaming_resolution(self, w: int, h: int):
         self.output_streaming_width = w
         self.output_streaming_height = h
@@ -42,13 +46,15 @@ class MediaEngine(QObject):
         self.output_streaming_width, self.output_streaming_height = (
             get_led_config_from_file_uri("led_wall_resolution", "led_wall_width", "led_wall_height"))
 
-    def play_status_changed(self, status: int):
+    def play_status_changed(self, status: int, playing_src: str):
+        log.debug("playing_src : %s", playing_src)
         self.playing_status = status
         if self.playing_status == PlayStatus.Stop:
             self.playing_preview_window.setVisible(False)
+        self.signal_media_play_status_changed.emit(status, playing_src)
 
     def preview_pixmap_changed(self, raw_image_np_array):
-        log.debug("preview_pixmap_changed")
+        # log.debug("preview_pixmap_changed")
         if raw_image_np_array is None:
             log.error("raw_image_np_array is None")
             return
@@ -70,6 +76,29 @@ class MediaEngine(QObject):
             self.play_single_file_worker.deleteLater)
         self.play_single_file_thread.finished.connect(self.play_single_file_thread.deleteLater)
         self.play_single_file_thread.start()
+
+    def stop_play(self):
+        if self.play_single_file_worker is not None:
+            self.play_single_file_worker.stop()
+            if self.ff_process is not None:
+                os.kill(self.ff_process.pid, signal.SIGTERM)
+            try:
+                if self.play_single_file_thread is not None:
+                    self.play_single_file_thread.quit()
+                for i in range(10):
+                    log.debug("self.play_single_file_thread.isFinished() = %d",
+                              self.play_single_file_thread.isFinished())
+                    if self.play_single_file_thread.isFinished() is True:
+                        break
+                    time.sleep(1)
+
+                log.debug("single_file_worker is not None A2")
+                self.play_single_file_thread.wait()
+                self.play_single_file_thread.exit(0)
+            except Exception as e:
+                log.debug(e)
+            self.play_single_file_worker = None
+            self.play_single_file_thread = None
 
 
 class PlaySingleFileWorker(QObject):
@@ -106,6 +135,7 @@ class PlaySingleFileWorker(QObject):
     def play_status_change(self, status: int, src: str):
         self.play_status = status
         self.playing_source = src
+        log.debug("self.playing_source : %s", self.playing_source)
         self.pysignal_single_file_play_status_change.emit(self.play_status, self.playing_source)
 
     def run(self):
@@ -144,6 +174,7 @@ class PlaySingleFileWorker(QObject):
                         log.debug("self.force_stop is True, ready to kill ff_process")
                         if self.ff_process is not None:
                             os.kill(self.ff_process.pid, signal.SIGTERM)
+                        break
                     '''try:
                         res, err = self.ff_process.communicate()
                         log.debug("%s %s", res, err)
@@ -162,6 +193,7 @@ class PlaySingleFileWorker(QObject):
         self.play_status_change(PlayStatus.Stop, "")
         self.worker_status = 0
         self.pysignal_single_file_play_finished.emit()
+        self.ff_process = None
         log.debug("single play worker finished")
 
     def stop(self):

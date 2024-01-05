@@ -3,12 +3,13 @@ import os
 import shutil
 
 import qdarkstyle
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QFont, QMouseEvent, QMovie
+from PyQt5.QtCore import Qt, QRect, QSize
+from PyQt5.QtGui import QFont, QMouseEvent, QMovie, QPixmap, QIcon
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, \
-    QAbstractItemView, QTreeWidgetItem, QLabel, QFrame, QMenu, QAction
+    QAbstractItemView, QTreeWidgetItem, QLabel, QFrame, QMenu, QAction, QGridLayout, QPushButton
 
 from media_engine.media_engine import MediaEngine
+from media_engine.media_engine_def import PlayStatus
 from utils.utils_file_access import get_playlist_file_list, get_mount_points, get_led_config_from_file_uri
 from ext_qt_widgets.media_file_list import MediaFileList
 from ext_qt_widgets.media_playlist import PlayList
@@ -88,7 +89,23 @@ class MediaFilesPage(QWidget):
             playlist_tmp = PlayList(file)
             self.media_playlist.append(playlist_tmp)
 
+        '''media control panel'''
+        self.media_control_panel = None
+        self.media_control_panel_layout = None
+
+        '''button initial'''
+        self.play_pause_btn = None
+        self.play_stop_btn = None
+        self.play_icon = None
+        self.pause_icon = None
+        self.stop_icon = None
+        self.play_icon_pixmap = None
+        self.pause_icon_pixmap = None
+        self.stop_icon_pixmap = None
+
         self.init_ui()
+
+        self.media_engine.install_signal_media_play_status_changed_slot(self.media_play_status_changed)
 
         media_preview_widget = QLabel()
         media_preview_widget.setFrameShape(QFrame.StyledPanel)
@@ -139,8 +156,37 @@ class MediaFilesPage(QWidget):
         self.media_files_tree_widget.addTopLevelItem(self.internal_media_file_tree_widget_root)
         self.media_files_tree_widget.addTopLevelItem(self.external_media_file_tree_widget_root)
 
+        ''' Media Control Panel Initial'''
+        self.media_control_panel = QWidget()
+        self.media_control_panel_layout = QGridLayout()
+        self.media_control_panel.setLayout(self.media_control_panel_layout)
+
+        ''' Handle Play/Pause/Stop Button'''
+        self.play_pause_btn = QPushButton()
+        self.play_pause_btn.setFixedSize(128, 128)
+        self.play_icon_pixmap = QPixmap("materials/play_btn.png").scaledToWidth(128)
+        self.play_icon = QIcon(self.play_icon_pixmap)
+        self.pause_icon_pixmap = QPixmap("materials/pause_btn.png").scaledToWidth(128)
+        self.pause_icon = QIcon(self.pause_icon_pixmap)
+        self.play_pause_btn.setIcon(self.play_icon)
+        self.play_pause_btn.setIconSize(QSize(128, 128))
+        self.play_pause_btn.setStyleSheet("border-radius : 64px ; border: 2px solid black ;")
+        self.media_control_panel_layout.addWidget(self.play_pause_btn, 0, 1)
+
+        self.play_stop_btn = QPushButton()
+        self.play_stop_btn.setFixedSize(128, 128)
+        self.stop_icon_pixmap = QPixmap("materials/stop_btn.png").scaledToWidth(128)
+        self.stop_icon = QIcon(self.stop_icon_pixmap)
+        self.play_stop_btn.setIcon(self.stop_icon)
+        self.play_stop_btn.setIconSize(QSize(128, 128))
+        self.play_stop_btn.setStyleSheet("border-radius : 64px ; border: 2px solid black ;")
+        self.play_stop_btn.clicked.connect(self.stop_btn_clicked)
+        self.media_control_panel_layout.addWidget(self.play_pause_btn, 0, 0)
+        self.media_control_panel_layout.addWidget(self.play_stop_btn, 0, 1)
+
         self.layout = QVBoxLayout()
         self.layout.addWidget(self.media_files_tree_widget)
+        self.layout.addWidget(self.media_control_panel)
         self.setLayout(self.layout)
 
     def refresh_internal_media_file_list_tree_widget(self):
@@ -527,3 +573,15 @@ class MediaFilesPage(QWidget):
         playlist_tmp.add_file_uri_to_playlist(file_uri_add_to_playlist)
         self.media_playlist.append(playlist_tmp)
         self.refresh_media_playlist_tree_widget()
+
+    def media_play_status_changed(self, status: int, file_uri: str):
+        log.debug("status : %d", status)
+        log.debug("file_uri : %s", file_uri)
+        if status == PlayStatus.Playing:
+            self.play_pause_btn.setIcon(self.pause_icon)
+        elif status == PlayStatus.Stop or status == PlayStatus.Initial:
+            self.play_pause_btn.setIcon(self.play_icon)
+
+    def stop_btn_clicked(self):
+        log.debug("")
+        self.media_engine.stop_play()

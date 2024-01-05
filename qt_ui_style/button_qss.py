@@ -13,7 +13,7 @@ QPushButton_Page_Selector_Min_Height = 64
 QPushButton_Style = """
             QPushButton {
                 border: 2px solid #748CAB;
-                border-radius: 6px;
+                border-radius: 16px;
                 background-color: QLinearGradient(x1: 0, y1: 0, x2: 1, y2: 1,
                                                   stop: 0 #1D2D44, stop: 1 #748CAB);
                 color: QLinearGradient(x1: 0, y1: 0, x2: 1, y2: 1,

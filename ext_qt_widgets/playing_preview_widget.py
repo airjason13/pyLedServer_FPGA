@@ -1,10 +1,12 @@
 import qdarkstyle
+from PyQt5 import QtWidgets
 from PyQt5.QtCore import pyqtSignal, Qt
 from PyQt5.QtGui import QPixmap, QImage
 from PyQt5.QtWidgets import QWidget, QGridLayout, QLabel, QFrame
 
 
 from global_def import log
+from utils.utils_file_access import get_led_config_from_file_uri, get_int_led_config_from_file_uri
 
 
 class PlayingPreviewWindow(QWidget):
@@ -24,8 +26,10 @@ class PlayingPreviewWindow(QWidget):
         self.setWindowTitle("Playing Preview")
         self.layout = None
         self.preview_label = None
-        self.image_display_width = 400
-        self.image_display_height = 300
+        self.live_icon_label = None
+        self.live_icon_pixmap = QPixmap("materials/live_icon.png").scaledToWidth(48)
+        self.image_display_width, self.image_display_height = (
+            get_int_led_config_from_file_uri("led_wall_resolution", "led_wall_width", "led_wall_height"))
         self.init_ui()
 
         # self.error_message_box.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
@@ -34,16 +38,19 @@ class PlayingPreviewWindow(QWidget):
         self.setFixedSize(self.image_display_width, self.image_display_height)
         ''' Total frame layout'''
         self.layout = QGridLayout(self)
-        layoutwidget = QFrame()
-        layoutgridbox = QGridLayout()
-        layoutwidget.setLayout(layoutgridbox)
+        layout_widget = QFrame()
+        layout_gridbox = QGridLayout()
+        layout_widget.setLayout(layout_gridbox)
         self.preview_label = QLabel()
         self.preview_label.setText("Playing Preview")
-        layoutgridbox.addWidget(self.preview_label, 0, 1)
-        self.layout.addWidget(layoutwidget)
+        self.live_icon_label = QLabel()
+        self.live_icon_label.setPixmap(self.live_icon_pixmap)
+        layout_gridbox.addWidget(self.preview_label, 1, 0, 8, 8)
+        layout_gridbox.addWidget(self.live_icon_label, 0, 0)
+        self.layout.addWidget(layout_widget)
 
     def refresh_image(self, np_image):
-        log.debug("")
+        # log.debug("")
         qt_img = self.convert_ffmpeg_qt(np_image)
         self.preview_label.setPixmap(qt_img)
 
