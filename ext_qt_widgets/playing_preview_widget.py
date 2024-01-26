@@ -3,7 +3,7 @@ from PyQt5 import QtWidgets
 from PyQt5.QtCore import pyqtSignal, Qt
 from PyQt5.QtGui import QPixmap, QImage
 from PyQt5.QtWidgets import QWidget, QGridLayout, QLabel, QFrame
-
+import time
 
 from global_def import log
 from utils.utils_file_access import get_led_config_from_file_uri, get_int_led_config_from_file_uri
@@ -57,6 +57,7 @@ class PlayingPreviewWindow(QWidget):
     def convert_ffmpeg_qt(self, ffmpeg_img):
         """Convert from an opencv image to QPixmap"""
         # rgb_image = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
+        #log.debug("%s", time.time())
         h, w, ch = ffmpeg_img.shape
         bytes_per_line = ch * w
         convert_to_Qt_format = QImage(ffmpeg_img.data, w, h, bytes_per_line, QImage.Format_RGB888)

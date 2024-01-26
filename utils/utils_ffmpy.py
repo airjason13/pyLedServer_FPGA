@@ -9,14 +9,16 @@ def get_ffmpeg_cmd_with_playing_media_file_(video_uri: str, **kwargs):
     log.debug("%s", kwargs)
     log.debug("%d", kwargs.get("width"))
     log.debug("%d", kwargs.get("height"))
+    ff = None
     width = kwargs.get("width")
     height = kwargs.get("height")
     target_fps = kwargs.get("target_fps")
     image_period = kwargs.get("image_period")
-    global_opts = '-hide_banner -loglevel error'
+    global_opts = '-hide_banner -loglevel error -hwaccel auto'
     scale_param = 'scale=' + str(width) + ':' + str(height)
     filter_params = scale_param
     pipe_sink = '-'
+    # unix_socket = 'unix:///home/root/ffmpeg_unix_socket/ffmpeg_unix_socket'
     if platform.machine() in ('arm', 'arm64', 'aarch64'):
         audio_sink = 'hw:1,0'
     else:
@@ -30,6 +32,7 @@ def get_ffmpeg_cmd_with_playing_media_file_(video_uri: str, **kwargs):
             },
             outputs={
                 pipe_sink: ["-filter_complex", filter_params, "-r", target_fps, "-pix_fmt", "rgb24", "-f", "rawvideo"],
+                # unix_socket: ["-f", "rawvideo"],
                 audio_sink: ["-f", "alsa"]
             },
         )
@@ -48,6 +51,7 @@ def get_ffmpeg_cmd_with_playing_media_file_(video_uri: str, **kwargs):
         )
 
     log.debug("ff.cmd : %s", ff.cmd)
+    ff.cmd += " -y"
     return ff.cmd
 
 

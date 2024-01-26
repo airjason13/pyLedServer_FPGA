@@ -1,5 +1,7 @@
 import glob
 import os.path
+import platform
+import subprocess
 import sys
 
 import psutil
@@ -49,7 +51,7 @@ def get_led_config_from_file_uri(file_name, *args):
         lines = f.readlines()
     f.close()
 
-    ret_val = ['']*len(args)
+    ret_val = [''] * len(args)
     for i in range(len(args)):
         log.debug("arg : %s", args[i])
         for line in lines:
@@ -66,7 +68,7 @@ def get_int_led_config_from_file_uri(file_name, *args):
         lines = f.readlines()
     f.close()
 
-    ret_val = ['']*len(args)
+    ret_val = [''] * len(args)
     for i in range(len(args)):
         log.debug("arg : %s", args[i])
         for line in lines:
@@ -76,4 +78,18 @@ def get_int_led_config_from_file_uri(file_name, *args):
     return ret_val
 
 
+def determine_file_match_platform(file_uri) -> bool:
+    try:
+        cmd = 'file {}'.format(file_uri)
+        log.debug("cmd = %s", cmd)
+        file_format = os.popen(cmd).read()
+        log.debug("platform.machine() : %s", platform.machine())
+        log.debug("file_format : %s", file_format)
+        ''' Need to check later'''
+        if platform.machine() in file_format:
+            return True
+    except Exception as e:
+        log.debug(e)
+        return False
 
+    return False

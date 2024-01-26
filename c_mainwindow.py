@@ -1,4 +1,6 @@
 import logging
+import subprocess
+import time
 
 from PyQt5.QtCore import QThread, pyqtSignal, QDateTime, QObject, Qt
 from PyQt5.QtWidgets import QMainWindow, QFrame, QSplitter, QGridLayout, QWidget, QStackedLayout, QPushButton, \
@@ -21,6 +23,7 @@ from ui.ui_hdmi_in_page import HDMIInPage
 from ui.ui_led_settings_page import LedSettingsPage
 from ui.ui_test_page import TestPage
 from ext_qt_widgets.media_file_list import MediaFileList
+from utils.utils_file_access import determine_file_match_platform
 
 '''List of Page Selector Button Name '''
 Page_Select_Btn_Name_List = ["FPGA_List", "Media_Files", "HDMI_In", "Led_Settings", "Test"]
@@ -35,6 +38,18 @@ class MainUi(QMainWindow):
         log.debug("Main Window Init!")
         super().__init__()
         pg.setConfigOptions(antialias=True)
+
+        # check linux_ipc_sem file format is match or not
+        linux_ipc_sem_lib_uri = "{}/ext_binaries/liblinux_ipc_sem_pyapi.so".format(root_dir)
+        if not determine_file_match_platform(linux_ipc_sem_lib_uri):
+            log.debug("rebuild linux_ipc_sem")
+            sub_path = '/ext_binaries/linux_ipc_sem/'
+            rebuild_cmd = (
+                'cd {}{} && . {}{}build_so.sh '.format(root_dir, sub_path, root_dir, sub_path))
+            log.debug("rebuild_cmd : %s", rebuild_cmd)
+            subprocess.Popen(rebuild_cmd, shell=True)
+            time.sleep(1)
+            os.sync()
 
         if platform.machine() in ('arm', 'arm64', 'aarch64'):
             # keep the screen on for cms
@@ -75,6 +90,7 @@ class MainUi(QMainWindow):
         self.fpga_list = []
 
         self.init_ui_total()
+        log.debug("Init UI ok!")
 
 
     def init_ui_total(self):

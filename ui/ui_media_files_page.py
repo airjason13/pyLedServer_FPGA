@@ -1,5 +1,6 @@
 import hashlib
 import os
+import platform
 import shutil
 
 import qdarkstyle
@@ -117,8 +118,14 @@ class MediaFilesPage(QWidget):
         ''' install file watcher signal/slot'''
         self.internal_file_watcher = FileWatcher(self.internal_media_folder)
         self.internal_file_watcher.install_folder_changed_slot(self.internal_media_files_changed)
-        self.external_file_watcher = FileWatcher([self.TAG_Str_Media_Folder + os.getlogin()])
-        self.external_file_watcher.install_folder_changed_slot(self.external_media_files_changed)
+
+        if platform.machine() in ('arm', 'arm64', 'aarch64'):
+            '''Could not use os.login() for launch at start-up'''
+            self.external_file_watcher = FileWatcher([self.TAG_Str_Media_Folder + 'root'])
+            self.external_file_watcher.install_folder_changed_slot(self.external_media_files_changed)
+        else:
+            self.external_file_watcher = FileWatcher([self.TAG_Str_Media_Folder + os.getlogin()])
+            self.external_file_watcher.install_folder_changed_slot(self.external_media_files_changed)
 
     def init_ui(self):
         self.media_files_tree_widget = CTreeWidget(self.frame)
@@ -579,6 +586,10 @@ class MediaFilesPage(QWidget):
         log.debug("file_uri : %s", file_uri)
         if status == PlayStatus.Playing:
             self.play_pause_btn.setIcon(self.pause_icon)
+            '''if self.media_preview_widget is not None:
+                self.media_preview_widget.stop()
+                self.media_preview_widget.hide()'''
+
         elif status == PlayStatus.Stop or status == PlayStatus.Initial:
             self.play_pause_btn.setIcon(self.play_icon)
 
