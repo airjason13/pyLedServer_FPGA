@@ -1,5 +1,6 @@
 import platform
 import subprocess
+import psutil
 from global_def import log
 
 
@@ -19,3 +20,9 @@ def get_throttled_to_log():
             pass
     else:
         pass
+
+
+def get_eth_interface():
+    addrs = psutil.net_if_addrs()
+    log.debug(addrs)
+    return addrs.keys()

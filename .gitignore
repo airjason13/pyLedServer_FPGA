@@ -1,4 +1,6 @@
 .idea/
 __pycache__/
 log/
+liblinux_ipc_sem_pyapi.so
+show_ffmpeg_shared_memory
 

@@ -11,6 +11,7 @@ import os
 import qdarkstyle
 
 import utils.utils_file_access
+import utils.utils_system
 from global_def import *
 from PyQt5.QtWidgets import QApplication
 
@@ -23,7 +24,7 @@ from ui.ui_hdmi_in_page import HDMIInPage
 from ui.ui_led_settings_page import LedSettingsPage
 from ui.ui_test_page import TestPage
 from ext_qt_widgets.media_file_list import MediaFileList
-from utils.utils_file_access import determine_file_match_platform
+from utils.utils_file_access import determine_file_match_platform, run_cmd_with_su
 
 '''List of Page Selector Button Name '''
 Page_Select_Btn_Name_List = ["FPGA_List", "Media_Files", "HDMI_In", "Led_Settings", "Test"]
@@ -35,21 +36,15 @@ Page_Map = dict(zip(Page_Select_Btn_Name_List, Page_List))
 class MainUi(QMainWindow):
 
     def __init__(self):
-        log.debug("Main Window Init!")
+        log.debug("Venom A Main Window Init!")
         super().__init__()
         pg.setConfigOptions(antialias=True)
 
-        # check linux_ipc_sem file format is match or not
-        linux_ipc_sem_lib_uri = "{}/ext_binaries/liblinux_ipc_sem_pyapi.so".format(root_dir)
-        if not determine_file_match_platform(linux_ipc_sem_lib_uri):
-            log.debug("rebuild linux_ipc_sem")
-            sub_path = '/ext_binaries/linux_ipc_sem/'
-            rebuild_cmd = (
-                'cd {}{} && . {}{}build_so.sh '.format(root_dir, sub_path, root_dir, sub_path))
-            log.debug("rebuild_cmd : %s", rebuild_cmd)
-            subprocess.Popen(rebuild_cmd, shell=True)
-            time.sleep(1)
-            os.sync()
+        # run_cmd_with_su('sudo -S cp /usr/bin/test /usr/bin/testA', sudo_password='workout13')
+        # run_cmd_with_su('cp /usr/bin/test /usr/bin/testC')
+
+        utils.utils_file_access.set_os_environ()
+        utils.utils_file_access.check_and_rebuild_binaries()
 
         if platform.machine() in ('arm', 'arm64', 'aarch64'):
             # keep the screen on for cms

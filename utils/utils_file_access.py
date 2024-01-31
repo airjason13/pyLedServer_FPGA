@@ -3,10 +3,10 @@ import os.path
 import platform
 import subprocess
 import sys
-
+import time
 import psutil
 import pyudev
-from global_def import log
+from global_def import log, SU_PWD, root_dir
 
 
 def get_mount_points(devices=None):
@@ -86,10 +86,59 @@ def determine_file_match_platform(file_uri) -> bool:
         log.debug("platform.machine() : %s", platform.machine())
         log.debug("file_format : %s", file_format)
         ''' Need to check later'''
-        if platform.machine() in file_format:
+        if platform.machine().split('_')[0] in file_format:
             return True
     except Exception as e:
         log.debug(e)
         return False
 
     return False
+
+
+def run_cmd_with_su(command, sudo_password=SU_PWD):
+    command_with_su = 'sudo -S ' + command
+    p1 = subprocess.run('echo ' + sudo_password, stdin=None, stdout=subprocess.PIPE, shell=True, encoding='UTF-8')
+    ret = subprocess.run(command_with_su, input=p1.stdout, shell=True, stdout=subprocess.PIPE,
+                         stderr=subprocess.PIPE, encoding='UTF-8')
+    # ret = subprocess.run(command_with_su, input=p1.stdout, shell=True, encoding='UTF-8')
+    if ret.returncode == 0:
+        log.debug('success')
+    else:
+        log.error('error')
+    return ret.stdout
+
+
+
+def set_os_environ():
+    ext_binaries_path = "{}/ext_binaries".format(root_dir)
+    if ext_binaries_path not in os.environ['PATH']:
+        os.environ['PATH'] += os.pathsep + ext_binaries_path
+
+
+def check_and_rebuild_binaries():
+    # check linux_ipc_sem file format is match or not
+    linux_ipc_sem_lib_uri = "{}/ext_binaries/liblinux_ipc_sem_pyapi.so".format(root_dir)
+    show_ffmpeg_shared_memory_exec_uri = "{}/ext_binaries/show_ffmpeg_shared_memory".format(root_dir)
+    if not determine_file_match_platform(linux_ipc_sem_lib_uri):
+        log.debug("rebuild linux_ipc_sem")
+        sub_path = '/ext_binaries/linux_ipc_sem/'
+        rebuild_cmd = (
+            'cd {}{} && . {}{}build_so.sh'.format(root_dir, sub_path, root_dir, sub_path))
+        log.debug("rebuild_cmd : %s", rebuild_cmd)
+        rebuild_cmd += 'A'
+        log.debug("rebuild_cmd : %s", rebuild_cmd)
+        subprocess.Popen(rebuild_cmd, shell=True)
+        time.sleep(1)
+        os.sync()
+
+    if not determine_file_match_platform(show_ffmpeg_shared_memory_exec_uri):
+        log.debug("rebuild show_ffmpeg_shared_memory_exec_uri")
+        sub_path = '/ext_binaries/ffmpeg_shared_memory/'
+        '''rebuild_cmd = (
+            'cd {}{} && . {}{}build_show_ffmpeg_shared_memory.sh '.format(root_dir, sub_path, root_dir, sub_path))'''
+        rebuild_cmd = (
+            'cd {}{} && {}{}build_show_ffmpeg_shared_memory.sh {}'.format(root_dir, sub_path, root_dir, sub_path, SU_PWD))
+        log.debug("rebuild_cmd : %s", rebuild_cmd)
+        subprocess.Popen(rebuild_cmd, shell=True)
+        time.sleep(1)
+        os.sync()

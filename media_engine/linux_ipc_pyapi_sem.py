@@ -21,6 +21,7 @@ class LinuxIpcSemaphorePyapi:
     sem_flag = 0
 
     def sem_open(self, sem_name, oflag, mode, value):
+
         self.library.py_sem_open.argtypes = [c_char_p, c_int, c_uint, c_uint]
         self.library.py_sem_open.restype = c_void_p
 
