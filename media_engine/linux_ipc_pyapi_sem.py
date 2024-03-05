@@ -14,16 +14,19 @@ class LinuxIpcSemaphorePyapi:
             'cd {}{} && . {}{}build_so.sh'.format(root_dir, sub_path, root_dir, sub_path))
         log.debug("check rebuild_cmd : %s", rebuild_cmd)
         log.debug("rebuild_cmd : %s", rebuild_cmd)
-        subprocess.Popen(rebuild_cmd, shell=True)
+        ps_tmp = subprocess.Popen(rebuild_cmd, shell=True)
+        ps_tmp.wait()
         if os.path.exists("/usr/lib/liblinux_ipc_sem_pyapi.so"):
             rm_ld_link_cmd = 'echo {} | sudo -S rm /usr/lib/liblinux_ipc_sem_pyapi.so'.format(SU_PWD)
             log.debug("rm_ld_link_cmd : %s", rm_ld_link_cmd)
-            subprocess.Popen(rm_ld_link_cmd, shell=True)
+            ps_tmp = subprocess.Popen(rm_ld_link_cmd, shell=True)
+            ps_tmp.wait()
 
         mk_soft_link_cmd = \
             f'echo {SU_PWD} | sudo -S ln -s {root_dir}{sub_path}liblinux_ipc_sem_pyapi.so /usr/lib/liblinux_ipc_sem_pyapi.so'
         log.debug("mk_soft_link_cmd : %s", mk_soft_link_cmd)
-        subprocess.Popen(mk_soft_link_cmd, shell=True)
+        ps_tmp = subprocess.Popen(mk_soft_link_cmd, shell=True)
+        ps_tmp.wait()
         time.sleep(1)
         os.sync()
 
