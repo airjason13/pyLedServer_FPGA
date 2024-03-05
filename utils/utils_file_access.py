@@ -108,7 +108,6 @@ def run_cmd_with_su(command, sudo_password=SU_PWD):
     return ret.stdout
 
 
-
 def set_os_environ():
     ext_binaries_path = "{}/ext_binaries".format(root_dir)
     if ext_binaries_path not in os.environ['PATH']:
@@ -116,6 +115,7 @@ def set_os_environ():
 
 
 def check_and_rebuild_binaries():
+    log.debug("check_and_rebuild_binaries")
     # check linux_ipc_sem file format is match or not
     linux_ipc_sem_lib_uri = "{}/ext_binaries/liblinux_ipc_sem_pyapi.so".format(root_dir)
     show_ffmpeg_shared_memory_exec_uri = "{}/ext_binaries/show_ffmpeg_shared_memory".format(root_dir)
@@ -124,18 +124,25 @@ def check_and_rebuild_binaries():
         sub_path = '/ext_binaries/linux_ipc_sem/'
         rebuild_cmd = (
             'cd {}{} && . {}{}build_so.sh'.format(root_dir, sub_path, root_dir, sub_path))
-        log.debug("rebuild_cmd : %s", rebuild_cmd)
-        rebuild_cmd += 'A'
+        log.debug("check rebuild_cmd : %s", rebuild_cmd)
         log.debug("rebuild_cmd : %s", rebuild_cmd)
         subprocess.Popen(rebuild_cmd, shell=True)
+        if os.path.exists("/usr/lib/liblinux_ipc_sem_pyapi.so"):
+            rm_ld_link_cmd = 'echo {} | sudo -S rm /usr/lib/liblinux_ipc_sem_pyapi.so'.format(SU_PWD)
+            log.debug("rm_ld_link_cmd : %s", rm_ld_link_cmd)
+            subprocess.Popen(rm_ld_link_cmd, shell=True)
+
+        mk_soft_link_cmd = \
+            f'echo {SU_PWD} | sudo -S ln -s {root_dir}{sub_path}liblinux_ipc_sem_pyapi.so /usr/lib/liblinux_ipc_sem_pyapi.so'
+        log.debug("mk_soft_link_cmd : %s", mk_soft_link_cmd)
+        subprocess.Popen(mk_soft_link_cmd, shell=True)
         time.sleep(1)
         os.sync()
 
     if not determine_file_match_platform(show_ffmpeg_shared_memory_exec_uri):
         log.debug("rebuild show_ffmpeg_shared_memory_exec_uri")
         sub_path = '/ext_binaries/ffmpeg_shared_memory/'
-        '''rebuild_cmd = (
-            'cd {}{} && . {}{}build_show_ffmpeg_shared_memory.sh '.format(root_dir, sub_path, root_dir, sub_path))'''
+
         rebuild_cmd = (
             'cd {}{} && {}{}build_show_ffmpeg_shared_memory.sh {}'.format(root_dir, sub_path, root_dir, sub_path, SU_PWD))
         log.debug("rebuild_cmd : %s", rebuild_cmd)
