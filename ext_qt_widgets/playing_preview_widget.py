@@ -67,3 +67,7 @@ class PlayingPreviewWindow(QWidget):
     def set_visible(self, is_visible: bool):
         log.debug("")
         self.setVisible(is_visible)
+
+    def close_window(self):
+        """close window"""
+        self.close()

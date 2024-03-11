@@ -4,6 +4,7 @@ import platform
 import signal
 import subprocess
 import time
+import atexit
 
 import numpy as np
 from PyQt5.QtCore import QObject, pyqtSignal, QMutex, QThread
@@ -24,9 +25,11 @@ from media_engine.linux_ipc_pyapi_sem import *
 
 class MediaEngine(QObject):
     signal_media_play_status_changed = pyqtSignal(bool, str)
+    hdmi_play_status_changed = pyqtSignal(bool, str)
 
     def __init__(self):
         super(MediaEngine, self).__init__()
+
         log.debug("")
         self.output_streaming_width, self.output_streaming_height = (
             get_int_led_config_from_file_uri("led_wall_resolution", "led_wall_width", "led_wall_height"))
@@ -36,6 +39,7 @@ class MediaEngine(QObject):
         self.pre_playing_status = PlayStatus.Initial
         self.repeat_option = RepeatOption.Repeat_All
         self.ff_process = None
+        self.play_change_mutex = QMutex()
 
         self.playing_preview_window = PlayingPreviewWindow()
 
@@ -46,6 +50,8 @@ class MediaEngine(QObject):
 
         self.play_single_file_thread = None
         self.play_single_file_worker = None
+        self.play_hdmi_in_thread = None
+        self.play_hdmi_in_worker = None
 
     def install_signal_media_play_status_changed_slot(self, slot_func):
         self.signal_media_play_status_changed.connect(slot_func)
@@ -60,11 +66,15 @@ class MediaEngine(QObject):
 
     def play_status_changed(self, status: int, playing_src: str):
         log.debug("playing_src : %s", playing_src)
+        self.play_change_mutex.lock()
         self.playing_status = status
         if self.playing_status == PlayStatus.Stop:
             self.playing_preview_window.setVisible(False)
-        self.signal_media_play_status_changed.emit(status, playing_src)
-
+        if playing_src == "/dev/video0":
+            self.hdmi_play_status_changed.emit(status, playing_src)
+        else:
+            self.signal_media_play_status_changed.emit(status, playing_src)
+        self.play_change_mutex.unlock()
     def preview_pixmap_changed(self, raw_image_np_array):
         # log.debug("preview_pixmap_changed")
         if raw_image_np_array is None:
@@ -92,7 +102,7 @@ class MediaEngine(QObject):
         self.play_single_file_thread.start()
 
     def stop_play(self):
-        log.debug("enter stop_play!\n");
+        log.debug("enter stop_play!\n")
         if self.play_single_file_worker is not None:
             self.play_single_file_worker.stop()
             if self.ff_process is not None:
@@ -114,7 +124,68 @@ class MediaEngine(QObject):
                 log.debug(e)
             self.play_single_file_worker = None
             self.play_single_file_thread = None
-        log.debug("exit stop_play!\n");
+
+        if self.play_hdmi_in_worker is not None:
+            self.resume_playing()
+            self.play_hdmi_in_worker.stop()
+            if self.ff_process is not None:
+                os.kill(self.ff_process.pid, signal.SIGTERM)
+            try:
+                if self.play_hdmi_in_thread is not None:
+                    self.play_hdmi_in_thread.quit()
+                for i in range(10):
+                    log.debug("self.play_hdmi_in_thread.isFinished() = %d",
+                              self.play_hdmi_in_thread.isFinished())
+                    if self.play_hdmi_in_thread.isFinished() is True:
+                        break
+                    time.sleep(1)
+
+                log.debug("play_hdmi_in_thread is not None A2")
+                self.play_hdmi_in_thread.wait()
+                self.play_hdmi_in_thread.exit(0)
+            except Exception as e:
+                log.debug(e)
+            self.play_hdmi_in_worker = None
+            self.play_hdmi_in_thread = None
+
+        self.playing_preview_window.close_window()
+        log.debug("exit stop_play!\n")
+
+    def install_hdmi_play_status_changed_slot(self, slot_func):
+        self.hdmi_play_status_changed.connect(slot_func)
+
+    def hdmi_in_play(self, video_src):
+        self.play_hdmi_in_thread = QThread()
+        self.play_hdmi_in_worker = Playing_HDMI_in_worker(self, video_src, with_audio=True, with_preview=True)
+        self.play_hdmi_in_worker.install_play_status_slot(self.play_status_changed)
+        self.play_hdmi_in_worker.moveToThread(self.play_hdmi_in_thread)
+
+        self.play_hdmi_in_thread.started.connect(self.play_hdmi_in_worker.run)
+        self.play_hdmi_in_worker.pysignal_hdmi_play_finished.connect(self.play_hdmi_in_thread.quit)
+        self.play_hdmi_in_worker.pysignal_hdmi_play_finished.connect(self.play_hdmi_in_worker.deleteLater)
+        self.play_hdmi_in_thread.finished.connect(self.play_hdmi_in_thread.deleteLater)
+        self.play_hdmi_in_worker.install_pixmap_refreshed_slot(self.preview_pixmap_changed)
+        self.play_hdmi_in_thread.start()
+
+    def pause_playing(self):
+        if self.playing_status != PlayStatus.Stop:
+            log.debug("enter pause_play!\n")
+            try:
+                if self.ff_process is not None:
+                    os.kill(self.ff_process.pid, signal.SIGSTOP)
+                    self.playing_status = PlayStatus.Pausing
+            except Exception as e:
+                log.debug(e)
+
+    def resume_playing(self):
+        if self.playing_status != PlayStatus.Stop:
+            log.debug("enter resume_play!\n")
+            try:
+                if self.ff_process is not None:
+                    os.kill(self.ff_process.pid, signal.SIGCONT)
+                    self.playing_status = PlayStatus.Playing
+            except Exception as e:
+                log.debug(e)
 
 
 class PlaySingleFileWorker(QObject):
@@ -242,6 +313,7 @@ class PlaySingleFileWorker(QObject):
             log.debug("ffmpeg_cmd : %s", ffmpeg_cmd)
             try:
                 self.ff_process = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, bufsize=10 ** 8, shell=True)
+                self.media_engine.ff_process = self.ff_process
             except Exception as e:
                 log.error(e)
             # write__flag_tmp = self.shm_sem.sem_post(sem_write_flag)
@@ -334,5 +406,113 @@ class PlaySingleFileWorker(QObject):
         return self.worker_status
 
 
+class Playing_HDMI_in_worker(QThread):
+    pysignal_hdmi_play_status_change = pyqtSignal(int, str)
+    pysignal_hdmi_play_finished = pyqtSignal()
+    pysignal_refresh_image_pixmap = pyqtSignal(np.ndarray)
+
+    def __init__(self, media_engine: MediaEngine, video_src, with_audio: bool, with_preview: bool):
+        super().__init__()
+        self.command = None
+        self.playing_source = None
+        self.media_engine = media_engine
+        self.video_src = video_src
+        self.play_with_audio = with_audio
+        self.play_with_preview = with_preview
+        self.ff_process = self.media_engine.ff_process
+        self.play_status = self.media_engine.playing_status
+        self.output_width = self.media_engine.output_streaming_width
+        self.output_height = self.media_engine.output_streaming_height
+        self.play_status_change(PlayStatus.Initial, self.video_src)
+        self.raw_image = None
+        self.image_from_pipe = None
+        self.force_stop = False
+        self.worker_status = 0
+
+        atexit.register(self.stop)
+        log.debug("Playing_HDMI_in_worker Init")
+
+    def install_play_status_slot(self, slot_func):
+        self.pysignal_hdmi_play_status_change.connect(slot_func)
+
+    def install_pixmap_refreshed_slot(self, slot_func):
+        self.pysignal_refresh_image_pixmap.connect(slot_func)
+
+    def play_status_change(self, status: int, src: str):
+        self.play_status = status
+        self.playing_source = src
+        log.debug("self.playing_source : %s self.status %s", self.playing_source, self.play_status)
+        self.pysignal_hdmi_play_status_change.emit(self.play_status, self.playing_source)
+    def get_worker_status(self):
+        return self.worker_status
+
+    def get_ff_pid(self):
+        # Check if ff_process exists and is not None
+        if self.ff_process and hasattr(self.ff_process, 'pid'):
+            return self.ff_process.pid
+        else:
+            # If ff_process does not exist or does not have a pid attribute, return 0 to indicate an invalid PID
+            return 0
+
+    def stop(self):
+        # self.worker_status = 0
+        self.force_stop = True
+        if self.ff_process:
+            self.ff_process.terminate()
+            # self.ff_process.stdout.close()
+            # self.ff_process = None
+            self.play_status_change(PlayStatus.Stop, self.video_src)
+            log.debug("FFmpeg process and pipe closed.")
+    def exist(self,pid):
+        try:
+            os.kill(pid, 0)
+        except OSError:
+            return False  # process does not exist
+        else:
+            return True  # process exists
+
+    def run(self):
+
+        try:
+            scale_factor = "scale=" + str(self.output_width) + ":" + str(self.output_height)
+            self.command = ['ffmpeg', '-hide_banner', '-stream_loop', '-1', '-loglevel', 'error', '-hwaccel', 'auto',
+                            '-i', self.video_src, '-f', 'image2pipe', '-pix_fmt', 'rgb24', '-vcodec', 'rawvideo', '-vf',
+                            scale_factor, '-r', '27/1', '-']
+            while True:
+                self.ff_process = subprocess.Popen(self.command, stdout=subprocess.PIPE, bufsize=10 ** 8)
+                self.media_engine.ff_process = self.ff_process
+
+                if self.ff_process.pid > 0:
+                    self.play_status_change(PlayStatus.Playing, self.video_src)
+                    self.worker_status = 1
+
+                while self.worker_status:
+
+                    self.image_from_pipe = self.ff_process.stdout.read(self.output_width * self.output_height * 3)
+
+                    if not self.image_from_pipe:
+                        log.debug("No data read from the pipe.")
+                        break
+
+                    self.raw_image = np.frombuffer(self.image_from_pipe, dtype='uint8')
+                    self.raw_image = self.raw_image.reshape((self.output_height, self.output_width, 3))
+
+                    if self.ff_process is not None:
+                        self.ff_process.stdout.flush()
+
+                    if self.play_with_preview is True:
+                        self.pysignal_refresh_image_pixmap.emit(self.raw_image)
+
+                if self.force_stop is True:
+                    log.debug("self.force_stop is True, ready to kill ff_process")
+                    if self.ff_process is not None:
+                        os.kill(self.ff_process.pid, signal.SIGTERM)
+                    break
+
+            self.pysignal_hdmi_play_finished.emit()
+        except Exception as e:
+            log.debug("Error in VideoThreadFFMpeg run method: %s", e)
+        finally:
+            self.stop()
 def test(self):
     log.debug("")
