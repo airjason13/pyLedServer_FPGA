@@ -1,3 +1,4 @@
+import json
 import logging
 import random
 import subprocess
@@ -27,7 +28,7 @@ from ui.ui_led_settings_page import LedSettingsPage
 from ui.ui_test_page import TestPage
 from ext_qt_widgets.media_file_list import MediaFileList
 from utils.utils_file_access import determine_file_match_platform, run_cmd_with_su
-from FPGA_protocol.protocol2 import FPGACmdCenter, protocolDict, dataAddressDict
+from FPGA_protocol.protocol2 import FPGACmdCenter, protocolDict, dataAddressDict, FPGAJsonParams
 
 '''List of Page Selector Button Name '''
 Page_Select_Btn_Name_List = ["FPGA_List", "Media_Files", "HDMI_In", "Led_Settings", "Test"]
@@ -87,10 +88,17 @@ class MainUi(QMainWindow):
 
         self.media_engine = MediaEngine()
 
+        ''' Jason for test FPGA read/write '''
+        self.fpga_cmd_center = FPGACmdCenter(ETH_DEV, protocolDict["sourceAddress"])
+        self.fpga_cmd_center.set_fpga_id_broadcast(FPGA_START_ID)
+
         ''' fpga_list initial '''
+        self.fpga_json_data = []
+        self.fpga_total_num = self.get_fpga_total_num()
+        log.debug("self.fpga_total_num : %d", self.fpga_total_num)
         self.fpga_list = []
-        for i in range(2, 7):
-            fpga_tmp = FPGAClient(i)
+        for i in range(FPGA_START_ID, FPGA_START_ID + self.fpga_total_num):
+            fpga_tmp = FPGAClient(i, self.fpga_cmd_center)
             self.fpga_list.append(fpga_tmp)
 
         self.init_ui_total()
@@ -98,25 +106,26 @@ class MainUi(QMainWindow):
 
         self.right_frame_page_list[0].sync_clients_table(self.fpga_list)
 
-        ''' Jason for test FPGA read/write '''
-        self.fpga_cmd_center = FPGACmdCenter(ETH_DEV, protocolDict["sourceAddress"])
-        self.fpga_cmd_center.set_fpga_id_broadcast(2)
-
-        '''self.utc_test_count = 0
+        self.init_fpga_json_file()
+        self.utc_test_count = 0
         self.test_timer = QTimer(self)
         self.test_timer.timeout.connect(self.utc_test)
-        self.test_timer.start(3 * 1000)'''
+        self.test_timer.start(3 * 1000)
 
     def utc_test(self):
         log.debug("self.utc_test_count : %d", self.utc_test_count)
         self.utc_test_count += 1
         s_utc_temp = str(random.randint(1000, 9999))
         for i in range(2, 4):   # send cmd to id 2/3
+            start_time = time.time()
             ret = self.fpga_cmd_center.write_fpga_register(i, "UTC", s_utc_temp)
-            log.debug("read fpga id:%d UTC ret : %d", i, ret)
+            log.debug("write time : %f", time.time() - start_time)
+            log.debug("write fpga id:%d UTC ret : %d", i, ret)
         for i in range(2, 4):   # read cmd to id 2/3
+            start_time = time.time()
             ret, id_utc = self.fpga_cmd_center.read_fpga_register(i, "UTC")
-            log.debug("read fpga id:%d UTC ret : %d, id%d_UTC : %s", i, ret, i, id_utc)
+            log.debug("read time : %f", time.time() - start_time)
+            # log.debug("read fpga id:%d UTC ret : %d, id%d_UTC : %s", i, ret, i, id_utc)
             # log.debug("len(s_utc_temp) : %d", len(s_utc_temp))
             # log.debug("len(id2_utc) : %d", len(str(id2_utc)))
             if ret == 0:
@@ -126,8 +135,7 @@ class MainUi(QMainWindow):
                     log.debug("UTC read/write failed!")
             else:
                 log.debug("UTC read/write failed!")
-        # ret, id3_utc = self.fpga_cmd_center.read_fpga_register(3, "UTC")
-        # log.debug("read fpga id:3 UTC ret : %d, id3_UTC : %s", ret, id3_utc)
+
 
 
     def init_ui_total(self):
@@ -196,3 +204,40 @@ class MainUi(QMainWindow):
                     break
         except Exception as e:
             log.error(e)
+
+    def get_fpga_total_num(self):
+        num = 0
+        for i in range(FPGA_START_ID, 255):
+            ret, id_utc = self.fpga_cmd_center.read_fpga_register(i, "UTC")
+            if ret != 0:
+                num = i - 2
+                break
+        log.debug("fpga num : %d", num)
+        return num
+
+    def load_fpga_json_file(self):
+        log.debug("load_fpga_json_file")
+        with open(os.getcwd() + "/ori_dataFPGA.json", "r") as jsonFile:
+            python_dict = json.load(fp=jsonFile)
+            log.debug("python_dict : %s", python_dict)
+            print("type(python_dict) : ", type(python_dict))
+            python_dict["fpgaID"][2]["UTC"] = str(1111)
+            log.debug("python_dict : %s", python_dict)
+
+    def init_fpga_json_file(self):
+        data = dict()
+        data["frameWidth"] = '0'
+        data["frameHeight"] = '0'
+        data["softwareVersion"] = 'LC_G3_240220_D1'
+        data["lcdVersion"] = 'LS240305001'
+        data["fpgaID"] = [dict()]
+
+        for i in range(self.fpga_total_num):
+            data["fpgaID"][i][FPGAJsonParams.params_list[0]] = str(i + 2)
+
+            for j in range(len(1, FPGAJsonParams.params_list)):
+                data["fpgaID"][i][FPGAJsonParams.params_list[i]] = str(i + 2)
+
+        with open("dataFPGA.json", "w") as jsonFile:
+            json.dump(data, jsonFile, indent=2)
+            print('write json')
