@@ -48,7 +48,7 @@ class MainUi(QMainWindow):
 
         eth_if_promisc_cmd = os.popen("ifconfig {} promisc".format(ETH_DEV))
         eth_if_promisc_cmd.close()
-        
+
         utils.utils_file_access.set_os_environ()
         utils.utils_file_access.check_and_rebuild_binaries()
 
@@ -102,10 +102,10 @@ class MainUi(QMainWindow):
         self.fpga_cmd_center = FPGACmdCenter(ETH_DEV, protocolDict["sourceAddress"])
         self.fpga_cmd_center.set_fpga_id_broadcast(2)
 
-        self.utc_test_count = 0
+        '''self.utc_test_count = 0
         self.test_timer = QTimer(self)
         self.test_timer.timeout.connect(self.utc_test)
-        self.test_timer.start(3 * 1000)
+        self.test_timer.start(3 * 1000)'''
 
     def utc_test(self):
         log.debug("self.utc_test_count : %d", self.utc_test_count)
