@@ -24,8 +24,8 @@ from media_engine.linux_ipc_pyapi_sem import *
 
 
 class MediaEngine(QObject):
-    signal_media_play_status_changed = pyqtSignal(bool, str)
-    hdmi_play_status_changed = pyqtSignal(bool, str)
+    signal_media_play_status_changed = pyqtSignal(int, str)
+    hdmi_play_status_changed = pyqtSignal(int, str)
 
     def __init__(self):
         super(MediaEngine, self).__init__()
@@ -65,16 +65,18 @@ class MediaEngine(QObject):
             get_led_config_from_file_uri("led_wall_resolution", "led_wall_width", "led_wall_height"))
 
     def play_status_changed(self, status: int, playing_src: str):
-        log.debug("playing_src : %s", playing_src)
+        log.debug("play_status_changed : status=%d", status)
         self.play_change_mutex.lock()
         self.playing_status = status
         if self.playing_status == PlayStatus.Stop:
             self.playing_preview_window.setVisible(False)
-        if playing_src == "/dev/video0":
+
+        if "/dev/video" in playing_src:
             self.hdmi_play_status_changed.emit(status, playing_src)
         else:
             self.signal_media_play_status_changed.emit(status, playing_src)
         self.play_change_mutex.unlock()
+
     def preview_pixmap_changed(self, raw_image_np_array):
         # log.debug("preview_pixmap_changed")
         if raw_image_np_array is None:
@@ -106,7 +108,12 @@ class MediaEngine(QObject):
         if self.play_single_file_worker is not None:
             self.play_single_file_worker.stop()
             if self.ff_process is not None:
-                os.kill(self.ff_process.pid, signal.SIGTERM)
+                try:
+                    os.kill(self.ff_process.pid, signal.SIGTERM)
+                except ProcessLookupError:
+                    log.debug("PID might have changed or process could have exited already")
+                except Exception as e:
+                    log.debug(f"An error occurred when trying to kill the process: {e}")
             try:
                 if self.play_single_file_thread is not None:
                     self.play_single_file_thread.quit()
@@ -128,8 +135,14 @@ class MediaEngine(QObject):
         if self.play_hdmi_in_worker is not None:
             self.resume_playing()
             self.play_hdmi_in_worker.stop()
+
             if self.ff_process is not None:
-                os.kill(self.ff_process.pid, signal.SIGTERM)
+                try:
+                    os.kill(self.ff_process.pid, signal.SIGTERM)
+                except ProcessLookupError:
+                    log.debug("PID might have changed or process could have exited already")
+                except Exception as e:
+                    log.debug(f"An error occurred when trying to kill the process: {e}")
             try:
                 if self.play_hdmi_in_thread is not None:
                     self.play_hdmi_in_thread.quit()
@@ -147,8 +160,7 @@ class MediaEngine(QObject):
                 log.debug(e)
             self.play_hdmi_in_worker = None
             self.play_hdmi_in_thread = None
-
-        self.playing_preview_window.close_window()
+            self.playing_preview_window.close_window()
         log.debug("exit stop_play!\n")
 
     def install_hdmi_play_status_changed_slot(self, slot_func):
@@ -174,6 +186,9 @@ class MediaEngine(QObject):
                 if self.ff_process is not None:
                     os.kill(self.ff_process.pid, signal.SIGSTOP)
                     self.playing_status = PlayStatus.Pausing
+                if self.play_hdmi_in_worker is not None:
+                    video_src = self.play_hdmi_in_worker.video_src
+                    self.play_status_changed(self.playing_status, video_src)
             except Exception as e:
                 log.debug(e)
 
@@ -184,6 +199,9 @@ class MediaEngine(QObject):
                 if self.ff_process is not None:
                     os.kill(self.ff_process.pid, signal.SIGCONT)
                     self.playing_status = PlayStatus.Playing
+                if self.play_hdmi_in_worker is not None:
+                    video_src = self.play_hdmi_in_worker.video_src
+                    self.play_status_changed(self.playing_status, video_src)
             except Exception as e:
                 log.debug(e)
 
@@ -196,6 +214,7 @@ class PlaySingleFileWorker(QObject):
 
     def __init__(self, media_engine: MediaEngine, file_uri, with_audio: bool, with_preview: bool):
         super().__init__()
+        self.shm_sem = None
         self.shm = None
         self.agent_process = None
         self.media_engine = media_engine
@@ -291,11 +310,11 @@ class PlaySingleFileWorker(QObject):
                     subprocess.Popen("pkill -f show_ffmpeg_shared_memory", shell=True)
                     time.sleep(3)
 
-                if self.shm != None:
+                if self.shm is not None:
                     break
 
             self.shm_sem = LinuxIpcSemaphorePyapi()
-            # Init the write sem
+            # Init write sem
             sem_write_flag = self.shm_sem.sem_open(self.media_engine.shm_sem_write_uri, os.O_CREAT, 0x666, 1)
             if sem_write_flag == 0:
                 log.error("failed to create sem: %s", self.media_engine.shm_sem_write_uri)
@@ -413,6 +432,12 @@ class Playing_HDMI_in_worker(QThread):
 
     def __init__(self, media_engine: MediaEngine, video_src, with_audio: bool, with_preview: bool):
         super().__init__()
+        self.agent_cmd = None
+        self.agent_process = None
+        self.sem_read_flag = None
+        self.sem_write_flag = None
+        self.shm_sem = None
+        self.shm = None
         self.command = None
         self.playing_source = None
         self.media_engine = media_engine
@@ -428,9 +453,11 @@ class Playing_HDMI_in_worker(QThread):
         self.image_from_pipe = None
         self.force_stop = False
         self.worker_status = 0
+        self.process_release_mutex = QMutex()
 
         atexit.register(self.stop)
         log.debug("Playing_HDMI_in_worker Init")
+        self.setup_shared_memory_and_semaphore()
 
     def install_play_status_slot(self, slot_func):
         self.pysignal_hdmi_play_status_change.connect(slot_func)
@@ -443,6 +470,7 @@ class Playing_HDMI_in_worker(QThread):
         self.playing_source = src
         log.debug("self.playing_source : %s self.status %s", self.playing_source, self.play_status)
         self.pysignal_hdmi_play_status_change.emit(self.play_status, self.playing_source)
+
     def get_worker_status(self):
         return self.worker_status
 
@@ -454,31 +482,144 @@ class Playing_HDMI_in_worker(QThread):
             # If ff_process does not exist or does not have a pid attribute, return 0 to indicate an invalid PID
             return 0
 
-    def stop(self):
-        # self.worker_status = 0
-        self.force_stop = True
-        if self.ff_process:
-            self.ff_process.terminate()
-            # self.ff_process.stdout.close()
-            # self.ff_process = None
-            self.play_status_change(PlayStatus.Stop, self.video_src)
-            log.debug("FFmpeg process and pipe closed.")
-    def exist(self,pid):
+    def setup_shared_memory_and_semaphore(self):
+        # find agent preview window pos
+        line = os.popen("xdpyinfo | awk '/dimensions/{print $2}'").read().strip()
+        screen_width, screen_height = map(int, line.split("x"))
+        preview_pos_x = screen_width - (
+            640 if self.output_width >= 1280 or self.output_height >= 720 else self.output_width)
+        preview_pos_y = 320
+        # handle raw socket agent
+        os.environ['SDL_VIDEO_WINDOW_POS'] = f"{preview_pos_x},{preview_pos_y}"
+        self.agent_cmd = f"{root_dir}/ext_binaries/show_ffmpeg_shared_memory {ETH_DEV} {self.output_width} {self.output_height} 0"
+
+    def restart_agent(self):
+        # Terminate the current agent process and start a new one
+        if self.agent_process:
+            self.agent_process.terminate()
+            self.agent_process.wait(timeout=5)
+        self.agent_process = subprocess.Popen(self.agent_cmd, shell=True)
+        log.debug("Agent process restarted with PID: {}".format(self.agent_process.pid))
+
+    def init_shared_resources(self):
+        # Initialize shared memory
+        self.shm = shared_memory.SharedMemory("posixsm", False, 0x400000)
+        if not self.shm:
+            log.debug("Failed to initialize shared memory.")
+            return
+
+        # Initialize semaphores
+        self.shm_sem = LinuxIpcSemaphorePyapi()
+        self.sem_write_flag = self.shm_sem.sem_open(self.media_engine.shm_sem_write_uri, os.O_CREAT, 0o666, 1)
+        if self.sem_write_flag == 0:
+            log.debug("Failed to create write semaphore.")
+            return
+        self.sem_read_flag = self.shm_sem.sem_open(self.media_engine.shm_sem_read_uri, os.O_CREAT, 0o666, 0)
+        if self.sem_read_flag == 0:
+            log.debug("Failed to create read semaphore.")
+            return
+
+    def restart_shm_and_sem(self):
+        # Reset shared memory and semaphores
         try:
-            os.kill(pid, 0)
-        except OSError:
-            return False  # process does not exist
+            self.shm.close()
+            self.shm.unlink()
+        except AttributeError:
+            pass  # Ignore if self.shm has not been initialized
+        except Exception as e:
+            log.debug("Error handling old shared memory: {}".format(e))
+
+        # Create new shared memory and semaphores
+        self.init_shared_resources()
+        log.debug("Shared memory and semaphores restarted successfully.")
+
+    def write_to_shm(self, data):
+        if not self.shm:
+            log.debug("Shared memory is not initialized.")
+            self.restart_shm_and_sem()
+            return False
+
+        if self.shm_sem.sem_trywait(self.sem_write_flag) != -1:
+            try:
+                data_size = len(data)
+                if data_size > self.shm.size:
+                    log.debug(f"Data size ({data_size}) exceeds shared memory size ({self.shm.size}).")
+                    return False
+
+                self.shm.buf[:data_size] = data
+                self.shm_sem.sem_post(self.sem_read_flag)
+            except Exception as e:
+                log.debug(f"Error writing to shared memory: {e}")
         else:
-            return True  # process exists
+            if not self.agent_process or self.agent_process.poll() is not None:
+                log.debug("Missing agent! Trying to restart the shared memory agent.")
+                self.restart_agent()
+                if not self.agent_process:
+                    log.debug("Failed to restart the agent. Aborting write operation.")
+                    return False
+        return True
+
+    def read_from_shm(self):
+        if not self.shm:
+            log.debug("Shared memory not initialized.")
+            return None
+
+        self.shm_sem.sem_wait(self.sem_read_flag)
+        data = self.shm.buf[:self.output_width * self.output_height * 3]
+        image = np.frombuffer(data, dtype=np.uint8).reshape((self.output_height, self.output_width, 3))
+        self.shm_sem.sem_post(self.sem_write_flag)
+        return image
+
+    def cleanup_resources(self):
+        self.process_release_mutex.lock()
+        if self.shm:
+            log.debug("shm closed.")
+            self.shm.close()
+            self.shm.unlink()
+            self.shm = None
+        if self.shm_sem:
+            if self.sem_write_flag:
+                log.debug("sem_write_flag closed.")
+                self.shm_sem.sem_close(self.sem_write_flag)
+                self.shm_sem.sem_unlink(self.media_engine.shm_sem_write_uri)
+                self.sem_write_flag = 0
+            if self.sem_read_flag:
+                log.debug("sem_read_flag closed.")
+                self.shm_sem.sem_close(self.sem_read_flag)
+                self.shm_sem.sem_unlink(self.media_engine.shm_sem_read_uri)
+                self.sem_read_flag = 0
+            self.shm_sem = None
+        if self.agent_process:
+            log.debug("agent_process closed.")
+            self.agent_process.terminate()
+            self.agent_process.wait()
+            self.agent_process = None
+        if self.ff_process:
+            log.debug("ff_process closed.")
+            self.ff_process.terminate()
+            self.play_status_change(PlayStatus.Stop, self.video_src)
+            self.ff_process = None
+        self.process_release_mutex.unlock()
 
     def run(self):
+        if self.play_status != PlayStatus.Stop:
+            p = subprocess.run(["pgrep", "ffmpeg"], capture_output=True, text=True)
+            if p.stdout:
+                subprocess.run(["pkill", "-f", "ffmpeg"])
+
+        time.sleep(1)
+        self.restart_agent()
+        time.sleep(1)
+        self.restart_shm_and_sem()
 
         try:
+
             scale_factor = "scale=" + str(self.output_width) + ":" + str(self.output_height)
             self.command = ['ffmpeg', '-hide_banner', '-stream_loop', '-1', '-loglevel', 'error', '-hwaccel', 'auto',
                             '-i', self.video_src, '-f', 'image2pipe', '-pix_fmt', 'rgb24', '-vcodec', 'rawvideo', '-vf',
                             scale_factor, '-r', '27/1', '-']
             while True:
+
                 self.ff_process = subprocess.Popen(self.command, stdout=subprocess.PIPE, bufsize=10 ** 8)
                 self.media_engine.ff_process = self.ff_process
 
@@ -486,11 +627,13 @@ class Playing_HDMI_in_worker(QThread):
                     self.play_status_change(PlayStatus.Playing, self.video_src)
                     self.worker_status = 1
 
-                while self.worker_status:
+                while self.worker_status and self.force_stop is False:
 
                     self.image_from_pipe = self.ff_process.stdout.read(self.output_width * self.output_height * 3)
 
                     if not self.image_from_pipe:
+                        if self.agent_process is not None:
+                            self.agent_process.kill()
                         log.debug("No data read from the pipe.")
                         break
 
@@ -499,6 +642,10 @@ class Playing_HDMI_in_worker(QThread):
 
                     if self.ff_process is not None:
                         self.ff_process.stdout.flush()
+
+                    if self.image_from_pipe:
+                        raw_image_array = np.array(self.raw_image)
+                        self.write_to_shm(raw_image_array.tobytes())
 
                     if self.play_with_preview is True:
                         self.pysignal_refresh_image_pixmap.emit(self.raw_image)
@@ -509,10 +656,19 @@ class Playing_HDMI_in_worker(QThread):
                         os.kill(self.ff_process.pid, signal.SIGTERM)
                     break
 
+            self.cleanup_resources()
             self.pysignal_hdmi_play_finished.emit()
+
         except Exception as e:
             log.debug("Error in VideoThreadFFMpeg run method: %s", e)
         finally:
             self.stop()
+
+    def stop(self):
+        log.debug("FFmpeg process and pipe closed.")
+        self.force_stop = True
+        self.cleanup_resources()
+
+
 def test(self):
     log.debug("")

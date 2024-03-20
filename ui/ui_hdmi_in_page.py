@@ -1,4 +1,5 @@
 import time
+import subprocess
 from PyQt5 import QtGui
 from PyQt5 import QtWidgets
 from PyQt5.QtCore import QObject, Qt, QSize, QTimer, pyqtSlot, QMutex
@@ -32,7 +33,7 @@ class HDMIInPage(QWidget):
         self.main_windows = _main_window
         self.frame = _frame
         self.media_engine = media_engine
-
+        self.video_device = TC358743.get_video_device(self)
         self.widget = QWidget(self.frame)
         self.name = _name
         self.label_name = None
@@ -45,13 +46,13 @@ class HDMIInPage(QWidget):
         log.debug("start hdmi-in page")
 
         self.init_ui()
-        self.edid_check()
         self.media_engine.install_hdmi_play_status_changed_slot(self.media_play_status_changed)
 
         self.measurement_tc358743 = True
-        self.check_tc358743_interval = 2000
+        self.check_tc358743_interval = 1000
         self.check_tc358743_timer = QTimer(self)
         self.check_tc358743_timer.timeout.connect(self.check_tc358743_timer_event)
+        edid_check(self)
 
         try:
             self.check_tc358743_timer.start(self.check_tc358743_interval)
@@ -482,6 +483,7 @@ class HDMIInPage(QWidget):
         self.hdmi_in_layout.addWidget(self.crop_setting_widget)
         self.hdmi_in_layout.addWidget(self.setting_widget)
 
+    """    
     def check_video_src_is_ok(self, video_src):
         res = -1
         cmd = "ffprobe -hide_banner" + " " + video_src
@@ -502,37 +504,21 @@ class HDMIInPage(QWidget):
             # log.debug("%s is not ready", video_src)
 
         return res
-
-    def edid_check(self):
-        p = os.popen("v4l2-ctl --get-edid")
-        preproc = p.read()
-        if "failed" in preproc:
-            p = os.popen("write_tc358743_edid.sh")
-            time.sleep(5)
-            p.close()
-        p.close()
+    """
 
     def pause_btn_clicked(self):
         if PlayStatus.Playing == self.media_engine.playing_status:
             self.media_engine.pause_playing()
-            self.hdmi_in_play_status_label.setText("Streaming-Pause")
+            # self.hdmi_in_play_status_label.setText("Streaming-Pause")
         elif PlayStatus.Pausing == self.media_engine.playing_status:
             self.media_engine.resume_playing()
-            self.hdmi_in_play_status_label.setText("Streaming-Resume")
+            # self.hdmi_in_play_status_label.setText("Streaming-Resume")
         elif (PlayStatus.Stop == self.media_engine.playing_status or
               PlayStatus.Initial == self.media_engine.playing_status):
             self.start_streaming()
-            self.hdmi_in_play_status_label.setText("Streaming")
+            # self.hdmi_in_play_status_label.setText("Streaming")
 
-    def start_streaming(self):
-        self.play_hdmi_in_status = True
-        self.media_engine.resume_playing()
-        self.media_engine.stop_play()
-        if self.media_engine.play_hdmi_in_worker is None:
-            log.debug("Start streaming")
-            self.media_engine.hdmi_in_play("/dev/video0")
-
-    def media_play_status_changed(self, status: int):
+    def media_play_status_changed(self, status: int, src: str):
         if status == PlayStatus.Playing:
             self.play_action_btn.setText("Pause")
         elif status == PlayStatus.Pausing:
@@ -541,33 +527,13 @@ class HDMIInPage(QWidget):
               status == PlayStatus.Initial):
             self.play_action_btn.setText("Start Play")
 
-
-    def start_send_to_led(self):
+    def start_streaming(self):
         self.play_hdmi_in_status = True
+        self.media_engine.resume_playing()
+        self.media_engine.stop_play()
         if self.media_engine.play_hdmi_in_worker is None:
-            log.debug("Start streaming to led")
-            # self.media_engine.media_processor.hdmi_in_play(video_src, streaming_sink)
-
-    def check_video_src_is_ok(self, video_src):
-        res = -1
-        cmd = "ffprobe -hide_banner" + " " + video_src
-        # ffprobe_res = os.popen(cmd).read()
-        p = Popen(cmd, shell=True, stdout=PIPE, stderr=PIPE)
-        ffprobe_stdout, ffprobe_stderr = p.communicate()
-
-        '''log.debug("++++++++++++")
-        log.debug("ffprobe_stdout : %s", ffprobe_stdout.decode())
-        log.debug("ffprobe_stderr : %s", ffprobe_stderr.decode())
-        log.debug("------------")'''
-        p.kill()
-        if "Stream" in ffprobe_stderr.decode():
-            log.debug("%s is ready", video_src)
-            res = 0
-        else:
-            pass
-            # log.debug("%s is not ready", video_src)
-
-        return res
+            log.debug("Start streaming")
+            self.media_engine.hdmi_in_play(self.video_device)
 
     def stop_btn_clicked(self):
         self.measurement_tc358743 = False
@@ -598,7 +564,6 @@ class HDMIInPage(QWidget):
         self.preview_mutex.unlock()
 
         try:
-
             if (self.tc358743.get_tc358743_hdmi_connected_status() is True and
                     self.measurement_tc358743 is True):
                 if self.tc358743.set_tc358743_dv_bt_timing() is True:
@@ -618,7 +583,12 @@ class HDMIInPage(QWidget):
 
         except Exception as e:
             log.debug(e)
-            log.debug("exit check_tc358743_timer")
+            self.check_tc358743_timer.stop()
+            self.check_tc358743_timer.start(self.check_tc358743_interval)
+            self.preview_status = True
+            self.measurement_tc358743 = True
+            self.preview_mutex.unlock()
+            log.debug("restart check_tc358743_timer")
 
     def refresh_tc358743_param(self, connected, width, height, fps):
         # log.debug("connected = %d", connected)
@@ -669,38 +639,37 @@ class HDMIInPage(QWidget):
             return
         else:
             self.media_engine.stop_play()
-            if self.media_engine.play_hdmi_in_worker is not None:
-                os.kill(self.media_engine.play_hdmi_in_worker.get_ff_pid(), signal.SIGTERM)
-            else:
-                # find any ffmpeg process
-                p = os.popen("pgrep ffmpeg").read()
-                # log.debug("pgrep ffmpeg, res = %s", p)
-                # log.debug("p.len() = %d", len(p))
-                if len(p) != 0:
-                    # log.fatal("still got ffmpeg process")
-                    k = os.popen("pkill ffmpeg")
-                    k.close()
+            # find any ffmpeg process
+            p = subprocess.run(["pgrep", "ffmpeg"],
+                               capture_output=True, text=True)
+            if p.stdout:
+                subprocess.run(["pkill", "-f", "ffmpeg"])
+
+            # find any show_ffmpeg_shared_memory process
+            p = subprocess.run(["pgrep", "show_ffmpeg_shared_memory"],
+                               capture_output=True, text=True)
+            if p.stdout:
+                subprocess.run(["pkill", "-f", "show_ffmpeg_shared_memory"])
+
+            # find any ffprobe process
+            p = subprocess.run(["pgrep", "ffprobe"],
+                               capture_output=True, text=True)
+            if p.stdout:
+                subprocess.run(["pkill", "-f", "ffprobe"])
 
             if self.tc358743.set_tc358743_dv_bt_timing() is True:
                 self.tc358743.reinit_tc358743_dv_timing()
-                self.media_engine.hdmi_in_play("/dev/video0")
+                self.media_engine.hdmi_in_play(self.video_device)
 
         self.preview_mutex.unlock()
 
     def stop_hdmi_in_preview(self):
-
         if self.preview_status:
             self.preview_mutex.lock()
             self.media_engine.stop_play()
             self.preview_status = False
             self.preview_mutex.unlock()
         self.ffmpeg_pid_label.setText("ff pid:None")
-
-    def hdmi_in_crop_disable(self):
-        return
-
-    def hdmi_in_crop_enable(self):
-        return
 
     def video_crop_disable(self):
         return
@@ -719,3 +688,12 @@ class HDMIInPage(QWidget):
                 time.sleep(0.001)
         self.preview_status = True
 
+
+def edid_check(self):
+    p = os.popen("v4l2-ctl --get-edid")
+    preproc = p.read()
+    if "failed" in preproc:
+        p = os.popen("write_tc358743_edid.sh")
+        time.sleep(5)
+        p.close()
+    p.close()

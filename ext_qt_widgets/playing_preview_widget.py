@@ -12,10 +12,9 @@ from utils.utils_file_access import get_led_config_from_file_uri, get_int_led_co
 class PlayingPreviewWindow(QWidget):
 
     def __init__(self):
-
         super(PlayingPreviewWindow, self).__init__()
         self.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5() + \
-                      """
+                           """
                       QMenu{
                           button-layout : 2;
                           font: bold 16pt "Brutal Type";
@@ -57,7 +56,7 @@ class PlayingPreviewWindow(QWidget):
     def convert_ffmpeg_qt(self, ffmpeg_img):
         """Convert from an opencv image to QPixmap"""
         # rgb_image = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
-        #log.debug("%s", time.time())
+        # log.debug("%s", time.time())
         h, w, ch = ffmpeg_img.shape
         bytes_per_line = ch * w
         convert_to_Qt_format = QImage(ffmpeg_img.data, w, h, bytes_per_line, QImage.Format_RGB888)
