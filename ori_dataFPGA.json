@@ -1,0 +1,49 @@
+{
+  "frameWidth": "0",
+  "frameHeight": "0",
+  "softwareVersion": "LC_G3_240220_D1",
+  "lcdVersion": "LS240305001",
+  "fpgaID": [
+    {
+      "deviceID": "2",
+      "portNumber": "0",
+      "UTC": "0",
+      "MD5": "0",
+      "frameWidth": "0",
+      "frameHeight": "0",
+      "currentGain": "0",
+      "ledArrangement": "0",
+      "portWidth_0": "0",
+      "portHeight_0": "0",
+      "startX_0": "0",
+      "startY_0": "0",
+      "portWidth_1": "0",
+      "portHeight_1": "0",
+      "startX_1": "0",
+      "startY_1": "0"
+    },
+    {
+      "deviceID": "3",
+      "portNumber": "0",
+      "UTC": "0",
+      "MD5": "0",
+      "frameWidth": "0",
+      "frameHeight": "0",
+      "currentGain": "0",
+      "ledArrangement": "0",
+      "portWidth_0": "0",
+      "portHeight_0": "0",
+      "startX_0": "0",
+      "startY_0": "0",
+      "portWidth_1": "0",
+      "portHeight_1": "0",
+      "startX_1": "0",
+      "startY_1": "0"
+    },
+    {
+      "deviceID": "4",
+      "portNumber": "0",
+      "UTC": "0"
+    }
+  ]
+}

@@ -9,6 +9,8 @@ log = utils.log_utils.logging_init(__file__)
 root_dir = os.path.dirname(sys.modules['__main__'].__file__)
 LD_PATH = root_dir + "/ext_binaries/"
 
+FPGA_START_ID = 2
+
 if platform.machine() in ('arm', 'arm64', 'aarch64'):
     SU_PWD = 'workout13'
     ETH_DEV = 'eth0'
