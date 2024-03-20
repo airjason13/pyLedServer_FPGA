@@ -167,8 +167,8 @@ class FpgaListPage(QWidget):
 
     def func_set_btn(self):
         log.debug("func test btn clicked")
-        self.cmd_test_timer.timeout.connect(self.cmd_frame_res_test)
-        self.cmd_test_timer.start(4 * 1000)
+        self.cmd_test_timer.timeout.connect(self.fpga_write_flash_test)
+        self.cmd_test_timer.start(3 * 1000)
 
     def func_rescan_btn(self):
         log.debug("func rescan btn clicked")
@@ -216,7 +216,6 @@ class FpgaListPage(QWidget):
             ret, id_height = self.fpga_list[i].read_cmd("frameHeight")
             # ret, id_width = self.fpga_cmd_center.read_fpga_register(i, "frameWidth")
 
-
             if ret == 0:
                 if s_width_temp == str(id_width) and s_height_temp == str(id_height):
                     log.debug("read OK")
@@ -226,3 +225,22 @@ class FpgaListPage(QWidget):
                     log.debug("UTC read/write failed!")
             else:
                 log.debug("UTC read/write failed!")
+
+    def fpga_write_flash_test(self):
+        log.debug("self.frame_res_test_count : %d", self.frame_res_test_count)
+        self.frame_res_test_count += 1
+        self.main_windows.fpga_cmd_center.set_fpga_write_flash()
+        for i in range(len(self.fpga_list)):  # send cmd to id 2/3
+            start_time = time.time()
+            ret, id_width = self.fpga_list[i].read_cmd("frameWidth")
+            if ret == 0:
+                log.debug("id: %d, id_width: %s", self.fpga_list[i].i_id, id_width)
+                if int(id_width) != 640:
+                    log.fatal("id: %d, read frame width : %s, not match test frame width",
+                              self.fpga_list[i].i_id, id_width )
+            ret, id_height = self.fpga_list[i].read_cmd("frameHeight")
+            if ret == 0:
+                if int(id_height) != 480:
+                    log.debug("id: %d, id_height: %s", self.fpga_list[i].i_id, id_height)
+                    log.fatal("id: %d, read frame height : %s, not match test frame height",
+                              self.fpga_list[i].i_id, id_width)

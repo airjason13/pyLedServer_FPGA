@@ -3,7 +3,5 @@
   "frameHeight": "0",
   "softwareVersion": "LC_G3_240220_D1",
   "lcdVersion": "LS240305001",
-  "fpgaID": [
-    {}
-  ]
+  "fpgaID": []
 }

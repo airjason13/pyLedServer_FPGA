@@ -106,11 +106,20 @@ class MainUi(QMainWindow):
 
         self.right_frame_page_list[0].sync_clients_table(self.fpga_list)
 
+        ret, str_value = self.fpga_cmd_center.read_fpga_register(2, FPGAJsonParams.params_list[0])
+        if ret == 0:
+            log.debug("read device ID from id2, ret : %d, str_value: %s", ret, str_value)
         self.init_fpga_json_file()
-        self.utc_test_count = 0
+
+        # self.right_frame_page_list[0].cmd_frame_res_test()
+        # self.fpga_cmd_center.set_fpga_write_flash()
+        # time.sleep(1)
+        # self.fpga_cmd_center.set_fpga_read_flash()
+        # self.init_fpga_json_file()
+        '''self.utc_test_count = 0
         self.test_timer = QTimer(self)
         self.test_timer.timeout.connect(self.utc_test)
-        self.test_timer.start(3 * 1000)
+        self.test_timer.start(3 * 1000)'''
 
     def utc_test(self):
         log.debug("self.utc_test_count : %d", self.utc_test_count)
@@ -230,13 +239,27 @@ class MainUi(QMainWindow):
         data["frameHeight"] = '0'
         data["softwareVersion"] = 'LC_G3_240220_D1'
         data["lcdVersion"] = 'LS240305001'
-        data["fpgaID"] = [dict()]
+        data["fpgaID"] = []
+        params = {}
+        '''for i in range(2):
+            params["deviceID"] = "2"
+            params["UTC"] = "test"
+            params["MD5"] = "test"
+            data["fpgaID"].append(params)
+        # data["fpgaID"][self.fpga_total_num] = dict()'''
 
-        for i in range(self.fpga_total_num):
-            data["fpgaID"][i][FPGAJsonParams.params_list[0]] = str(i + 2)
+        for i in range(FPGA_START_ID, FPGA_START_ID + self.fpga_total_num):
+            params = {}
+            for j in range(len(FPGAJsonParams.params_list)):
+                log.debug("read id: %d, %s", i , FPGAJsonParams.params_list[j])
+                ret, str_value = self.fpga_cmd_center.read_fpga_register(i, FPGAJsonParams.params_list[j])
 
-            for j in range(len(1, FPGAJsonParams.params_list)):
-                data["fpgaID"][i][FPGAJsonParams.params_list[i]] = str(i + 2)
+                if ret == 0:
+                    params[FPGAJsonParams.params_list[j]] = str_value
+                else:
+                    params[FPGAJsonParams.params_list[j]] = "unknown"
+            data["fpgaID"].append(params)
+            params = None
 
         with open("dataFPGA.json", "w") as jsonFile:
             json.dump(data, jsonFile, indent=2)

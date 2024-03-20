@@ -91,22 +91,14 @@ ledArrangementDict = {"RGB": '00',
 
 class FPGAJsonParams(str):
     params_list = ['deviceID',  # not register
-                   'portNumber',  # not register
                    'UTC',
                    'MD5',
+                   "currentGammaTable",
                    'frameWidth',
                    'frameHeight',
                    'currentGain',
-                   'panelway',
                    'ledArrangement',
-                   'portWidth_0',
-                   'portHeight_0',
-                   'startX_0',
-                   'startY_0',
-                   'portWidth_1',
-                   'portHeight_1',
-                   'startX_1',
-                   'startY_1']
+                   ]
 
 
 # set port data address
@@ -180,7 +172,23 @@ class setRaw(threading.Thread):
                 else:
                     self.packageIndex += 1
 
-    def sendCMD(self, dataAdd, dataLen, rawDatas):
+    def sendCMD(self, dataAdd:bytes, dataLen=2, rawDatas='2'):
+        # 長度不夠補0
+        if len(rawDatas) < (dataLen * 2):
+            zero = (dataLen * 2) - len(rawDatas)
+            # rawDatas = rawDatas + bytearray(zero)
+            rawDatas = zero * '0' + rawDatas
+
+        # print("rawDatas : ", rawDatas)
+        rawDatas = int(rawDatas).to_bytes(dataLen, 'little')  # str -> byte, LSB
+        # rawDatas = bytearray.fromhex(rawDatas)[::-1]    # str -> byte, LSB 
+        # print('rawDatas = ', rawDatas)
+        rawData = dataAdd + rawDatas
+        # print("rawData : ", rawData)
+        self.numberOfDataByte = len(rawData)
+        self.sendSocket(rawData)
+
+    def sendCMD_ori(self, dataAdd:bytes, dataLen:int, rawDatas:str):
         # 長度不夠補0
         if len(rawDatas) < (dataLen * 2):
             zero = (dataLen * 2) - len(rawDatas)
@@ -188,11 +196,12 @@ class setRaw(threading.Thread):
             rawDatas = zero * '0' + rawDatas
             # print('rawDatas + bytearray(zero) = ', rawDatas)
 
+        # print("rawDatas : ", rawDatas)
         rawDatas = int(rawDatas).to_bytes(dataLen, 'little')  # str -> byte, LSB
-        # rawDatas = bytearray.fromhex(rawDatas)[::-1]    # str -> byte, LSB 
+        # rawDatas = bytearray.fromhex(rawDatas)[::-1]    # str -> byte, LSB
         # print('rawDatas = ', rawDatas)
         rawData = dataAdd + rawDatas
-
+        # print("rawData : ", rawData)
         self.numberOfDataByte = len(rawData)
         self.sendSocket(rawData)
 
@@ -245,7 +254,7 @@ class getRaw(threading.Thread):
 
                     while True:
                         if self.stopThreads:
-                            print("break.")
+                            log.debug("fpga wait cmd ack stopThreads break.")
                             break
                         # Wait until the socket become readable
                         ready = self.selector.select()
@@ -260,12 +269,13 @@ class getRaw(threading.Thread):
                             packageIndex = int.from_bytes(index, "big")
                             if src == protocolDict["sourceAddress"]:
                                 if ack == b'\xA0':
-                                    self.ackStatus = 0
+                                    self.ackStatus = -1
                                     if fc == self.flowCtrl and packageIndex == self.packageIndex:
                                         if self.flowCtrl == flowCtrlDict["readRegister_ack"]:
                                             # Extract a payload
                                             self.payload = frame[17:17 + dataLen - 1]
                                             self.payload = int.from_bytes(self.payload, "little")
+                                            self.ackStatus = 0
                                     return
                                 elif ack == b'\x01':
                                     log.debug("CRC Error")
@@ -284,13 +294,16 @@ class getRaw(threading.Thread):
 
 
 class FPGACmdCenter:
-    def __init__(self, interface, server_addr, rw_max_count=10, debug=False):
+    def __init__(self, interface, server_addr, rw_max_count=10, ack_wait_time=0.1, debug=False):
         self.eth_if = interface
         self.write_cmd = None
         self.read_cmd = None
         self.pkg_index = 0  # from 0
         self.server_addr = server_addr
         self.rw_max_count = rw_max_count
+        self.ack_wait_time = ack_wait_time
+        self.lock = threading.Lock()
+        self.lock_time = self.rw_max_count * self.ack_wait_time
         self.debug = debug
 
     def reset_cmd_set(self):
@@ -311,6 +324,21 @@ class FPGACmdCenter:
         self.pkg_index_addon()
         self.reset_cmd_set()
 
+    def set_fpga_write_flash(self, fpga_id='broadcast'):
+        setID = setRaw(self.eth_if, self.server_addr, protocolDict[fpga_id],
+                       self.pkg_index, flowCtrlDict["writeRegister"])
+
+        setID.sendCMD(dataAddressDict["flashControl"], dataLenDict["flashControl"], '128')
+        self.pkg_index_addon()
+        self.reset_cmd_set()
+
+    def set_fpga_read_flash(self, fpga_id='broadcast'):
+        setID = setRaw(self.eth_if, self.server_addr, protocolDict[fpga_id],
+                       self.pkg_index, flowCtrlDict["writeRegister"])
+        setID.sendCMD(dataAddressDict["flashControl"], dataLenDict["flashControl"], '64')
+        self.pkg_index_addon()
+        self.reset_cmd_set()
+
     def write_fpga_register(self, fpga_id: int, register_name: str, value: str) -> int:
         if register_name in dataAddressDict.keys():
             # log.debug("going to write %s", register_name)
@@ -318,6 +346,8 @@ class FPGACmdCenter:
         else:
             log.fatal("no such register : %s", register_name)
             return -1
+        # add lock
+        self.lock.acquire(timeout=self.lock_time)    # 1 sec timeout ...10 * 0.1
         # must add value len compare later
         start_time = None
         receive_write_ack = getRaw(self.eth_if, flowCtrlDict["writeRegister_ack"], self.pkg_index)
@@ -325,7 +355,7 @@ class FPGACmdCenter:
         for i in range(5):
             if receive_write_ack.selector is not None:
                 break
-            time.sleep(0.01)
+            time.sleep(self.ack_wait_time)
         # log.debug("before send, receive_read_ack.is_alive() : %d", receive_write_ack.is_alive())
         write_register = setRaw(self.eth_if, self.server_addr, str(fpga_id),
                                 self.pkg_index, flowCtrlDict["writeRegister"])
@@ -334,20 +364,24 @@ class FPGACmdCenter:
             start_time = time.time()
         for i in range(self.rw_max_count):
             if i > 0:
-                log.debug("write cmd read ack count : %d", i)
-            time.sleep(0.01)
+                # log.debug("write cmd read ack count : %d", i)
+                pass
+            time.sleep(self.ack_wait_time)
             if receive_write_ack.is_alive() == 0:
                 # log.debug("already got a response from FPGA")
                 break
             # log.debug("before send, receive_read_ack.is_alive() : %d", receive_write_ack.is_alive())
             write_register = setRaw(self.eth_if, self.server_addr, str(fpga_id),
                                     self.pkg_index, flowCtrlDict["writeRegister"])
+
             write_register.sendCMD(dataAddressDict[register_name], dataLenDict[register_name], value)
 
         ret = receive_write_ack.ackStatus
         receive_write_ack.set_stop(True)
         receive_write_ack = None
-
+        self.pkg_index_addon()
+        self.reset_cmd_set()
+        self.lock.release()
         if self.debug is True:
             diff = time.time() - start_time
             log.debug("time diff = %d", diff)
@@ -363,7 +397,8 @@ class FPGACmdCenter:
         else:
             log.fatal("no such register : %s", register_name)
             return -1, None
-
+        # add lock
+        self.lock.acquire(timeout=self.lock_time)  # 1 sec timeout ...10 * 0.1
         receive_read_ack = getRaw(self.eth_if, flowCtrlDict["readRegister_ack"], self.pkg_index)
         receive_read_ack.start()
         # log.debug("before send, receive_read_ack.is_alive() : %d", receive_read_ack.is_alive())
@@ -373,13 +408,23 @@ class FPGACmdCenter:
             time.sleep(0.01)
         read_register = setRaw(self.eth_if, self.server_addr, str(fpga_id),
                                self.pkg_index, flowCtrlDict["readRegister"])
-        read_register.sendCMD(dataAddressDict[register_name], dataLenDict[register_name],
-                              str(dataLenDict[register_name]))
+        '''if register_name == "deviceID":
+            log.debug("bingo")
+            log.debug("self.pkg_index : %s", self.pkg_index)
+            log.debug("register_name : %s", register_name)
+            log.debug("dataAddressDict[register_name] : %s", dataAddressDict[register_name])
+            log.debug("dataLenDict[register_name] : %s", dataLenDict[register_name])
+            log.debug("str(dataLenDict[register_name]) : %s", str(dataLenDict[register_name]))
+            read_register.sendCMD(dataAddressDict[register_name])
+        else:
+            read_register.sendCMD(dataAddressDict[register_name])'''
+        read_register.sendCMD(dataAddressDict[register_name])
         if self.debug is True:
             start_time = time.time()
         for i in range(self.rw_max_count):
             if i > 0:
-                log.debug("cmd read count : %d", i)
+                # log.debug("cmd read count : %d", i)
+                pass
             time.sleep(0.01)
             # log.debug("after send, receive_read_ack.is_alive() : %d", receive_read_ack.is_alive())
             if receive_read_ack.is_alive() == 0:
@@ -388,16 +433,24 @@ class FPGACmdCenter:
 
             read_register = setRaw(self.eth_if, self.server_addr, str(fpga_id),
                                    self.pkg_index, flowCtrlDict["readRegister"])
-            read_register.sendCMD(dataAddressDict[register_name], dataLenDict[register_name],
-                                  str(dataLenDict[register_name]))
-
+            '''if register_name == "deviceID":
+                log.debug("bingo")
+                log.debug("self.pkg_index : %s", self.pkg_index)
+                log.debug("register_name : %s", register_name)
+                log.debug("dataAddressDict[register_name] : %s", dataAddressDict[register_name])
+                log.debug("dataLenDict[register_name] : %s", dataLenDict[register_name])
+                log.debug("str(dataLenDict[register_name]) : %s", str(dataLenDict[register_name]))
+                read_register.sendCMD(dataAddressDict[register_name])
+            else:
+                read_register.sendCMD(dataAddressDict[register_name])'''
+            read_register.sendCMD(dataAddressDict[register_name])
         ret = receive_read_ack.ackStatus
         read_payload = receive_read_ack.payload
         receive_read_ack.set_stop(True)
         receive_read_ack = None
         self.pkg_index_addon()
         self.reset_cmd_set()
-
+        self.lock.release()
         if self.debug is True:
             diff = time.time() - start_time
             log.debug("time diff = %d", diff)
