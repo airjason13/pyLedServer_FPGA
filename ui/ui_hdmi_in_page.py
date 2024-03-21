@@ -52,7 +52,7 @@ class HDMIInPage(QWidget):
         self.check_tc358743_interval = 1000
         self.check_tc358743_timer = QTimer(self)
         self.check_tc358743_timer.timeout.connect(self.check_tc358743_timer_event)
-        edid_check(self)
+        ensure_edid_validity(self)
 
         try:
             self.check_tc358743_timer.start(self.check_tc358743_interval)
@@ -526,14 +526,17 @@ class HDMIInPage(QWidget):
         elif (status == PlayStatus.Stop or
               status == PlayStatus.Initial):
             self.play_action_btn.setText("Start Play")
+        pid = self.media_engine.play_hdmi_in_worker.get_ff_pid()
+        self.ffmpeg_pid_label.setText("ff pid:" + str(pid))
 
     def start_streaming(self):
-        self.play_hdmi_in_status = True
-        self.media_engine.resume_playing()
-        self.media_engine.stop_play()
-        if self.media_engine.play_hdmi_in_worker is None:
-            log.debug("Start streaming")
-            self.media_engine.hdmi_in_play(self.video_device)
+        if self.play_hdmi_in_status is False:
+            self.media_engine.resume_playing()
+            self.media_engine.stop_play()
+            if self.media_engine.play_hdmi_in_worker is None:
+                log.debug("Start streaming")
+                self.media_engine.hdmi_in_play(self.video_device)
+            self.play_hdmi_in_status = True
 
     def stop_btn_clicked(self):
         self.measurement_tc358743 = False
@@ -571,6 +574,7 @@ class HDMIInPage(QWidget):
                     if tmp_preview_status is False:
                         self.start_hdmi_in_preview()
                         self.check_preview_status()
+                        self.preview_status = True
                         self.preview_label.setText("HDMI-in connected")
             else:
                 if self.tc358743.set_tc358743_dv_bt_timing() is True:
@@ -671,25 +675,8 @@ class HDMIInPage(QWidget):
             self.preview_mutex.unlock()
         self.ffmpeg_pid_label.setText("ff pid:None")
 
-    def video_crop_disable(self):
-        return
 
-    def video_crop_enable(self):
-        return
-
-    def check_preview_status(self):
-        self.ffmpeg_pid_label.setText("ff pid:None")
-        if self.media_engine.play_hdmi_in_worker is not None:
-            for _ in range(200):
-                pid = self.media_engine.play_hdmi_in_worker.get_ff_pid()
-                if pid and pid > 0:
-                    self.ffmpeg_pid_label.setText("ff pid:" + str(pid))
-                    break
-                time.sleep(0.001)
-        self.preview_status = True
-
-
-def edid_check(self):
+def ensure_edid_validity(self):
     p = os.popen("v4l2-ctl --get-edid")
     preproc = p.read()
     if "failed" in preproc:

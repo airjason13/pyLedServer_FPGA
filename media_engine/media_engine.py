@@ -432,13 +432,13 @@ class Playing_HDMI_in_worker(QThread):
 
     def __init__(self, media_engine: MediaEngine, video_src, with_audio: bool, with_preview: bool):
         super().__init__()
+        self.ffmpeg_cmd = None
         self.agent_cmd = None
         self.agent_process = None
         self.sem_read_flag = None
         self.sem_write_flag = None
         self.shm_sem = None
         self.shm = None
-        self.command = None
         self.playing_source = None
         self.media_engine = media_engine
         self.video_src = video_src
@@ -614,18 +614,31 @@ class Playing_HDMI_in_worker(QThread):
 
         try:
 
-            scale_factor = "scale=" + str(self.output_width) + ":" + str(self.output_height)
-            self.command = ['ffmpeg', '-hide_banner', '-stream_loop', '-1', '-loglevel', 'error', '-hwaccel', 'auto',
-                            '-i', self.video_src, '-f', 'image2pipe', '-pix_fmt', 'rgb24', '-vcodec', 'rawvideo', '-vf',
-                            scale_factor, '-r', '27/1', '-']
+            self.ffmpeg_cmd = get_ffmpeg_cmd_with_playing_media_file_(self.video_src,
+                                                                      width=self.output_width,
+                                                                      height=self.output_height,
+                                                                      target_fps="24/1")
+
             while True:
 
-                self.ff_process = subprocess.Popen(self.command, stdout=subprocess.PIPE, bufsize=10 ** 8)
-                self.media_engine.ff_process = self.ff_process
+                if self.ff_process and self.ff_process.poll() is None:
+                    self.ff_process.terminate()
+                    try:
+                        self.ff_process.wait(timeout=2)
+                    except subprocess.TimeoutExpired:
+                        log.debug("ff_process termination timeout.")
+                    self.ff_process = None
 
-                if self.ff_process.pid > 0:
-                    self.play_status_change(PlayStatus.Playing, self.video_src)
-                    self.worker_status = 1
+                try:
+                    self.ff_process = subprocess.Popen(self.ffmpeg_cmd.split(), stdout=subprocess.PIPE, bufsize=10 ** 8)
+                    if self.ff_process.pid > 0:
+                        log.debug(f"ff_process started: {self.ff_process.pid}")
+                        self.play_status_change(PlayStatus.Playing, self.video_src)
+                        self.worker_status = 1
+                except Exception as e:
+                    log.debug(f"ff_process Failed: {e}")
+
+                self.media_engine.ff_process = self.ff_process
 
                 while self.worker_status and self.force_stop is False:
 

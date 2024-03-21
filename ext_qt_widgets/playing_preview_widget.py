@@ -1,12 +1,13 @@
 import qdarkstyle
 from PyQt5 import QtWidgets
-from PyQt5.QtCore import pyqtSignal, Qt
+from PyQt5.QtCore import pyqtSignal, Qt, QTimer
 from PyQt5.QtGui import QPixmap, QImage
 from PyQt5.QtWidgets import QWidget, QGridLayout, QLabel, QFrame
 import time
 
 from global_def import log
 from utils.utils_file_access import get_led_config_from_file_uri, get_int_led_config_from_file_uri
+
 
 
 class PlayingPreviewWindow(QWidget):
@@ -68,5 +69,7 @@ class PlayingPreviewWindow(QWidget):
         self.setVisible(is_visible)
 
     def close_window(self):
-        """close window"""
-        self.close()
+        QTimer.singleShot(1000, self.perform_close)
+
+    def perform_close(self):
+        super().close()
