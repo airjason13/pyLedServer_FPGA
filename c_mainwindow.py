@@ -210,6 +210,7 @@ class MainUi(QMainWindow):
             for i in range(len(self.right_frame_page_list)):
                 if self.right_frame_page_list[i].name == tag:
                     self.right_layout.setCurrentIndex(i)
+                    self.right_frame_page_index = i
                     break
         except Exception as e:
             log.error(e)

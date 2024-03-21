@@ -10,9 +10,9 @@ def get_ffmpeg_cmd_with_playing_media_file_(video_uri: str, **kwargs):
     log.debug("%d", kwargs.get("width"))
     log.debug("%d", kwargs.get("height"))
     ff = None
-    width = kwargs.get("width")
-    height = kwargs.get("height")
-    target_fps = kwargs.get("target_fps")
+    width = kwargs.get("width", 1280)
+    height = kwargs.get("height", 720)
+    target_fps = kwargs.get("target_fps", "24/1")
     image_period = kwargs.get("image_period")
     global_opts = '-hide_banner -loglevel error -hwaccel auto'
     scale_param = 'scale=' + str(width) + ':' + str(height)
@@ -24,7 +24,15 @@ def get_ffmpeg_cmd_with_playing_media_file_(video_uri: str, **kwargs):
     else:
         audio_sink = 'hw:0,0'
 
-    if video_uri.endswith("mp4"):
+    if "/dev/video" in video_uri:
+        ff = ffmpy.FFmpeg(
+            inputs={video_uri: None},
+            outputs={
+                pipe_sink: ['-loglevel', 'error', '-vf', scale_param, '-r', target_fps, '-pix_fmt', 'rgb24', '-f', 'rawvideo'],
+                #audio_sink: ['-f', 'alsa']
+            }
+        )
+    elif video_uri.endswith("mp4"):
         ff = ffmpy.FFmpeg(
             global_options=global_opts,
             inputs={
