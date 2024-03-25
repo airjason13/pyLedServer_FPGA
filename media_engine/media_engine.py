@@ -611,6 +611,7 @@ class Playing_HDMI_in_worker(QThread):
         self.restart_agent()
         time.sleep(1)
         self.restart_shm_and_sem()
+        self.force_stop  = False
 
         try:
 

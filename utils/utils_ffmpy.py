@@ -28,8 +28,8 @@ def get_ffmpeg_cmd_with_playing_media_file_(video_uri: str, **kwargs):
         ff = ffmpy.FFmpeg(
             inputs={video_uri: None},
             outputs={
-                pipe_sink: ['-loglevel', 'error', '-vf', scale_param, '-r', target_fps, '-pix_fmt', 'rgb24', '-f', 'rawvideo'],
-                #audio_sink: ['-f', 'alsa']
+                pipe_sink: ["-loglevel", "error", "-vf", scale_param, "-r", target_fps, "-pix_fmt", "rgb24", "-f", "rawvideo"],
+                # audio_sink: ["-f", "alsa"]
             }
         )
     elif video_uri.endswith("mp4"):

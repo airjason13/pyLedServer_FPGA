@@ -24,18 +24,106 @@ import os
 import platform
 
 
+def video_params_confirm_btn_clicked():
+    log.debug("")
+
+
+def hdmi_in_crop_disable():
+    log.debug("")
+
+
+def hdmi_in_crop_enable():
+    log.debug("")
+
+
 class HDMIInPage(QWidget):
 
     def __init__(self, _main_window, _frame: QWidget, _name, media_engine: MediaEngine, **kwargs):
         super(HDMIInPage, self).__init__(**kwargs)
-
-        self.play_hdmi_in_keep = None
+        self.video_params_confirm_btn = None
+        self.client_night_mode_brightness_edit = None
+        self.client_night_mode_brightness_label = None
+        self.client_sleep_mode_brightness_edit = None
+        self.client_sleep_mode_brightness_label = None
+        self.client_day_mode_brightness_edit = None
+        self.client_day_mode_brightness_label = None
+        self.client_gamma_edit = None
+        self.radiobutton_sleep_mode_disable = None
+        self.radiobutton_sleep_mode_enable = None
+        self.combobox_target_city = None
+        self.groupbox_sleep_mode_vboxlayout = None
+        self.groupbox_sleep_mode = None
+        self.radiobutton_client_br_method_test = None
+        self.client_gamma_label = None
+        self.radiobutton_client_br_method_als = None
+        self.radiobutton_client_br_method_time = None
+        self.radiobutton_client_br_method_fix = None
+        self.groupbox_led_role_hboxlayout = None
+        self.client_contrast_edit = None
+        self.client_br_divisor_edit = None
+        self.client_contrast_label = None
+        self.client_br_divisor_label = None
+        self.client_brightness_edit = None
+        self.client_brightness_label = None
+        self.blugain_label = None
+        self.greengain_edit = None
+        self.greengain_label = None
+        self.redgain_edit = None
+        self.redgain_label = None
+        self.contrast_edit = None
+        self.brightness_edit = None
+        self.bluegain_edit = None
+        self.groupbox_client_brightness_method = None
+        self.brightness_label = None
+        self.contrast_label = None
+        self.setting_widget_layout = None
+        self.setting_widget = None
+        self.hdmi_in_crop_dummy_label = None
+        self.hdmi_in_crop_enable_btn = None
+        self.hdmi_in_crop_h_lineedit = None
+        self.hdmi_in_crop_h_label = None
+        self.hdmi_in_crop_w_lineedit = None
+        self.hdmi_in_crop_w_label = None
+        self.hdmi_in_crop_y_lineedit = None
+        self.hdmi_in_crop_disable_btn = None
+        self.hdmi_in_crop_y_label = None
+        self.hdmi_in_crop_x_lineedit = None
+        self.hdmi_in_crop_x_label = None
+        self.hdmi_in_crop_status_h_res_label = None
+        self.hdmi_in_crop_status_h_label = None
+        self.crop_setting_widget_layout = None
+        self.crop_setting_widget = None
+        self.hdmi_in_crop_status_w_res_label = None
+        self.hdmi_in_crop_status_w_label = None
+        self.hdmi_in_crop_status_y_res_label = None
+        self.hdmi_in_crop_status_y_label = None
+        self.hdmi_in_crop_status_x_res_label = None
+        self.hdmi_in_crop_status_x_label = None
+        self.hdmi_in_crop_status_label = None
+        self.hdmi_in_info_fps_res_label = None
+        self.info_widget_layout = None
+        self.info_widget = None
+        self.hdmi_in_info_fps_label = None
+        self.hdmi_in_info_height_res_label = None
+        self.hdmi_in_info_height_label = None
+        self.hdmi_in_info_width_res_label = None
+        self.hdmi_in_info_width_label = None
+        self.ffmpeg_pid_label = None
+        self.hdmi_in_play_status_label = None
+        self.preview_label = None
+        self.preview_widget_layout = None
+        self.preview_widget = None
+        self.stop_action_btn = None
+        self.play_action_btn = None
+        self.hdmi_in_layout = None
+        self.hdmi_in_widget = None
         self.main_windows = _main_window
         self.frame = _frame
         self.media_engine = media_engine
         self.video_device = TC358743.get_video_device(self)
         self.widget = QWidget(self.frame)
         self.name = _name
+        self.prev_hdmi_info = None
         self.label_name = None
         self.layout = None
         self.play_hdmi_in_status = False
@@ -110,7 +198,7 @@ class HDMIInPage(QWidget):
         self.preview_widget_layout.addWidget(self.hdmi_in_play_status_label, 4, 0)
         self.preview_widget_layout.addWidget(self.ffmpeg_pid_label, 4, 2)
 
-        # infomation of hdmi in
+        # information of hdmi in
         self.info_widget = QWidget(self.hdmi_in_widget)
         self.info_widget_layout = QGridLayout()
         self.info_widget.setLayout(self.info_widget_layout)
@@ -228,13 +316,13 @@ class HDMIInPage(QWidget):
         self.hdmi_in_crop_disable_btn.setFixedWidth(100)
         self.hdmi_in_crop_disable_btn.setText("Disable")
         self.hdmi_in_crop_disable_btn.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
-        self.hdmi_in_crop_disable_btn.clicked.connect(self.hdmi_in_crop_disable)
+        self.hdmi_in_crop_disable_btn.clicked.connect(hdmi_in_crop_disable)
 
         self.hdmi_in_crop_enable_btn = QPushButton(self.crop_setting_widget)
         self.hdmi_in_crop_enable_btn.setFixedWidth(100)
         self.hdmi_in_crop_enable_btn.setText("Enable")
         self.hdmi_in_crop_enable_btn.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
-        self.hdmi_in_crop_enable_btn.clicked.connect(self.hdmi_in_crop_enable)
+        self.hdmi_in_crop_enable_btn.clicked.connect(hdmi_in_crop_enable)
 
         self.hdmi_in_crop_dummy_label = QLabel(self.crop_setting_widget)
 
@@ -441,7 +529,7 @@ class HDMIInPage(QWidget):
         self.video_params_confirm_btn = QPushButton(self.setting_widget)
         self.video_params_confirm_btn.setText("Set")
         self.video_params_confirm_btn.setFixedWidth(100)
-        self.video_params_confirm_btn.clicked.connect(self.video_params_confirm_btn_clicked)
+        self.video_params_confirm_btn.clicked.connect(video_params_confirm_btn_clicked)
         self.video_params_confirm_btn.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
 
         '''# self.setting_widget_layout.addWidget(self.test_btn, 0, 0)'''
@@ -483,28 +571,38 @@ class HDMIInPage(QWidget):
         self.hdmi_in_layout.addWidget(self.crop_setting_widget)
         self.hdmi_in_layout.addWidget(self.setting_widget)
 
-    """    
-    def check_video_src_is_ok(self, video_src):
-        res = -1
-        cmd = "ffprobe -hide_banner" + " " + video_src
-        # ffprobe_res = os.popen(cmd).read()
-        p = Popen(cmd, shell=True, stdout=PIPE, stderr=PIPE)
-        ffprobe_stdout, ffprobe_stderr = p.communicate()
+    def media_play_status_changed(self, status: int, src: str):
+        if status == PlayStatus.Playing:
+            self.play_action_btn.setText("Pause")
+        elif status == PlayStatus.Pausing:
+            self.play_action_btn.setText("Resume")
+        elif (status == PlayStatus.Stop or
+              status == PlayStatus.Initial):
+            self.play_action_btn.setText("Start Play")
+        if self.media_engine.play_hdmi_in_worker is not None:
+            pid = self.media_engine.play_hdmi_in_worker.get_ff_pid()
+            if pid is not None:
+                self.ffmpeg_pid_label.setText("ff pid:" + str(pid))
 
-        '''log.debug("++++++++++++")
-        log.debug("ffprobe_stdout : %s", ffprobe_stdout.decode())
-        log.debug("ffprobe_stderr : %s", ffprobe_stderr.decode())
-        log.debug("------------")'''
-        p.kill()
-        if "Stream" in ffprobe_stderr.decode():
-            log.debug("%s is ready", video_src)
-            res = 0
-        else:
-            pass
-            # log.debug("%s is not ready", video_src)
+    def start_streaming(self):
+        if self.play_hdmi_in_status is False:
+            self.media_engine.resume_playing()
+            self.media_engine.stop_play()
+            if self.media_engine.play_hdmi_in_worker is None:
+                log.debug("Start streaming")
+                self.media_engine.hdmi_in_play(self.video_device)
+            self.play_hdmi_in_status = True
+            self.measurement_tc358743 = True
 
-        return res
-    """
+    def stop_streaming(self, MeasurementEnable: False):
+        self.measurement_tc358743 = MeasurementEnable
+        self.media_engine.stop_play()
+        self.play_hdmi_in_status = False
+        self.refresh_tc358743_param(False)
+        self.hdmi_in_play_status_label.setText("Non-Streaming")
+
+    def stop_btn_clicked(self):
+        self.stop_streaming(False)
 
     def pause_btn_clicked(self):
         if PlayStatus.Playing == self.media_engine.playing_status:
@@ -518,113 +616,79 @@ class HDMIInPage(QWidget):
             self.start_streaming()
             # self.hdmi_in_play_status_label.setText("Streaming")
 
-    def media_play_status_changed(self, status: int, src: str):
-        if status == PlayStatus.Playing:
-            self.play_action_btn.setText("Pause")
-        elif status == PlayStatus.Pausing:
-            self.play_action_btn.setText("Resume")
-        elif (status == PlayStatus.Stop or
-              status == PlayStatus.Initial):
-            self.play_action_btn.setText("Start Play")
-        pid = self.media_engine.play_hdmi_in_worker.get_ff_pid()
-        self.ffmpeg_pid_label.setText("ff pid:" + str(pid))
-
-    def start_streaming(self):
-        if self.play_hdmi_in_status is False:
-            self.media_engine.resume_playing()
-            self.media_engine.stop_play()
-            if self.media_engine.play_hdmi_in_worker is None:
-                log.debug("Start streaming")
-                self.media_engine.hdmi_in_play(self.video_device)
-            self.play_hdmi_in_status = True
-
-    def stop_btn_clicked(self):
-        self.measurement_tc358743 = False
-        self.media_engine.stop_play()
-        self.play_hdmi_in_status = False
-        self.refresh_tc358743_param(False, "NA", "NA", "NA")
-        self.hdmi_in_play_status_label.setText("Non-Streaming")
-
-    def hdmi_in_crop_disable(self):
-        log.debug("")
-
-    def hdmi_in_crop_enable(self):
-        log.debug("")
-
-    def video_params_confirm_btn_clicked(self):
-        log.debug("")
-
     def check_tc358743_timer_event(self):
         # log.debug("enter check_tc358743_timer")
         self.preview_mutex.lock()
         if self.main_windows.right_frame_page_index != Page.HDMI_IN.value:
             # log.debug("Not in hdmi-in page")
+            self.prev_hdmi_info = None
             self.preview_status = False
             self.measurement_tc358743 = True
             self.preview_mutex.unlock()
             return
-        tmp_preview_status = self.preview_status
+
         self.preview_mutex.unlock()
 
+        current_hdmi_info = self.tc358743.get_tc358743_hdmi_info()
+
+        (current_hdmi_connected, current_hdmi_hdmi_width,
+         current_hdmi_height, current_hdmi_hdmi_fps) = current_hdmi_info
+
         try:
-            if (self.tc358743.get_tc358743_hdmi_connected_status() is True and
-                    self.measurement_tc358743 is True):
-                if self.tc358743.set_tc358743_dv_bt_timing() is True:
-                    self.tc358743.reinit_tc358743_dv_timing()
-                    if tmp_preview_status is False:
+
+            if (self.prev_hdmi_info is None or
+                    current_hdmi_info != self.prev_hdmi_info):
+
+                if (current_hdmi_connected is True and
+                        self.measurement_tc358743 is True):
+
+                    if self.tc358743.set_tc358743_dv_bt_timing() is True:
                         self.start_hdmi_in_preview()
-                        self.check_preview_status()
                         self.preview_status = True
                         self.preview_label.setText("HDMI-in connected")
-            else:
-                if self.tc358743.set_tc358743_dv_bt_timing() is True:
-                    self.tc358743.reinit_tc358743_dv_timing()
+                    else:
+                        hdmi_info_list = list(current_hdmi_info)
+                        hdmi_info_list[0] = False
+                        current_hdmi_info = tuple(hdmi_info_list)
+                        subprocess.Popen("pkill -f ffmpeg", shell=True)
 
-                if tmp_preview_status is True:
-                    self.measurement_tc358743 = True
-                    self.media_engine.stop_play()
-                    self.preview_label.setText("HDMI-in Signal Lost")
+                else:
+                    if self.tc358743.hdmi_connected is True:
+                        if current_hdmi_connected is False:
+                            self.stop_hdmi_in_preview()
+                            self.stop_streaming(True)
+                            self.measurement_tc358743 = True
+                            self.media_engine.stop_play()
+                            subprocess.Popen("pkill -f ffmpeg", shell=True)
+                            self.tc358743.reinit_tc358743_dv_timing()
+                            self.preview_label.setText("HDMI-in Signal Lost")
+
+            self.prev_hdmi_info = current_hdmi_info
+            (self.tc358743.hdmi_connected, self.tc358743.hdmi_width,
+             self.tc358743.hdmi_height, self.tc358743.hdmi_fps) = current_hdmi_info
 
         except Exception as e:
             log.debug(e)
             self.check_tc358743_timer.stop()
             self.check_tc358743_timer.start(self.check_tc358743_interval)
-            self.preview_status = True
+            self.preview_status = False
+            self.prev_hdmi_info = None
             self.measurement_tc358743 = True
             self.preview_mutex.unlock()
             log.debug("restart check_tc358743_timer")
 
-    def refresh_tc358743_param(self, connected, width, height, fps):
+    def refresh_tc358743_param(self, connected=False, width="NA", height="NA", fps="NA"):
+
         # log.debug("connected = %d", connected)
         # video_params = self.media_configs.video_params
-
         if platform.machine() in ('arm', 'arm64', 'aarch64'):
             pass
         else:
             return
-        if connected is True:
-            self.hdmi_in_info_width_res_label.setText(str(width))
-            self.hdmi_in_info_height_res_label.setText(str(height))
-            self.hdmi_in_info_fps_res_label.setText(str(fps))
-            # hdmi in crop enable/disable
-            # log.debug("self.b_hdmi_in_crop_enable : %d", self.b_hdmi_in_crop_enable)
 
-        else:
-            self.hdmi_in_info_width_res_label.setText("NA")
-            self.hdmi_in_info_height_res_label.setText("NA")
-            self.hdmi_in_info_fps_res_label.setText("NA")
-            self.hdmi_in_crop_status_x_res_label.setText("0")
-            self.hdmi_in_crop_status_y_res_label.setText("0")
-            self.hdmi_in_crop_status_w_res_label.setText(str(self.tc358743.hdmi_width))
-            self.hdmi_in_crop_status_h_res_label.setText(str(self.tc358743.hdmi_height))
-            # self.hdmi_in_crop_x_lineedit.setText(str(video_params.get_hdmi_in_crop_start_x()))
-            # self.hdmi_in_crop_y_lineedit.setText(str(video_params.get_hdmi_in_crop_start_y()))
-            # self.hdmi_in_crop_w_lineedit.setText(str(video_params.get_hdmi_in_crop_w()))
-            # self.hdmi_in_crop_h_lineedit.setText(str(video_params.get_hdmi_in_crop_h()))
-            self.stop_hdmi_in_preview()
-            self.preview_label.setText("HDMI-in Signal Lost")
-            if self.play_hdmi_in_status is True:
-                log.debug("play_hdmi_in_status is True, Need to do something to re-start preview")
+        self.hdmi_in_info_width_res_label.setText(str(width))
+        self.hdmi_in_info_height_res_label.setText(str(height))
+        self.hdmi_in_info_fps_res_label.setText(str(fps))
 
     def start_hdmi_in_preview(self):
 
@@ -636,41 +700,33 @@ class HDMIInPage(QWidget):
             self.preview_mutex.unlock()
             return
 
-        self.tc358743.hdmi_connected = self.tc358743.get_tc358743_hdmi_connected_status()
+        self.media_engine.stop_play()
+        # find any ffmpeg process
+        p = subprocess.run(["pgrep", "ffmpeg"],
+                           capture_output=True, text=True)
+        if p.stdout:
+            subprocess.run(["pkill", "-f", "ffmpeg"])
 
-        if self.tc358743.hdmi_connected is False:
-            self.preview_mutex.unlock()
-            return
-        else:
-            self.media_engine.stop_play()
-            # find any ffmpeg process
-            p = subprocess.run(["pgrep", "ffmpeg"],
-                               capture_output=True, text=True)
-            if p.stdout:
-                subprocess.run(["pkill", "-f", "ffmpeg"])
+        # find any show_ffmpeg_shared_memory process
+        p = subprocess.run(["pgrep", "show_ffmpeg_shared_memory"],
+                           capture_output=True, text=True)
+        if p.stdout:
+            subprocess.run(["pkill", "-f", "show_ffmpeg_shared_memory"])
 
-            # find any show_ffmpeg_shared_memory process
-            p = subprocess.run(["pgrep", "show_ffmpeg_shared_memory"],
-                               capture_output=True, text=True)
-            if p.stdout:
-                subprocess.run(["pkill", "-f", "show_ffmpeg_shared_memory"])
+        # find any ffprobe process
+        p = subprocess.run(["pgrep", "ffprobe"],
+                           capture_output=True, text=True)
+        if p.stdout:
+            subprocess.run(["pkill", "-f", "ffprobe"])
 
-            # find any ffprobe process
-            p = subprocess.run(["pgrep", "ffprobe"],
-                               capture_output=True, text=True)
-            if p.stdout:
-                subprocess.run(["pkill", "-f", "ffprobe"])
-
-            if self.tc358743.set_tc358743_dv_bt_timing() is True:
-                self.tc358743.reinit_tc358743_dv_timing()
-                self.media_engine.hdmi_in_play(self.video_device)
-
+        if self.tc358743.set_tc358743_dv_bt_timing() is True:
+            self.tc358743.reinit_tc358743_dv_timing()
+            self.media_engine.hdmi_in_play(self.video_device)
         self.preview_mutex.unlock()
 
     def stop_hdmi_in_preview(self):
         if self.preview_status:
             self.preview_mutex.lock()
-            self.media_engine.stop_play()
             self.preview_status = False
             self.preview_mutex.unlock()
         self.ffmpeg_pid_label.setText("ff pid:None")

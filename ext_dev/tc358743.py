@@ -45,8 +45,9 @@ class TC358743(QObject):
         connected = False
         p = os.popen("lsusb").read()
         # log.debug("lsusb : %s", p)
-        if '13d3:784b' not in p:
+        if '322e:202c' not in p:
             return connected, 0, 0, 0
+        '''
         ffprobe_v4l2 = subprocess.Popen(f"ffprobe -hide_banner {self.video_device}", shell=True, stdout=subprocess.PIPE,
                                         stderr=subprocess.PIPE)
         stdout, stderr = ffprobe_v4l2.communicate()
@@ -57,6 +58,9 @@ class TC358743(QObject):
             # log.debug("s:%s", s)
             if '640x480' in s:
                 connected = True
+        '''
+        if self.get_video_device(self) is not None:
+            connected = True
         return connected, 640, 480, 30
 
     def get_tc358743_dv_timing(self):
@@ -114,9 +118,11 @@ class TC358743(QObject):
         log.debug("set timing NG")
         return False
 
-    def get_tc358743_hdmi_connected_status(self):
-
+    def get_tc358743_hdmi_info(self):
         connected = False
+        width = 0
+        height = 0
+        fps = 0
 
         if platform.machine() in ('arm', 'arm64', 'aarch64'):
             pass
@@ -125,56 +131,16 @@ class TC358743(QObject):
             # log.debug("lsusb : %s", p)
             if '322e:202c' not in p:
                 log.debug("not connected")
-                return connected
-            '''
-            ffprobe_v4l2 = subprocess.Popen(f"ffprobe -hide_banner {self.video_device}", shell=True, stdout=subprocess.PIPE,
-                                            stderr=subprocess.PIPE)
-            stdout, stderr = ffprobe_v4l2.communicate()
+                return connected, width, height, fps
 
-            data = stderr.decode().split(", ")
-            ffprobe_v4l2.terminate()
-            for s in data:
-                # log.debug("s:%s", s)
-                if '640x480' in s:
-                    connected = True
-            '''
             if self.get_video_device(self) is not None:
                 connected = True
 
-            return connected
+            return connected, width, height, fps
 
-        self.check_hdmi_status_lock()
-        dv_timings = os.popen("v4l2-ctl --query-dv-timings").read()
-        self.check_hdmi_status_unlock()
-        list_dv_timings = dv_timings.split("\n")
-        # log.debug("self.hdmi_width = %d", self.hdmi_width)
-        # log.debug("self.hdmi_height = %d", self.hdmi_height)
-        # log.debug("list_dv_timings=%s", list_dv_timings)
-        if 'fail' in list_dv_timings[0]:
-            log.debug("not connected")
-            connected = False
-        else:
-            connected = True
-            for i in list_dv_timings:
-                if 'Active width:' in i:
-                    width = int(i.split(":")[1])
-                    if width != self.hdmi_width:
-                        log.debug("hdmi width error")
-                        connected = False
-                        break
-                if 'Active height:' in i:
-                    height = int(i.split(":")[1])
-                    if height != self.hdmi_height:
-                        log.debug("hdmi height error")
-                        connected = False
-                        break
-                '''if 'Pixelclock' in i:
-                    fps = int(float(i.split("(")[1].split(" ")[0]))
-                    if fps != self.hdmi_fps:
-                        connected = False
-                        break'''
+        connected, width, height, fps = self.get_tc358743_dv_timing()
 
-        return connected
+        return connected, width, height, fps
 
     @staticmethod
     def get_video_device(cls):
