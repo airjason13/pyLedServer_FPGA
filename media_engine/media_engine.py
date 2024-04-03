@@ -12,7 +12,8 @@ from PyQt5.QtCore import QObject, pyqtSignal, QMutex, QThread
 import utils.utils_file_access
 from ext_qt_widgets.playing_preview_widget import PlayingPreviewWindow
 from media_engine.media_engine_def import PlayStatus, RepeatOption
-from utils.utils_ffmpy import get_ffmpeg_cmd_with_playing_media_file_
+from media_engine.sound_device import SoundDevices, mute_audio_sinks
+from utils.utils_ffmpy import get_ffmpeg_cmd_for_media
 from utils.utils_file_access import get_led_config_from_file_uri, get_int_led_config_from_file_uri
 from utils.utils_system import get_eth_interface
 from media_configs.video_params import VideoParams
@@ -39,6 +40,9 @@ class MediaEngine(QObject):
         self.pre_playing_status = PlayStatus.Initial
         self.repeat_option = RepeatOption.Repeat_All
         self.ff_process = None
+        self.hdmi_sound = None
+        self.headphone_sound = None
+        self.pulse_audio_status = None
         self.play_change_mutex = QMutex()
 
         self.playing_preview_window = PlayingPreviewWindow()
@@ -47,6 +51,13 @@ class MediaEngine(QObject):
         self.shm_sem_read_uri = "/shm_read_sem"
 
         os.system("pkill -f show_ffmpeg_shared_memory")
+
+        self.sound_device = SoundDevices()
+        self.pulse_audio_status = self.sound_device.pulse_audio_status()
+        if not self.pulse_audio_status:
+            self.pulse_audio_status = self.sound_device.start_pulse_audio()
+        self.hdmi_sound = self.sound_device.capture_hdmi_rcv_devices()
+        self.headphone_sound = self.sound_device.capture_Headphones_devices()
 
         self.play_single_file_thread = None
         self.play_single_file_worker = None
@@ -70,6 +81,8 @@ class MediaEngine(QObject):
         self.playing_status = status
         if self.playing_status == PlayStatus.Stop:
             self.playing_preview_window.setVisible(False)
+        else:
+            self.playing_preview_window.setVisible(True)
 
         if "/dev/video" in playing_src:
             self.hdmi_play_status_changed.emit(status, playing_src)
@@ -160,7 +173,9 @@ class MediaEngine(QObject):
                 log.debug(e)
             self.play_hdmi_in_worker = None
             self.play_hdmi_in_thread = None
-            self.playing_preview_window.close_window()
+        self.sound_device.stop_play()
+        self.playing_preview_window.close_window()
+
         log.debug("exit stop_play!\n")
 
     def install_hdmi_play_status_changed_slot(self, slot_func):
@@ -186,9 +201,13 @@ class MediaEngine(QObject):
                 if self.ff_process is not None:
                     os.kill(self.ff_process.pid, signal.SIGSTOP)
                     self.playing_status = PlayStatus.Pausing
+                if self.sound_device.audio_process is not None:
+                    mute_audio_sinks(True)
                 if self.play_hdmi_in_worker is not None:
-                    video_src = self.play_hdmi_in_worker.video_src
-                    self.play_status_changed(self.playing_status, video_src)
+                    self.play_status_changed(self.playing_status, self.play_hdmi_in_worker.video_src)
+                if self.play_single_file_thread is not None:
+                    self.play_status_changed(self.playing_status, self.play_single_file_worker.file_uri)
+
             except Exception as e:
                 log.debug(e)
 
@@ -199,9 +218,12 @@ class MediaEngine(QObject):
                 if self.ff_process is not None:
                     os.kill(self.ff_process.pid, signal.SIGCONT)
                     self.playing_status = PlayStatus.Playing
+                if self.sound_device.audio_process is not None:
+                    mute_audio_sinks(False)
                 if self.play_hdmi_in_worker is not None:
-                    video_src = self.play_hdmi_in_worker.video_src
-                    self.play_status_changed(self.playing_status, video_src)
+                    self.play_status_changed(self.playing_status, self.play_hdmi_in_worker.video_src)
+                if self.play_single_file_thread is not None:
+                    self.play_status_changed(self.playing_status, self.play_single_file_worker.file_uri)
             except Exception as e:
                 log.debug(e)
 
@@ -326,9 +348,16 @@ class PlaySingleFileWorker(QObject):
                 log.error("failed to create sem: %s", self.media_engine.shm_sem_read_uri)
                 return -1
 
-            ffmpeg_cmd = get_ffmpeg_cmd_with_playing_media_file_(self.file_uri,
-                                                                 width=self.output_width, height=self.output_height,
-                                                                 target_fps="24/1", image_period=20)
+            audio_sink_str = 'default'
+            if platform.machine() in ('arm', 'arm64', 'aarch64'):
+                if self.media_engine.headphone_sound is not None:
+                    sink_card, sink_device = self.media_engine.headphone_sound
+                    audio_sink_str = f'hw:{sink_card},{sink_device}'
+
+            ffmpeg_cmd = get_ffmpeg_cmd_for_media(self.file_uri,
+                                                  width=self.output_width, height=self.output_height,
+                                                  target_fps="24/1", image_period=20,
+                                                  audio_sink=audio_sink_str)
             log.debug("ffmpeg_cmd : %s", ffmpeg_cmd)
             try:
                 self.ff_process = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, bufsize=10 ** 8, shell=True)
@@ -606,19 +635,26 @@ class Playing_HDMI_in_worker(QThread):
             p = subprocess.run(["pgrep", "ffmpeg"], capture_output=True, text=True)
             if p.stdout:
                 subprocess.run(["pkill", "-f", "ffmpeg"])
-
+        self.media_engine.sound_device.stop_play()
         time.sleep(1)
         self.restart_agent()
         time.sleep(1)
         self.restart_shm_and_sem()
-        self.force_stop  = False
+        self.force_stop = False
 
         try:
 
-            self.ffmpeg_cmd = get_ffmpeg_cmd_with_playing_media_file_(self.video_src,
-                                                                      width=self.output_width,
-                                                                      height=self.output_height,
-                                                                      target_fps="24/1")
+            self.ffmpeg_cmd = get_ffmpeg_cmd_for_media(self.video_src,
+                                                       width=self.output_width,
+                                                       height=self.output_height,
+                                                       target_fps="24/1")
+            if self.play_with_audio is True:
+                if self.media_engine.pulse_audio_status is True:
+                    if self.media_engine.hdmi_sound is not None and self.media_engine.headphone_sound is not None:
+                        source_card, source_device = self.media_engine.hdmi_sound
+                        sink_card, sink_device = self.media_engine.headphone_sound
+                        self.media_engine.sound_device.start_play(source_card, source_device, sink_card, sink_device)
+
 
             while True:
 

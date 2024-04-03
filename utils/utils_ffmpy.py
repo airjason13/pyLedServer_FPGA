@@ -1,10 +1,9 @@
 import platform
-
 import ffmpy
 from global_def import log
 
 
-def get_ffmpeg_cmd_with_playing_media_file_(video_uri: str, **kwargs):
+def get_ffmpeg_cmd_for_media(video_uri: str, **kwargs):
     log.debug("video_uri : %s", video_uri)
     log.debug("%s", kwargs)
     log.debug("%d", kwargs.get("width"))
@@ -14,16 +13,13 @@ def get_ffmpeg_cmd_with_playing_media_file_(video_uri: str, **kwargs):
     height = kwargs.get("height", 720)
     target_fps = kwargs.get("target_fps", "24/1")
     image_period = kwargs.get("image_period")
+    audio_sink = kwargs.get("audio_sink", "hw:1,0")
     global_opts = '-hide_banner -loglevel error -hwaccel auto'
     scale_param = 'scale=' + str(width) + ':' + str(height)
     filter_params = scale_param
     pipe_sink = '-'
-    # unix_socket = 'unix:///home/root/ffmpeg_unix_socket/ffmpeg_unix_socket'
-    if platform.machine() in ('arm', 'arm64', 'aarch64'):
-        audio_sink = 'hw:1,0'
-    else:
-        audio_sink = 'hw:0,0'
 
+    # unix_socket = 'unix:///home/root/ffmpeg_unix_socket/ffmpeg_unix_socket'
     if "/dev/video" in video_uri:
         ff = ffmpy.FFmpeg(
             inputs={video_uri: None},
@@ -53,7 +49,7 @@ def get_ffmpeg_cmd_with_playing_media_file_(video_uri: str, **kwargs):
                 # video_uri: []
             },
             outputs={
-                pipe_sink: ["-filter_complex", filter_params, "-r", target_fps,  "-pix_fmt", "rgb24", "-f", "rawvideo"]
+                pipe_sink: ["-filter_complex", filter_params, "-r", target_fps, "-pix_fmt", "rgb24", "-f", "rawvideo"]
                 # pipe_sink: []
             },
         )
@@ -61,7 +57,3 @@ def get_ffmpeg_cmd_with_playing_media_file_(video_uri: str, **kwargs):
     log.debug("ff.cmd : %s", ff.cmd)
     ff.cmd += " -y"
     return ff.cmd
-
-
-
-

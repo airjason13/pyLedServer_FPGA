@@ -150,6 +150,7 @@ class HDMIInPage(QWidget):
         self.tc358743 = TC358743()
         self.tc358743.signal_refresh_tc358743_param.connect(self.refresh_tc358743_param)
         self.tc358743.get_tc358743_dv_timing()
+        subprocess.Popen("pkill -f ffmpeg", shell=True)
 
     def init_ui(self):
         self.hdmi_in_widget = QWidget(self.frame)
@@ -607,14 +608,11 @@ class HDMIInPage(QWidget):
     def pause_btn_clicked(self):
         if PlayStatus.Playing == self.media_engine.playing_status:
             self.media_engine.pause_playing()
-            # self.hdmi_in_play_status_label.setText("Streaming-Pause")
         elif PlayStatus.Pausing == self.media_engine.playing_status:
             self.media_engine.resume_playing()
-            # self.hdmi_in_play_status_label.setText("Streaming-Resume")
         elif (PlayStatus.Stop == self.media_engine.playing_status or
               PlayStatus.Initial == self.media_engine.playing_status):
             self.start_streaming()
-            # self.hdmi_in_play_status_label.setText("Streaming")
 
     def check_tc358743_timer_event(self):
         # log.debug("enter check_tc358743_timer")
@@ -650,6 +648,8 @@ class HDMIInPage(QWidget):
                         hdmi_info_list = list(current_hdmi_info)
                         hdmi_info_list[0] = False
                         current_hdmi_info = tuple(hdmi_info_list)
+                        self.stop_hdmi_in_preview()
+                        self.stop_streaming(True)
                         subprocess.Popen("pkill -f ffmpeg", shell=True)
 
                 else:
@@ -657,8 +657,6 @@ class HDMIInPage(QWidget):
                         if current_hdmi_connected is False:
                             self.stop_hdmi_in_preview()
                             self.stop_streaming(True)
-                            self.measurement_tc358743 = True
-                            self.media_engine.stop_play()
                             subprocess.Popen("pkill -f ffmpeg", shell=True)
                             self.tc358743.reinit_tc358743_dv_timing()
                             self.preview_label.setText("HDMI-in Signal Lost")
@@ -718,6 +716,12 @@ class HDMIInPage(QWidget):
                            capture_output=True, text=True)
         if p.stdout:
             subprocess.run(["pkill", "-f", "ffprobe"])
+
+        # find any arecord process
+        p = subprocess.run(["pgrep", "arecord"],
+                           capture_output=True, text=True)
+        if p.stdout:
+            subprocess.run(["pkill", "-f", "arecord"])
 
         if self.tc358743.set_tc358743_dv_bt_timing() is True:
             self.tc358743.reinit_tc358743_dv_timing()

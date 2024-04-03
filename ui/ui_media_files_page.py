@@ -20,7 +20,7 @@ from global_def import log
 from ext_qt_widgets.custom_tree_widget import CTreeWidget
 from media_configs.media_path_configs import *
 from utils.gen_thumbnails import gen_webp_from_video_threading
-from utils.utils_ffmpy import get_ffmpeg_cmd_with_playing_media_file_
+from utils.utils_ffmpy import get_ffmpeg_cmd_for_media
 
 
 class MediaFilesPage(QWidget):
@@ -178,6 +178,7 @@ class MediaFilesPage(QWidget):
         self.play_pause_btn.setIcon(self.play_icon)
         self.play_pause_btn.setIconSize(QSize(128, 128))
         self.play_pause_btn.setStyleSheet("border-radius : 64px ; border: 2px solid black ;")
+        self.play_pause_btn.clicked.connect(self.pause_btn_clicked)
         self.media_control_panel_layout.addWidget(self.play_pause_btn, 0, 1)
 
         self.play_stop_btn = QPushButton()
@@ -226,7 +227,8 @@ class MediaFilesPage(QWidget):
             for f in self.media_file_list_external[i].filelist:
                 external_file_item = QTreeWidgetItem()
                 external_file_item.setText(0, os.path.basename(f))
-                self.gen_external_media_file_thumbnails(self.media_file_list_external[i].folder_uri, os.path.basename(f))
+                self.gen_external_media_file_thumbnails(self.media_file_list_external[i].folder_uri,
+                                                        os.path.basename(f))
                 self.external_media_file_tree_widget_root.child(i).addChild(external_file_item)
 
     def refresh_media_playlist_tree_widget(self):
@@ -253,6 +255,7 @@ class MediaFilesPage(QWidget):
         # gen_webp_from_video_threading(self.external_media_folder, os.path.basename(base_fname))
 
     ''' show preview widget or not'''
+
     def mouse_move_on_tree(self, event: QMouseEvent):
         try:
             self.grabMouse()
@@ -589,10 +592,18 @@ class MediaFilesPage(QWidget):
             '''if self.media_preview_widget is not None:
                 self.media_preview_widget.stop()
                 self.media_preview_widget.hide()'''
-
+        elif status == PlayStatus.Pausing:
+            self.play_pause_btn.setIcon(self.play_icon)
         elif status == PlayStatus.Stop or status == PlayStatus.Initial:
             self.play_pause_btn.setIcon(self.play_icon)
 
     def stop_btn_clicked(self):
         log.debug("")
         self.media_engine.stop_play()
+
+    def pause_btn_clicked(self):
+        log.debug("")
+        if PlayStatus.Playing == self.media_engine.playing_status:
+            self.media_engine.pause_playing()
+        elif PlayStatus.Pausing == self.media_engine.playing_status:
+            self.media_engine.resume_playing()
