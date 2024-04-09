@@ -14,6 +14,7 @@ import qdarkstyle
 
 import utils.utils_file_access
 import utils.utils_system
+from FPGA_protocol.gamma import init_gamma_table_list, gamma_table_list, max_gamma_value
 from fpga.fpga_clients import FPGAClient
 from global_def import *
 from PyQt5.QtWidgets import QApplication
@@ -28,7 +29,8 @@ from ui.ui_led_settings_page import LedSettingsPage
 from ui.ui_test_page import TestPage
 from ext_qt_widgets.media_file_list import MediaFileList
 from utils.utils_file_access import determine_file_match_platform, run_cmd_with_su
-from FPGA_protocol.protocol2 import FPGACmdCenter, protocolDict, dataAddressDict, FPGAJsonParams
+from FPGA_protocol.protocol2 import FPGACmdCenter, protocolDict, dataAddressDict, FPGAJsonParams, dataLenDict, \
+    fpga_test_value, dump_register_address
 
 '''List of Page Selector Button Name '''
 Page_Select_Btn_Name_List = ["FPGA_List", "Media_Files", "HDMI_In", "Led_Settings", "Test"]
@@ -101,11 +103,6 @@ class MainUi(QMainWindow):
             fpga_tmp = FPGAClient(i, self.fpga_cmd_center)
             self.fpga_list.append(fpga_tmp)
 
-        self.init_ui_total()
-        log.debug("Init UI ok!")
-
-        self.right_frame_page_list[0].sync_clients_table(self.fpga_list)
-
         ret, str_value = self.fpga_cmd_center.read_fpga_register(2, FPGAJsonParams.params_list[0])
         if ret == 0:
             log.debug("read device ID from id2, ret : %d, str_value: %s", ret, str_value)
@@ -120,17 +117,55 @@ class MainUi(QMainWindow):
         self.test_timer = QTimer(self)
         self.test_timer.timeout.connect(self.utc_test)
         self.test_timer.start(3 * 1000)'''
+        # self.get_fpga_panel_way()
+
+        self.init_ui_total()
+        log.debug("Init UI ok!")
+
+        self.right_frame_page_list[0].sync_clients_table(self.fpga_list)
+
+        self.init_fpga_gamma()
+
+        self.set_fpga_test_register()
+
+        for fpga in self.fpga_list:
+            fpga.fpga_cmd_center.write_fpga_register(fpga.i_id, 'currentGammaTable', str(1))
+
+        '''target_gamma_table_list = [
+            "gammaTable_r{}".format(str(0)),
+            "gammaTable_g{}".format(str(0)),
+            "gammaTable_b{}".format(str(0))
+        ]
+        for fpga in self.fpga_list:
+            ret, reg_value = self.fpga_cmd_center.read_fpga_register(fpga.i_id, "gammaTable_r{}".format(str(0)))
+            # log.debug("%s : %s",  "gammaTable_r{}".format(str(0)), str(reg_value))
+            ret, reg_value = self.fpga_cmd_center.read_fpga_register(fpga.i_id, "gammaTable_g{}".format(str(0)))
+            # log.debug("%s : %s", "gammaTable_g{}".format(str(0)), str(reg_value))
+            ret, reg_value = self.fpga_cmd_center.read_fpga_register(fpga.i_id, "gammaTable_b{}".format(str(0)))
+            # log.debug("%s : %s", "gammaTable_b{}".format(str(0)), str(reg_value))'''
+
+        # log.debug("hex(328965) : %s", hex(328965))
+        # log.debug("int('050505', 16) : %d", int("050505", 16))
+
+        # dump_register_address()
+        # init_fpga_layout_register(3)
+        #for k, v in dataAddressDict.items():
+        #    if "gammaTable" in k:
+        #        log.debug("%s : %s", k, v)
+
+        # for k, v in dataLenDict.items():
+        #    log.debug("dataLenDict %s : %d", k, v)
 
     def utc_test(self):
         log.debug("self.utc_test_count : %d", self.utc_test_count)
         self.utc_test_count += 1
         s_utc_temp = str(random.randint(1000, 9999))
-        for i in range(2, 4):   # send cmd to id 2/3
+        for i in range(2, 4):  # send cmd to id 2/3
             start_time = time.time()
             ret = self.fpga_cmd_center.write_fpga_register(i, "UTC", s_utc_temp)
             log.debug("write time : %f", time.time() - start_time)
             log.debug("write fpga id:%d UTC ret : %d", i, ret)
-        for i in range(2, 4):   # read cmd to id 2/3
+        for i in range(2, 4):  # read cmd to id 2/3
             start_time = time.time()
             ret, id_utc = self.fpga_cmd_center.read_fpga_register(i, "UTC")
             log.debug("read time : %f", time.time() - start_time)
@@ -199,6 +234,9 @@ class MainUi(QMainWindow):
         for k, v in Page_Map.items():
             if k == "FPGA_List" or k == "Led_Settings":
                 page = v(self, self.right_frame, k, media_engine=self.media_engine, fpga_list=self.fpga_list)
+            elif k == "Test":
+                page = v(self, self.right_frame, k, media_engine=self.media_engine,
+                         fpga_cmd_center=self.fpga_cmd_center, fpga_list=self.fpga_list)
             else:
                 page = v(self, self.right_frame, k, media_engine=self.media_engine)
             self.right_frame_page_list.append(page)
@@ -225,12 +263,17 @@ class MainUi(QMainWindow):
         log.debug("fpga num : %d", num)
         return num
 
+    def get_fpga_panel_way(self):
+        for i in range(FPGA_START_ID, FPGA_START_ID + self.fpga_total_num):
+            ret, i_panel_way = self.fpga_cmd_center.read_fpga_register(i, "panelWay")
+            log.debug("id : %d, i_panel_way : %d", ret, i_panel_way)
+
     def load_fpga_json_file(self):
         log.debug("load_fpga_json_file")
         with open(os.getcwd() + "/ori_dataFPGA.json", "r") as jsonFile:
             python_dict = json.load(fp=jsonFile)
             log.debug("python_dict : %s", python_dict)
-            print("type(python_dict) : ", type(python_dict))
+            # print("type(python_dict) : ", type(python_dict))
             python_dict["fpgaID"][2]["UTC"] = str(1111)
             log.debug("python_dict : %s", python_dict)
 
@@ -252,7 +295,7 @@ class MainUi(QMainWindow):
         for i in range(FPGA_START_ID, FPGA_START_ID + self.fpga_total_num):
             params = {}
             for j in range(len(FPGAJsonParams.params_list)):
-                log.debug("read id: %d, %s", i , FPGAJsonParams.params_list[j])
+                log.debug("read id: %d, %s", i, FPGAJsonParams.params_list[j])
                 ret, str_value = self.fpga_cmd_center.read_fpga_register(i, FPGAJsonParams.params_list[j])
 
                 if ret == 0:
@@ -264,4 +307,59 @@ class MainUi(QMainWindow):
 
         with open("dataFPGA.json", "w") as jsonFile:
             json.dump(data, jsonFile, indent=2)
-            print('write json')
+            log.debug('write json')
+
+    def set_fpga_test_register(self):
+        for i in range(FPGA_START_ID, FPGA_START_ID + len(self.fpga_list)):
+            for test_item, value in fpga_test_value[i-2].items():
+                if value is not None:
+                    ret = self.fpga_cmd_center.write_fpga_register(i, test_item, value)
+                    if ret < 0:
+                        log.debug("write register failed!")
+
+            if i == 2:
+                for n in range(0, 4):
+                    self.fpga_cmd_center.write_fpga_register(i, 'numberOfPixel_p{}'.format(str(n)), str(960))
+                    self.fpga_cmd_center.write_fpga_register(i, 'startX_p{}'.format(str(n)), str(159))
+                    self.fpga_cmd_center.write_fpga_register(i, 'startY_p{}'.format(str(n)), str(48 - ((n+1)*12)))
+                    self.fpga_cmd_center.write_fpga_register(i, 'portWidth_p{}'.format(str(n)), str(80))
+                    self.fpga_cmd_center.write_fpga_register(i, 'portHeight_p{}'.format(str(n)), str(12))
+            elif i == 3:
+                for n in range(0, 4):
+                    self.fpga_cmd_center.write_fpga_register(i, 'numberOfPixel_p{}'.format(str(n)), str(960))
+                    self.fpga_cmd_center.write_fpga_register(i, 'startX_p{}'.format(str(n)), str(0))
+                    self.fpga_cmd_center.write_fpga_register(i, 'startY_p{}'.format(str(n)), str((n*12) + 11))
+                    self.fpga_cmd_center.write_fpga_register(i, 'portWidth_p{}'.format(str(n)), str(80))
+                    self.fpga_cmd_center.write_fpga_register(i, 'portHeight_p{}'.format(str(n)), str(12))
+
+    def init_fpga_gamma(self):
+        init_gamma_table_list()
+        # print("gamma_table_list[22] : ", gamma_table_list[22])
+        log.debug("len(gamma_table_list[22]) : %d", len(gamma_table_list[22]))
+
+        for fpga in self.fpga_list:
+            #  for gamma_index in range(max_gamma_value):
+            for gamma_index in range(max_gamma_value):
+                if gamma_index < 2:
+                    fpga.fpga_cmd_center.write_fpga_register_with_bytes(fpga.i_id,
+                                                                        'gammaTable_r{}'.format(str(gamma_index)),
+                                                                        gamma_table_list[22])
+                    fpga.fpga_cmd_center.write_fpga_register_with_bytes(fpga.i_id,
+                                                                        'gammaTable_g{}'.format(str(gamma_index)),
+                                                                        gamma_table_list[22])
+                    fpga.fpga_cmd_center.write_fpga_register_with_bytes(fpga.i_id,
+                                                                        'gammaTable_b{}'.format(str(gamma_index)),
+                                                                        gamma_table_list[22])
+                else:
+                    fpga.fpga_cmd_center.write_fpga_register_with_bytes(fpga.i_id,
+                                                                        'gammaTable_r{}'.format(str(gamma_index)),
+                                                                        gamma_table_list[gamma_index])
+                    fpga.fpga_cmd_center.write_fpga_register_with_bytes(fpga.i_id,
+                                                                        'gammaTable_g{}'.format(str(gamma_index)),
+                                                                        gamma_table_list[gamma_index])
+                    fpga.fpga_cmd_center.write_fpga_register_with_bytes(fpga.i_id,
+                                                                        'gammaTable_b{}'.format(str(gamma_index)),
+                                                                        gamma_table_list[gamma_index])
+
+
+

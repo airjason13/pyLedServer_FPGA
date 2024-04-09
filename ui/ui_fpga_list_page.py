@@ -4,12 +4,20 @@ from PyQt5 import QtWidgets
 from PyQt5.QtCore import QObject, Qt, QLine, QTimer
 from PyQt5.QtGui import QFont, QBrush, QColor
 from PyQt5.QtWidgets import QTreeWidget, QTableWidget, QWidget, QVBoxLayout, QTableWidgetItem, QLabel, QGridLayout, \
-    QPushButton, QLineEdit, QAbstractScrollArea, QHBoxLayout
+    QPushButton, QLineEdit, QAbstractScrollArea, QHBoxLayout, QMenu, QAction
 
+from ext_qt_widgets.fpga_ota_file_select_dialog import GetFPGAOTADialog
+from ext_qt_widgets.fpga_test_window import FPGARegWindow
+from ext_qt_widgets.gen_fpga_config_json_dialog import GenFPGAConfigJsonDialog
+from ext_qt_widgets.get_fpga_config_dialog import GetFPGAConfigDialog
 from fpga.fpga_clients import FPGAClient
 from global_def import *
 from media_engine.media_engine import MediaEngine
 from qt_ui_style.button_qss import *
+from qt_ui_style.set_qstyle import set_qstyle_dark
+from utils.utils_file_access import get_fpga_config_file_list, load_fpga_json_file, get_fpga_ota_file_list
+import json
+from FPGA_protocol.protocol2 import dataAddressDict
 
 
 class FpgaListPage(QWidget):
@@ -25,11 +33,58 @@ class FpgaListPage(QWidget):
         self.name = _name
         self.test_btn = None
         self.label_name = None
+        self.rescan_btn = None
+
+        self.gen_json_file_btn = None
+        self.gen_fpga_config_file_dialog = None
+
+        self.set_fpga_with_config_json_file_btn = None
+        self.get_fpga_config_json_file_dialog = None
+
+        self.select_fpga_ota_file_dialog = None
+
+        self.fpga_write_flash_btn = None
+        self.fpga_read_flash_btn = None
+
+        self.label_widget = None
+        self.label_widget_layout = None
+        self.red_gain_label = None
+        self.red_gain_lineedit = None
+        self.green_gain_label = None
+        self.green_gain_lineedit = None
+        self.blue_gain_label = None
+        self.blue_gain_lineedit = None
+
+        # Gamma Table Setting
+        self.red_gamma_label = None
+        self.red_gamma_lineedit = None
+        self.green_gamma_label = None
+        self.green_gamma_lineedit = None
+
+        self.blue_gamma_label = None
+        self.blue_gamma_lineedit = None
+
+        # Frame Width/Height
+        self.frame_width_label = None
+        self.frame_width_lineedit = None
+
+        self.frame_height_label = None
+        self.frame_height_lineedit = None
+
+        self.set_params_btn = None
+
+        self.client_media_setting_layout = None
         self.layout = None
         self.client_table_widget = QTableWidget()
         self.client_media_setting_widget = None
+        self.right_click_select_fpga = None
         self.fpga_list = fpga_list
+        self.show_register_window = []
         self.init_ui()
+
+        # 開啟右鍵選單功能
+        self.client_table_widget.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.client_table_widget.customContextMenuRequested.connect(self.clients_menu_context_tree)
 
         '''for test'''
         self.cmd_test_timer = QTimer()
@@ -37,7 +92,7 @@ class FpgaListPage(QWidget):
 
     def init_ui(self):
         self.label_name = QLabel(self.frame)
-        self.label_name.setFixedSize(320, 64)
+        self.label_name.setFixedSize(180, 64)
         self.label_name.setAlignment(Qt.AlignLeft)
         self.label_name.setFont(QFont(QFont_Style_Default, QFont_Style_Size_L))
         self.label_name.setText(self.name)
@@ -45,16 +100,43 @@ class FpgaListPage(QWidget):
 
         # re-scan button
         self.rescan_btn = QPushButton(self.frame)
-        self.rescan_btn.setFixedSize(320, 64)
+        self.rescan_btn.setFixedSize(180, 64)
         self.rescan_btn.setFont(QFont(QFont_Style_Default, QFont_Style_Size_L))
         self.rescan_btn.setText("   Re-Scan   ")
         self.rescan_btn.clicked.connect(self.func_rescan_btn)
+
+        # generate fpga config json file button
+        self.gen_json_file_btn = QPushButton(self.frame)
+        self.gen_json_file_btn.setFixedSize(240, 64)
+        self.gen_json_file_btn.setFont(QFont(QFont_Style_Default, QFont_Style_Size_L))
+        self.gen_json_file_btn.setText("Gen Config File")
+        self.gen_json_file_btn.clicked.connect(self.func_gen_fpga_config_file_btn)
+
+        # set config file to fpga
+        self.set_fpga_with_config_json_file_btn = QPushButton(self.frame)
+        self.set_fpga_with_config_json_file_btn.setFixedSize(320, 64)
+        self.set_fpga_with_config_json_file_btn.setFont(QFont(QFont_Style_Default, QFont_Style_Size_L))
+        self.set_fpga_with_config_json_file_btn.setText("Set FPGA with Config")
+        self.set_fpga_with_config_json_file_btn.clicked.connect(self.func_set_fpga_with_config_file_btn)
+
+        self.fpga_write_flash_btn = QPushButton()
+        self.fpga_write_flash_btn.setFixedSize(240, 64)
+        self.fpga_write_flash_btn.setFont(QFont(QFont_Style_Default, QFont_Style_Size_L))
+        self.fpga_write_flash_btn.setText("Write Flash")
+        self.fpga_read_flash_btn = QPushButton()
+        self.fpga_read_flash_btn.setFixedSize(240, 64)
+        self.fpga_read_flash_btn.setFont(QFont(QFont_Style_Default, QFont_Style_Size_L))
+        self.fpga_read_flash_btn.setText("Read Flash")
 
         self.label_widget = QWidget()
         self.label_widget_layout = QHBoxLayout()
         self.label_widget_layout.setAlignment(Qt.AlignLeft)
         self.label_widget_layout.addWidget(self.label_name)
         self.label_widget_layout.addWidget(self.rescan_btn)
+        self.label_widget_layout.addWidget(self.gen_json_file_btn)
+        self.label_widget_layout.addWidget(self.set_fpga_with_config_json_file_btn)
+        self.label_widget_layout.addWidget(self.fpga_write_flash_btn)
+        self.label_widget_layout.addWidget(self.fpga_read_flash_btn)
         self.label_widget.setLayout(self.label_widget_layout)
 
         self.client_table_widget.setColumnCount(4)
@@ -171,7 +253,77 @@ class FpgaListPage(QWidget):
         self.cmd_test_timer.start(3 * 1000)
 
     def func_rescan_btn(self):
-        log.debug("func rescan btn clicked")
+        log.debug("to be implemented")
+
+    def func_gen_fpga_config_file_btn(self):
+        log.debug("func func_gen_fpga_config_file_btn clicked")
+        self.gen_fpga_config_file_dialog = None
+        config_json_files_list = get_fpga_config_file_list(root_dir + '/fpga_config_jsons')
+        self.gen_fpga_config_file_dialog = GenFPGAConfigJsonDialog(config_json_files_list)
+        self.gen_fpga_config_file_dialog.signal_new_config_json_generate.connect(
+            self.slot_gen_new_fpga_config_json_file)
+        self.gen_fpga_config_file_dialog.show()
+
+    def func_set_fpga_with_config_file_btn(self):
+        log.debug("func func_set_fpga_with_config_file_btn clicked")
+        self.get_fpga_config_json_file_dialog = None
+        config_json_files_list = get_fpga_config_file_list(root_dir + '/fpga_config_jsons')
+        self.get_fpga_config_json_file_dialog = GetFPGAConfigDialog(config_json_files_list)
+        self.get_fpga_config_json_file_dialog.signal_fpga_config_json_get.connect(
+            self.slot_get_fpga_config_json_file)
+        self.get_fpga_config_json_file_dialog.show()
+
+    def slot_gen_new_fpga_config_json_file(self, new_config_json_file_name: str):
+        log.debug('slot_gen_new_fpga_config_json_file : %s', new_config_json_file_name)
+        data = dict()
+        data["fpga_config"] = []
+
+        for fpga in self.fpga_list:
+            params = {}
+            for k, v in dataAddressDict.items():
+                log.debug("read fpga id: %d, reg: %s", fpga.i_id, k)
+                if 'gammaTable_' in k or 'test' in k:
+                    pass
+                elif k == 'gammaTable':
+                    pass
+                else:
+                    ret, str_value = fpga.fpga_cmd_center.read_fpga_register(fpga.i_id, k)
+                    if ret == 0:
+                        params[k] = str_value
+                    else:
+                        params[k] = "unknown"
+            data["fpga_config"].append(params)
+            params = None
+
+        with open(root_dir + '/fpga_config_jsons/' + new_config_json_file_name + ".json", "w") as json_file:
+            json.dump(data, json_file, indent=2)
+            log.debug('write json')
+
+    def slot_get_fpga_config_json_file(self, config_json_file_name: str):
+        log.debug("slot_get_fpga_config_json_file")
+        fpga_setting_dict = load_fpga_json_file(config_json_file_name)
+        target_fpga = None
+        log.debug("len(fpga_setting_dict['fpga_config']): %d", len(fpga_setting_dict["fpga_config"]))
+        # log.debug("fpga_setting_dict['fpga_config'][0] : %s", fpga_setting_dict['fpga_config'][0])
+        for target_fpga_config_dict in fpga_setting_dict['fpga_config']:
+            target_fpga = None
+            for reg_name, reg_value in target_fpga_config_dict.items():
+                if reg_name == "deviceID":
+                    i_fpga_id = int(reg_value)
+                    for tmp_fpga in self.fpga_list:
+                        if tmp_fpga.i_id == i_fpga_id:
+                            target_fpga = tmp_fpga
+                            log.debug("got target_fpga, target_fpga_id :%d", target_fpga.i_id)
+                elif reg_name == 'flashControl' or reg_name == 'UTC' or reg_name == 'MD5':
+                    log.debug("%s does not need to write", reg_name)
+                else:
+                    if target_fpga is None:
+                        log.debug("no such fpga, please check")
+                        log.debug("popup a warning dialog")
+                    else:
+                        target_fpga.write_cmd(reg_name, str(reg_value))
+
+            # log.debug("reg_name: %s,reg_value: %s ", reg_name, reg_value)
 
     def sync_clients_table(self, fpga_list: []):
         if len(fpga_list) == 0:
@@ -180,7 +332,7 @@ class FpgaListPage(QWidget):
         log.debug("sync_clients_table")
         self.fpga_list = fpga_list
         row_count = self.client_table_widget.rowCount()
-        for i in range(row_count):
+        for i in reversed(range(row_count)):
             row_to_remove = self.client_table_widget.rowAt(i)
             self.client_table_widget.removeRow(row_to_remove)
 
@@ -237,10 +389,96 @@ class FpgaListPage(QWidget):
                 log.debug("id: %d, id_width: %s", self.fpga_list[i].i_id, id_width)
                 if int(id_width) != 640:
                     log.fatal("id: %d, read frame width : %s, not match test frame width",
-                              self.fpga_list[i].i_id, id_width )
+                              self.fpga_list[i].i_id, id_width)
             ret, id_height = self.fpga_list[i].read_cmd("frameHeight")
             if ret == 0:
                 if int(id_height) != 480:
                     log.debug("id: %d, id_height: %s", self.fpga_list[i].i_id, id_height)
                     log.fatal("id: %d, read frame height : %s, not match test frame height",
                               self.fpga_list[i].i_id, id_width)
+
+    def clients_menu_context_tree(self, position):
+        log.debug("clients_menu_context_tree")
+        q_table_widget_item = self.client_table_widget.itemAt(position)
+        if q_table_widget_item is None:
+            return
+        log.debug("client ip :%s", q_table_widget_item.text())
+        for fpga in self.fpga_list:
+            if fpga.i_id == int(q_table_widget_item.text()):
+                self.right_click_select_fpga = fpga
+
+        pop_menu = QMenu()
+        set_qstyle_dark(pop_menu)
+        show_register_map_act = QAction("show_register_map", self)
+        pop_menu.addAction(show_register_map_act)
+        pop_menu.addSeparator()
+        fpga_ota_act = QAction("OTA", self)
+        pop_menu.addAction(fpga_ota_act)
+        pop_menu.triggered[QAction].connect(self.client_page_pop_menu_trigger_act)
+
+        pop_menu.exec_(self.client_table_widget.mapToGlobal(position))
+
+    def slot_process_fpga_ota(self, ota_file: str):
+        log.debug("start slot_process_fpga_ota, ota_file : %s", ota_file)
+        target_ota_fpga = self.right_click_select_fpga
+        log.debug("fpga id: %d going to OTA", target_ota_fpga.i_id)
+        ota_file_size = os.path.getsize(ota_file)
+        data_add_len = 0  # 2 byte
+        data_len_per_packet = 1400
+        log.debug("ota_file_size: %d", ota_file_size)
+        with open(ota_file, 'rb') as f:
+            for i in range(0, ota_file_size, data_len_per_packet):
+                log.debug("i: %x", i)
+                if (i + data_len_per_packet) > ota_file_size:
+                    log.debug("The last shot, i: %d", i)
+                    dataLen = ota_file_size - i
+                    b_data = f.read(ota_file_size - i)
+                    # data = data[::-1]    # LSB
+                    # print("b_data:", b_data)
+                    data_add_len = data_add_len - dataLen + len(b_data)
+                    b_total_data = data_add_len.to_bytes(4, 'little') + b_data
+                    i_ret = target_ota_fpga.fpga_cmd_center.process_fpga_ota(target_ota_fpga.i_id, b_total_data)
+                    log.debug("send ota data i_ret: %d", i_ret)
+                    if i_ret != 0:
+                        log.debug("OTA Data Failed")
+                        return
+                    i_ret = target_ota_fpga.fpga_cmd_center.process_fpga_ota_finish(target_ota_fpga.i_id)
+
+                    if i_ret != 0:
+                        log.debug("OTA Finish Cmd Failed")
+                        return
+                    else:
+                        log.debug("OTA Finish Cmd ")
+                    break
+                b_data = f.read(data_len_per_packet)
+                b_total_data = data_add_len.to_bytes(4, 'little') + b_data
+                i_ret = target_ota_fpga.fpga_cmd_center.process_fpga_ota(target_ota_fpga.i_id, b_total_data)
+                if i_ret != 0:
+                    log.debug("OTA Data Failed")
+                    return
+                data_add_len += data_len_per_packet
+
+    def client_page_pop_menu_trigger_act(self, q):
+        log.debug("%s", q.text())
+        if q.text() == "show_register_map":
+            if len(self.show_register_window) == 0:
+                show_register_window = FPGARegWindow(self.right_click_select_fpga)
+                show_register_window.show()
+                self.show_register_window.append(show_register_window)
+            else:
+                for test_window in self.show_register_window:
+                    if test_window.fpga == self.right_click_select_fpga:
+                        test_window.show()
+                    else:
+                        show_register_window = FPGARegWindow(self.right_click_select_fpga)
+                        show_register_window.show()
+                        self.show_register_window.append(show_register_window)
+        elif q.text() == "OTA":
+            # target_ota_fpga = self.right_click_select_fpga
+            # log.debug("fpga id: %d going to OTA", target_ota_fpga.i_id)
+            self.select_fpga_ota_file_dialog = None
+            fpga_ota_files_list = get_fpga_ota_file_list(root_dir + '/fpga_ota_files')
+            self.select_fpga_ota_file_dialog = GetFPGAOTADialog(fpga_ota_files_list)
+            self.select_fpga_ota_file_dialog.signal_fpga_ota_file_get.connect(
+                self.slot_process_fpga_ota)
+            self.select_fpga_ota_file_dialog.show()

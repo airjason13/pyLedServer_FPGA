@@ -140,7 +140,8 @@ class HDMIInPage(QWidget):
         self.check_tc358743_interval = 1000
         self.check_tc358743_timer = QTimer(self)
         self.check_tc358743_timer.timeout.connect(self.check_tc358743_timer_event)
-        ensure_edid_validity(self)
+        if platform.machine() in ('arm', 'arm64', 'aarch64'):   # Venom add for script not found
+            ensure_edid_validity(self)
 
         try:
             self.check_tc358743_timer.start(self.check_tc358743_interval)

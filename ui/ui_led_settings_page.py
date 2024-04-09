@@ -39,7 +39,7 @@ class LedSettingsPage(QWidget):
         self.watcher = QFileSystemWatcher(self)
         self.watcher.addPath(os.getcwd() + '/led_config/dataFPGA.json')
         self.watcher.fileChanged.connect(self.file_changed)
-        print("os.getcwd() = ", os.getcwd())
+        # print("os.getcwd() = ", os.getcwd())
         
         self.init_ui()
 
@@ -189,13 +189,13 @@ class LedSettingsPage(QWidget):
         if writeData:
             with open("led_config/dataFPGA.json", "w") as jsonFile:
                 json.dump(data, jsonFile, indent=2)
-                print('write json')
+                log.debug('write json')
         
     def fpgaEdit(self):
         sender = self.sender()
         pushButton = self.findChild(QtWidgets.QPushButton, sender.objectName())
         fpgaEditID = pushButton.objectName()
-        print('fpgaEdit = ', fpgaEditID)
+        # print('fpgaEdit = ', fpgaEditID)
         
         if self.nw is None or self.nw.close():
             self.nw = portSettingWindow(fpgaEditID)   # 連接新視窗
@@ -210,8 +210,8 @@ class LedSettingsPage(QWidget):
         
     def file_changed(self, path):
         self.signal_file_changed.emit(path)
-        print('file_changed')
-        print('self.portStyleList = ', self.portStyleList)
+        # print('file_changed')
+        # print('self.portStyleList = ', self.portStyleList)
         
         for n in range(len(data["fpgaID"])):
             self.portStyleList[n].setText(
@@ -240,7 +240,7 @@ class portSettingWindow(QtWidgets.QWidget):
     def ui(self, fpgaEditID):
         fpgaEditID = int(fpgaEditID)
         fpgaIDLabel = QtWidgets.QLabel('FPGA ID = ' + data["fpgaID"][fpgaEditID]["id"])
-        print('FPGA fpgaEditID = ' , fpgaEditID)
+        # print('FPGA fpgaEditID = ' , fpgaEditID)
         currentLabel = QtWidgets.QLabel('Current Port Style  ⇨  ')
         self.portStyleImg = QtWidgets.QLabel(self)
         img = QtGui.QImage('materials/' + data["fpgaID"][fpgaEditID]["portStyle"] + '.png')                # 讀取圖片
@@ -581,7 +581,7 @@ class portSettingWindow(QtWidgets.QWidget):
         if self.writeData:
             with open("led_config/dataFPGA.json", "w") as jsonFile:
                 json.dump(data, jsonFile, indent=2)
-                print('write json')
+                log.debug('write json')
         
         self.close()
         #app.quit()

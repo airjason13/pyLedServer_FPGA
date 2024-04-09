@@ -277,6 +277,7 @@ class PlaySingleFileWorker(QObject):
         if platform.machine() in ('arm', 'arm64', 'aarch64'):
             try_wain_write_count_max = 500
         try_wait_write_count = 0
+        self.media_engine.sync_output_streaming_resolution()    # venom for output resolution correction
         subprocess.Popen("pkill -f show_ffmpeg_shared_memory", shell=True)
         # kill_agent_cmd = "sudo -S pkill -f show_ffmpeg_shared_memory"
         # su_kill_agent_cmd = 'echo {} | '.format(SU_PWD) + kill_agent_cmd
@@ -641,6 +642,8 @@ class Playing_HDMI_in_worker(QThread):
         time.sleep(1)
         self.restart_shm_and_sem()
         self.force_stop = False
+
+        self.media_engine.sync_output_streaming_resolution()  # venom for output resolution correction
 
         try:
 

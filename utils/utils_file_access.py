@@ -1,4 +1,5 @@
 import glob
+import json
 import os.path
 import platform
 import subprocess
@@ -41,6 +42,24 @@ def get_playlist_file_list(dir, with_path=False):
         cmd = 'mkdir -p ' + dir
         os.system(cmd)
     file_list = glob.glob(dir + "/*.playlist")
+    return file_list
+
+
+def get_fpga_config_file_list(dir, with_path=False):
+    log.debug("dir : %s", dir)
+    if os.path.isdir(dir) is False:
+        cmd = 'mkdir -p ' + dir
+        os.system(cmd)
+    file_list = glob.glob(dir + "/*.json")
+    return file_list
+
+
+def get_fpga_ota_file_list(dir, with_path=False):
+    log.debug("dir : %s", dir)
+    if os.path.isdir(dir) is False:
+        cmd = 'mkdir -p ' + dir
+        os.system(cmd)
+    file_list = glob.glob(dir + "/*.bit")
     return file_list
 
 
@@ -152,3 +171,14 @@ def check_and_rebuild_binaries():
         subprocess.Popen(rebuild_cmd, shell=True)
         time.sleep(1)
         os.sync()
+
+
+def load_fpga_json_file(file_uri: str) -> dict:
+    log.debug("load_fpga_json_file")
+    with open(file_uri, "r") as jsonFile:
+        python_dict = json.load(fp=jsonFile)
+        # log.debug("python_dict : %s", python_dict)
+        # print("type(python_dict) : ", type(python_dict))
+        # log.debug("python_dict : %s", python_dict)
+
+    return python_dict
