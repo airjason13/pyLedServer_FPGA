@@ -72,8 +72,11 @@ class MediaEngine(QObject):
         self.output_streaming_height = h
 
     def sync_output_streaming_resolution(self):
-        self.output_streaming_width, self.output_streaming_height = (
+        str_w, str_h = (
             get_led_config_from_file_uri("led_wall_resolution", "led_wall_width", "led_wall_height"))
+        self.output_streaming_width = int(str_w)
+        self.output_streaming_height = int(str_h)
+
 
     def play_status_changed(self, status: int, playing_src: str):
         log.debug("play_status_changed : status=%d", status)
