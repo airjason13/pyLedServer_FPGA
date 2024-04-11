@@ -35,3 +35,37 @@ QPushButton_Style = """
                 
             }
         """
+QPushPlayButton_Style = """
+        QPushButton {
+            background-color: #4CAF50;  /* Green background */
+            color: white;
+            border: 2px solid #4CAF50;  /* Green border */
+            padding: 10px 15px;
+            border-radius: 4px;  /* Rounded corners */
+        }
+
+        QPushButton:pressed {
+            background-color: #388E3C;  /* Darker green for pressed state */
+            border: 2px solid #388E3C;  /* Darker green border for pressed state */
+            padding: 12px 13px;  /* Slightly larger padding to simulate a press effect */
+            margin-top: 2px;  /* Move the button down to simulate being pressed */
+            margin-left: 2px;
+        }
+    """
+QPushStopButton_Style = """
+        QPushButton {
+            background-color: #f44336;  /* Red background */
+            color: white;
+            border: 2px solid #f44336;  /* Red border */
+            padding: 10px 15px;
+            border-radius: 4px;  /* Rounded corners */
+        }
+
+        QPushButton:pressed {
+            background-color: #D32F2F;  /* Darker red for pressed state */
+            border: 2px solid #D32F2F;  /* Darker red border for pressed state */
+            padding: 12px 13px;  /* Slightly larger padding to simulate a press effect */
+            margin-top: 2px;  /* Move the button down to simulate being pressed */
+            margin-left: 2px;
+        }
+    """
