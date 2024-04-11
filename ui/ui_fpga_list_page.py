@@ -56,13 +56,8 @@ class FpgaListPage(QWidget):
         self.blue_gain_lineedit = None
 
         # Gamma Table Setting
-        self.red_gamma_label = None
-        self.red_gamma_lineedit = None
-        self.green_gamma_label = None
-        self.green_gamma_lineedit = None
-
-        self.blue_gamma_label = None
-        self.blue_gamma_lineedit = None
+        self.rgb_gamma_label = None
+        self.rgb_gamma_lineedit = None
 
         # Frame Width/Height
         self.frame_width_label = None
@@ -175,26 +170,12 @@ class FpgaListPage(QWidget):
         self.blue_gain_lineedit.setText("1")
 
         # Gamma Table Setting
-        self.red_gamma_label = QLabel()
-        self.red_gamma_label.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
-        self.red_gamma_label.setText("Red Gamma:")
-        self.red_gamma_lineedit = QLineEdit()
-        self.red_gamma_lineedit.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
-        self.red_gamma_lineedit.setText("2.2")
-
-        self.green_gamma_label = QLabel()
-        self.green_gamma_label.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
-        self.green_gamma_label.setText("Green Gamma:")
-        self.green_gamma_lineedit = QLineEdit()
-        self.green_gamma_lineedit.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
-        self.green_gamma_lineedit.setText("2.2")
-
-        self.blue_gamma_label = QLabel()
-        self.blue_gamma_label.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
-        self.blue_gamma_label.setText("Blue Gamma:")
-        self.blue_gamma_lineedit = QLineEdit()
-        self.blue_gamma_lineedit.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
-        self.blue_gamma_lineedit.setText("2.2")
+        self.rgb_gamma_label = QLabel()
+        self.rgb_gamma_label.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
+        self.rgb_gamma_label.setText("Red Gamma:")
+        self.rgb_gamma_lineedit = QLineEdit()
+        self.rgb_gamma_lineedit.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
+        self.rgb_gamma_lineedit.setText("2.2")
 
         # Frame Width/Height
         self.frame_width_label = QLabel()
@@ -225,20 +206,16 @@ class FpgaListPage(QWidget):
         self.client_media_setting_layout.addWidget(self.blue_gain_label, 0, 4)
         self.client_media_setting_layout.addWidget(self.blue_gain_lineedit, 0, 5)
 
-        self.client_media_setting_layout.addWidget(self.red_gamma_label, 1, 0)
-        self.client_media_setting_layout.addWidget(self.red_gamma_lineedit, 1, 1)
-        self.client_media_setting_layout.addWidget(self.green_gamma_label, 1, 2)
-        self.client_media_setting_layout.addWidget(self.green_gamma_lineedit, 1, 3)
-        self.client_media_setting_layout.addWidget(self.blue_gamma_label, 1, 4)
-        self.client_media_setting_layout.addWidget(self.blue_gamma_lineedit, 1, 5)
+        self.client_media_setting_layout.addWidget(self.rgb_gamma_label, 1, 4)
+        self.client_media_setting_layout.addWidget(self.rgb_gamma_lineedit, 1, 5)
 
-        self.client_media_setting_layout.addWidget(self.frame_width_label, 2, 0)
-        self.client_media_setting_layout.addWidget(self.frame_width_lineedit, 2, 1)
+        self.client_media_setting_layout.addWidget(self.frame_width_label, 1, 0)
+        self.client_media_setting_layout.addWidget(self.frame_width_lineedit, 1, 1)
 
-        self.client_media_setting_layout.addWidget(self.frame_height_label, 2, 2)
-        self.client_media_setting_layout.addWidget(self.frame_height_lineedit, 2, 3)
+        self.client_media_setting_layout.addWidget(self.frame_height_label, 1, 2)
+        self.client_media_setting_layout.addWidget(self.frame_height_lineedit, 1, 3)
 
-        self.client_media_setting_layout.addWidget(self.set_params_btn, 2, 6)
+        self.client_media_setting_layout.addWidget(self.set_params_btn, 1, 6)
         self.client_media_setting_widget.setLayout(self.client_media_setting_layout)
 
         self.layout = QVBoxLayout()

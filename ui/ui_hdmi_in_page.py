@@ -95,11 +95,9 @@ class HDMIInPage(QWidget):
 
     def init_ui(self):
         # Initialize the main HDMI input widget and layout
+        self.layout = QVBoxLayout()
         self.hdmi_in_widget = QWidget(self.frame)
         self.hdmi_in_layout = QVBoxLayout(self.hdmi_in_widget)
-
-        # Add the HDMI input widget to the main frame
-        self.frame.layout().addWidget(self.hdmi_in_widget)
 
         # Initialize and configure the preview widget
         self.setup_preview_widget()
@@ -111,7 +109,8 @@ class HDMIInPage(QWidget):
         self.setup_hdmi_ctrl_widget()
 
         # Add widgets to the HDMI input layout
-        self.frame.layout().addWidget(self.hdmi_in_widget)
+        self.layout.addWidget(self.hdmi_in_widget)
+        self.setLayout(self.layout)
         self.hdmi_in_layout.addWidget(self.preview_widget)
         self.hdmi_in_layout.addWidget(self.hdmi_info_group_box)
         self.hdmi_in_layout.addWidget(self.hdmi_ctrl_frame)
