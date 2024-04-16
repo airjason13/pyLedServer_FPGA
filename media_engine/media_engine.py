@@ -7,6 +7,7 @@ import time
 import atexit
 
 import numpy as np
+import psutil
 from PyQt5.QtCore import QObject, pyqtSignal, QMutex, QThread
 
 import utils.utils_file_access
@@ -55,7 +56,7 @@ class MediaEngine(QObject):
         self.shm_sem_write_uri = "/shm_write_sem"
         self.shm_sem_read_uri = "/shm_read_sem"
 
-        os.system("pkill -f show_ffmpeg_shared_memory")
+        os.system("pkill -9 -f show_ffmpeg_shared_memory")
 
         self.sound_device = SoundDevices()
         self.pulse_audio_status = self.sound_device.pulse_audio_status()
@@ -101,12 +102,13 @@ class MediaEngine(QObject):
             self.playing_preview_window.setVisible(True)
         self.playing_preview_window.refresh_image(raw_image_np_array)
 
-    def single_play(self, file_uri):
+    def single_play(self, file_uri, audio_active=True, preview_visible=True):
         log.debug("single play file uri: %s", file_uri)
         # stop play first
         self.stop_play()
         self.play_single_file_thread = QThread()
-        self.play_single_file_worker = PlaySingleFileWorker(self, file_uri, with_audio=True, with_preview=True)
+        self.play_single_file_worker = PlaySingleFileWorker(self, file_uri, with_audio=audio_active,
+                                                            with_preview=preview_visible)
         self.play_single_file_worker.install_play_status_slot(self.play_status_changed)
         self.play_single_file_worker.install_pixmap_refreshed_slot(self.preview_pixmap_changed)
 
@@ -120,23 +122,25 @@ class MediaEngine(QObject):
 
     def stop_play(self):
         log.debug("enter stop_play!\n")
+
         if self.play_single_file_worker is not None:
             self.play_single_file_worker.stop()
-            if self.ff_process is not None:
-                try:
-                    self.ff_process.terminate()
-                    self.ff_process.wait(timeout=3)
-                except subprocess.TimeoutExpired:
-                    log.debug("FFmpeg process termination timed out. Forcing kill.")
-                    self.ff_process.kill()
-                except Exception as e:
-                    log.debug(f"An error occurred while stopping the ff_process: {e}")
-                finally:
-                    self.ff_process = None
+            for i in range(5):
+                if self.ff_process is not None:
+                    try:
+                        os.kill(self.ff_process.pid, signal.SIGTERM)
+                    except ProcessLookupError:
+                        log.debug("PID might have changed or process could have exited already")
+                    except Exception as e:
+                        log.debug(f"An error occurred when trying to kill the process: {e}")
+                    finally:
+                        self.ff_process = None
+                        break
+                time.sleep(1)
             try:
                 if self.play_single_file_thread is not None:
                     self.play_single_file_thread.quit()
-                for i in range(10):
+                for i in range(5):
                     log.debug("self.play_single_file_thread.isFinished() = %d",
                               self.play_single_file_thread.isFinished())
                     if self.play_single_file_thread.isFinished() is True:
@@ -154,22 +158,22 @@ class MediaEngine(QObject):
         if self.play_hdmi_in_worker is not None:
             self.resume_playing()
             self.play_hdmi_in_worker.stop()
-
-            if self.ff_process is not None:
-                try:
-                    self.ff_process.terminate()
-                    self.ff_process.wait(timeout=3)
-                except subprocess.TimeoutExpired:
-                    log.debug("FFmpeg process termination timed out. Forcing kill.")
-                    self.ff_process.kill()
-                except Exception as e:
-                    log.debug(f"An error occurred while stopping the ff_process: {e}")
-                finally:
-                    self.ff_process = None
+            for i in range(5):
+                if self.ff_process is not None:
+                    try:
+                        os.kill(self.ff_process.pid, signal.SIGTERM)
+                    except ProcessLookupError:
+                        log.debug("PID might have changed or process could have exited already")
+                    except Exception as e:
+                        log.debug(f"An error occurred when trying to kill the process: {e}")
+                    finally:
+                        self.ff_process = None
+                        break
+                time.sleep(1)
             try:
                 if self.play_hdmi_in_thread is not None:
                     self.play_hdmi_in_thread.quit()
-                for i in range(10):
+                for i in range(5):
                     log.debug("self.play_hdmi_in_thread.isFinished() = %d",
                               self.play_hdmi_in_thread.isFinished())
                     if self.play_hdmi_in_thread.isFinished() is True:
@@ -211,7 +215,11 @@ class MediaEngine(QObject):
             log.debug("enter pause_play!\n")
             try:
                 if self.ff_process is not None:
-                    os.kill(self.ff_process.pid, signal.SIGSTOP)
+                    sub_ff_process = self.find_child("ffmpeg", self.ff_process.pid)
+                    if sub_ff_process:
+                        sub_ff_process.suspend()
+                    else:
+                        os.kill(self.ff_process.pid, signal.SIGSTOP)
                     self.playing_status = PlayStatus.Pausing
                 if self.sound_device.audio_process is not None:
                     mute_audio_sinks(True)
@@ -228,7 +236,11 @@ class MediaEngine(QObject):
             log.debug("enter resume_play!\n")
             try:
                 if self.ff_process is not None:
-                    os.kill(self.ff_process.pid, signal.SIGCONT)
+                    sub_ff_process = self.find_child("ffmpeg", self.ff_process.pid)
+                    if sub_ff_process:
+                        sub_ff_process.resume()
+                    else:
+                        os.kill(self.ff_process.pid, signal.SIGCONT)
                     self.playing_status = PlayStatus.Playing
                 if self.sound_device.audio_process is not None:
                     mute_audio_sinks(False)
@@ -238,6 +250,13 @@ class MediaEngine(QObject):
                     self.play_status_changed(self.playing_status, self.play_single_file_worker.file_uri)
             except Exception as e:
                 log.debug(e)
+
+    def find_child(self, child_name, parent_pid):
+        parent = psutil.Process(parent_pid)
+        for child in parent.children(recursive=True):
+            if child_name in child.name():
+                return child
+        return None
 
 
 class PlaySingleFileWorker(QObject):
@@ -291,7 +310,7 @@ class PlaySingleFileWorker(QObject):
             try_wain_write_count_max = 500
         try_wait_write_count = 0
         self.media_engine.sync_output_streaming_resolution()  # venom for output resolution correction
-        subprocess.Popen("pkill -f show_ffmpeg_shared_memory", shell=True)
+        subprocess.Popen("pkill -9 -f show_ffmpeg_shared_memory", shell=True)
         # kill_agent_cmd = "sudo -S pkill -f show_ffmpeg_shared_memory"
         # su_kill_agent_cmd = 'echo {} | '.format(SU_PWD) + kill_agent_cmd
         # log.debug("su_kill_agent_cmd : %s", kill_agent_cmd)
@@ -343,7 +362,7 @@ class PlaySingleFileWorker(QObject):
                 except Exception as e:
                     log.fatal(e)
 
-                    subprocess.Popen("pkill -f show_ffmpeg_shared_memory", shell=True)
+                    subprocess.Popen("pkill -9 -f show_ffmpeg_shared_memory", shell=True)
                     time.sleep(3)
 
                 if self.shm is not None:
@@ -368,10 +387,11 @@ class PlaySingleFileWorker(QObject):
                     sink_card, sink_device = self.media_engine.headphone_sound
                     audio_sink_str = f'hw:{sink_card},{sink_device}'
             target_fps_str = f"{self.output_fps}/1"
+
             ffmpeg_cmd = get_ffmpeg_cmd_for_media(self.file_uri,
                                                   width=self.output_width, height=self.output_height,
                                                   target_fps=target_fps_str, image_period=20,
-                                                  audio_sink=audio_sink_str)
+                                                  audio_sink=audio_sink_str, audio_on=self.play_with_audio)
             log.debug("ffmpeg_cmd : %s", ffmpeg_cmd)
             try:
                 self.ff_process = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, bufsize=10 ** 8, shell=True)
@@ -658,7 +678,7 @@ class Playing_HDMI_in_worker(QThread):
         if self.play_status != PlayStatus.Stop:
             p = subprocess.run(["pgrep", "ffmpeg"], capture_output=True, text=True)
             if p.stdout:
-                subprocess.run(["pkill", "-f", "ffmpeg"])
+                subprocess.run(["pkill", "-9", "-f", "ffmpeg"])
         self.media_engine.sound_device.stop_play()
         time.sleep(1)
         self.restart_agent()

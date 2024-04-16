@@ -3,6 +3,7 @@ import platform
 import signal
 import subprocess
 import re
+import threading
 from global_def import log
 
 
@@ -22,13 +23,15 @@ def mute_audio_sinks(mute=True):
 
 class SoundDevices:
     def __init__(self):
+        self.audio_timer_event = None
         self.audio_process = None
         self.pulseaudio_command = "pulseaudio"
         self.tc358743_card = None
         self.tc358743_device = None
         self.headphones_card = None
         self.headphones_device = None
-        subprocess.Popen("pkill -f arecord", shell=True)
+
+        subprocess.Popen("pkill -9 -f arecord", shell=True)
         mute_audio_sinks(False)
 
     def pulse_audio_status(self):
@@ -84,8 +87,25 @@ class SoundDevices:
         else:
             return None, None
 
+    def start_audio_timer_event(self):
+        if self.audio_timer_event:
+            self.audio_timer_event.cancel()
+        self.audio_timer_event = threading.Timer(10, self.monitor_audio_process)
+        self.audio_timer_event.start()
+
+    def monitor_audio_process(self):
+        if self.audio_process and self.audio_process.poll() is None:
+            pass
+        else:
+            log.debug("Audio process restart...")
+            self.start_play(self.tc358743_card, self.tc358743_device,
+                            self.headphones_card, self.headphones_device,
+                            fmt="cd", file_type="wav", buf_us="200000", period_us="50000")
+
+        self.start_audio_timer_event()
+
     def start_play(self, source_card, source_device, sink_card, sink_device,
-                   fmt="cd", file_type="wav", buf_us="500000", period_us="100000"):
+                   fmt="cd", file_type="wav", buf_us="200000", period_us="50000"):
 
         audio_source = f"hw:{source_card},{source_device}"
         audio_sink = f"hw:{sink_card},{sink_device}"
@@ -100,11 +120,16 @@ class SoundDevices:
         try:
             self.audio_process = subprocess.Popen(audio_cmd, shell=True, preexec_fn=os.setsid,
                                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            self.start_audio_timer_event()
 
         except Exception as e:
             log.debug(f"Start error: {e}")
 
     def stop_play(self):
+
+        if self.audio_timer_event:
+            self.audio_timer_event.cancel()
+
         if hasattr(self, 'audio_process') and self.audio_process:
             os.killpg(os.getpgid(self.audio_process.pid), signal.SIGINT)
             try:

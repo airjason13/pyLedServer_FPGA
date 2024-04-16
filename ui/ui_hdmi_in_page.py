@@ -91,7 +91,7 @@ class HDMIInPage(QWidget):
         self.tc358743 = TC358743()
         self.tc358743.signal_refresh_tc358743_param.connect(self.refresh_tc358743_param)
         self.tc358743.get_tc358743_dv_timing()
-        subprocess.Popen("pkill -f ffmpeg", shell=True)
+        subprocess.Popen("pkill -9 -f ffmpeg", shell=True)
 
     def init_ui(self):
         # Initialize the main HDMI input widget and layout
@@ -160,13 +160,13 @@ class HDMIInPage(QWidget):
         self.play_action_btn = QPushButton("Start Play", self.preview_widget)
         self.play_action_btn.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
         self.play_action_btn.clicked.connect(self.pause_btn_clicked)
-        self.play_action_btn.setStyleSheet(QPushPlayButton_Style)
+        self.play_action_btn.setStyleSheet(QPushHdmiPlayButton_Style)
 
         # Setup stop action button
         self.stop_action_btn = QPushButton("Stop Play", self.preview_widget)
         self.stop_action_btn.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
         self.stop_action_btn.clicked.connect(self.stop_btn_clicked)
-        self.stop_action_btn.setStyleSheet(QPushStopButton_Style)
+        self.stop_action_btn.setStyleSheet(QPushHdmiStopButton_Style)
 
         # Setup process status frame
         self.process_status_frame = QFrame(self.preview_widget)
@@ -334,13 +334,13 @@ class HDMIInPage(QWidget):
                         hdmi_info_list[0] = False
                         current_hdmi_info = tuple(hdmi_info_list)
                         self.stop_streaming(True)
-                        subprocess.Popen("pkill -f ffmpeg", shell=True)
+                        subprocess.Popen("pkill -9 -f ffmpeg", shell=True)
 
                 else:
                     if self.tc358743.hdmi_connected is True:
                         if current_hdmi_connected is False:
                             self.stop_streaming(True)
-                            subprocess.Popen("pkill -f ffmpeg", shell=True)
+                            subprocess.Popen("pkill -9 -f ffmpeg", shell=True)
                             self.tc358743.reinit_tc358743_dv_timing()
                             self.preview_label.setText("HDMI-in Signal Lost")
 
@@ -383,25 +383,25 @@ class HDMIInPage(QWidget):
         p = subprocess.run(["pgrep", "ffmpeg"],
                            capture_output=True, text=True)
         if p.stdout:
-            subprocess.run(["pkill", "-f", "ffmpeg"])
+            subprocess.run(["pkill", "-9", "-f", "ffmpeg"])
 
         # find any show_ffmpeg_shared_memory process
         p = subprocess.run(["pgrep", "show_ffmpeg_shared_memory"],
                            capture_output=True, text=True)
         if p.stdout:
-            subprocess.run(["pkill", "-f", "show_ffmpeg_shared_memory"])
+            subprocess.run(["pkill", "-9", "-f", "show_ffmpeg_shared_memory"])
 
         # find any ffprobe process
         p = subprocess.run(["pgrep", "ffprobe"],
                            capture_output=True, text=True)
         if p.stdout:
-            subprocess.run(["pkill", "-f", "ffprobe"])
+            subprocess.run(["pkill", "-9", "-f", "ffprobe"])
 
         # find any arecord process
         p = subprocess.run(["pgrep", "arecord"],
                            capture_output=True, text=True)
         if p.stdout:
-            subprocess.run(["pkill", "-f", "arecord"])
+            subprocess.run(["pkill", "-9", "-f", "arecord"])
 
         if self.tc358743.set_tc358743_dv_bt_timing() is True:
             self.tc358743.reinit_tc358743_dv_timing()
