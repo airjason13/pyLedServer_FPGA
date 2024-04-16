@@ -35,7 +35,7 @@ QPushButton_Style = """
                 
             }
         """
-QPushPlayButton_Style = """
+QPushHdmiPlayButton_Style = """
         QPushButton {
             background-color: #4CAF50;  /* Green background */
             color: white;
@@ -52,7 +52,7 @@ QPushPlayButton_Style = """
             margin-left: 2px;
         }
     """
-QPushStopButton_Style = """
+QPushHdmiStopButton_Style = """
         QPushButton {
             background-color: #f44336;  /* Red background */
             color: white;
@@ -69,3 +69,39 @@ QPushStopButton_Style = """
             margin-left: 2px;
         }
     """
+QPushFilePlayButton_Style = """
+    QPushButton {
+        background-color: transparent;
+        border: none; 
+        border-radius: 50%;  /* Circle */
+        width: 60px;  /* Width of the button */
+        height: 60px;  /* Height of the button, same as width for a perfect circle */
+        padding: 12px;  /* Padding inside the button */
+    }
+
+    QPushButton:pressed {
+        background-color: #000925; 
+        border: none;  
+        padding: 10px 10px;  /* Reduce padding to simulate a press effect */
+        margin-top: 2px;  /* Move the button down to simulate being pressed */
+        margin-left: 2px;
+    }
+"""
+QPushFileStopButton_Style = """
+    QPushButton {
+        background-color: transparent;
+        border: none; 
+        border-radius: 50%;  /* Circle */
+        width: 60px;  /* Width of the button */
+        height: 60px;  /* Height of the button, same as width for a perfect circle */
+        padding: 12px;  /* Padding inside the button */
+    }
+
+    QPushButton:pressed {
+        background-color: #000925; 
+        border: none;  
+        padding: 10px 10px;  /* Reduce padding to simulate a press effect */
+        margin-top: 2px;  /* Move the button down to simulate being pressed */
+        margin-left: 2px;
+    }
+"""

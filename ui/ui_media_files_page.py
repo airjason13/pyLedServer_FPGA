@@ -11,6 +11,7 @@ from PyQt5.QtWidgets import QWidget, QVBoxLayout, \
 
 from media_engine.media_engine import MediaEngine
 from media_engine.media_engine_def import PlayStatus
+from qt_ui_style.button_qss import QPushFileStopButton_Style, QPushFilePlayButton_Style
 from utils.utils_file_access import get_playlist_file_list, get_mount_points, get_led_config_from_file_uri
 from ext_qt_widgets.media_file_list import MediaFileList
 from ext_qt_widgets.media_playlist import PlayList
@@ -47,6 +48,8 @@ class MediaFilesPage(QWidget):
 
     def __init__(self, _main_window, _frame: QWidget, _name: str, media_engine: MediaEngine, **kwargs):
         super(MediaFilesPage, self).__init__()
+        self.preview_control_btn = None
+        self.sound_control_btn = None
         self.main_windows = _main_window
         self.frame = _frame
         self.media_engine = media_engine
@@ -103,7 +106,9 @@ class MediaFilesPage(QWidget):
         self.play_icon_pixmap = None
         self.pause_icon_pixmap = None
         self.stop_icon_pixmap = None
-
+        self.audioActiveToggle = True
+        self.previewVisibleToggle = True
+        self.select_current_file_uri = None
         self.init_ui()
 
         self.media_engine.install_signal_media_play_status_changed_slot(self.media_play_status_changed)
@@ -168,7 +173,7 @@ class MediaFilesPage(QWidget):
         self.media_control_panel_layout = QGridLayout()
         self.media_control_panel.setLayout(self.media_control_panel_layout)
 
-        ''' Handle Play/Pause/Stop Button'''
+        ''' Handle Play/Pause/Stop/Preview/Sound Button'''
         self.play_pause_btn = QPushButton()
         self.play_pause_btn.setFixedSize(128, 128)
         self.play_icon_pixmap = QPixmap("materials/play_btn.png").scaledToWidth(128)
@@ -177,7 +182,7 @@ class MediaFilesPage(QWidget):
         self.pause_icon = QIcon(self.pause_icon_pixmap)
         self.play_pause_btn.setIcon(self.play_icon)
         self.play_pause_btn.setIconSize(QSize(128, 128))
-        self.play_pause_btn.setStyleSheet("border-radius : 64px ; border: 2px solid black ;")
+        self.play_pause_btn.setStyleSheet(QPushFilePlayButton_Style)
         self.play_pause_btn.clicked.connect(self.pause_btn_clicked)
         self.media_control_panel_layout.addWidget(self.play_pause_btn, 0, 1)
 
@@ -187,10 +192,33 @@ class MediaFilesPage(QWidget):
         self.stop_icon = QIcon(self.stop_icon_pixmap)
         self.play_stop_btn.setIcon(self.stop_icon)
         self.play_stop_btn.setIconSize(QSize(128, 128))
-        self.play_stop_btn.setStyleSheet("border-radius : 64px ; border: 2px solid black ;")
+        self.play_stop_btn.setStyleSheet(QPushFileStopButton_Style)
         self.play_stop_btn.clicked.connect(self.stop_btn_clicked)
-        self.media_control_panel_layout.addWidget(self.play_pause_btn, 0, 0)
-        self.media_control_panel_layout.addWidget(self.play_stop_btn, 0, 1)
+
+        self.sound_control_btn = QPushButton()
+        if self.audioActiveToggle is True:
+            self.sound_control_btn.setIcon(QIcon('materials/soundOnIcon.png'))
+        else:
+            self.sound_control_btn.setIcon(QIcon('materials/soundOffIcon.png'))
+
+        self.sound_control_btn.setIconSize(QSize(32, 32))
+        self.sound_control_btn.setCheckable(self.audioActiveToggle)
+        self.sound_control_btn.clicked.connect(self.sound_btn_clicked)
+
+        self.preview_control_btn = QPushButton()
+        if self.previewVisibleToggle is True:
+            self.preview_control_btn.setIcon(QIcon('materials/eyeOpenIcon.png'))
+        else:
+            self.preview_control_btn.setIcon(QIcon('materials/eyeCloseIcon.png'))
+
+        self.preview_control_btn.setIconSize(QSize(32, 32))
+        self.preview_control_btn.setCheckable(self.previewVisibleToggle)
+        self.preview_control_btn.clicked.connect(self.preview_btn_clicked)
+
+        self.media_control_panel_layout.addWidget(self.play_pause_btn, 0, 0, 4, 2)
+        self.media_control_panel_layout.addWidget(self.play_stop_btn, 0, 1, 4, 2)
+        self.media_control_panel_layout.addWidget(self.preview_control_btn, 0, 2, 1, 1)
+        self.media_control_panel_layout.addWidget(self.sound_control_btn, 1, 2, 1, 1)
 
         self.layout = QVBoxLayout()
         self.layout.addWidget(self.media_files_tree_widget)
@@ -482,7 +510,9 @@ class MediaFilesPage(QWidget):
             selected_widget = self.media_files_tree_widget.itemAt(self.right_clicked_pos)
             selected_file_name = selected_widget.text(0)
             select_file_uri = self.internal_media_folder[0] + "/" + selected_widget.text(0)
-            self.media_engine.single_play(select_file_uri)
+            self.select_current_file_uri = select_file_uri
+            self.media_engine.single_play(self.select_current_file_uri, self.audioActiveToggle,
+                                          self.previewVisibleToggle)
             '''w, h = get_led_config_from_file_uri("led_wall_resolution",
                                                 "led_wall_width", "led_wall_height")
             log.debug("w : %s, h : %s", w, h)
@@ -599,6 +629,7 @@ class MediaFilesPage(QWidget):
 
     def stop_btn_clicked(self):
         log.debug("")
+        self.media_engine.resume_playing()
         self.media_engine.stop_play()
 
     def pause_btn_clicked(self):
@@ -607,3 +638,41 @@ class MediaFilesPage(QWidget):
             self.media_engine.pause_playing()
         elif PlayStatus.Pausing == self.media_engine.playing_status:
             self.media_engine.resume_playing()
+        elif (PlayStatus.Stop == self.media_engine.playing_status or
+              PlayStatus.Initial == self.media_engine.playing_status):
+            if self.media_engine.play_single_file_worker is None:
+                if os.path.exists(self.select_current_file_uri):
+                    self.media_engine.single_play(self.select_current_file_uri, self.audioActiveToggle,
+                                                  self.previewVisibleToggle)
+
+    def sound_btn_clicked(self):
+        log.debug("")
+        if self.sound_control_btn.isChecked():
+            self.audioActiveToggle = False
+            self.sound_control_btn.setIcon(QIcon('materials/soundOffIcon.png'))
+        else:
+            self.audioActiveToggle = True
+            self.sound_control_btn.setIcon(QIcon('materials/soundOnIcon.png'))
+
+        if PlayStatus.Playing == self.media_engine.playing_status:
+            if self.media_engine.play_single_file_worker:
+                if os.path.exists(self.select_current_file_uri):
+                    self.media_engine.stop_play()
+                    self.media_engine.single_play(self.select_current_file_uri, self.audioActiveToggle,
+                                                  self.previewVisibleToggle)
+
+    def preview_btn_clicked(self):
+        log.debug("")
+        if self.preview_control_btn.isChecked():
+            self.previewVisibleToggle = False
+            self.preview_control_btn.setIcon(QIcon('materials/eyeCloseIcon.png'))
+        else:
+            self.previewVisibleToggle = True
+            self.preview_control_btn.setIcon(QIcon('materials/eyeOpenIcon.png'))
+
+        if PlayStatus.Playing == self.media_engine.playing_status:
+            if self.media_engine.play_single_file_worker:
+                if os.path.exists(self.select_current_file_uri):
+                    self.media_engine.stop_play()
+                    self.media_engine.single_play(self.select_current_file_uri, self.audioActiveToggle,
+                                                  self.previewVisibleToggle)

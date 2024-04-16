@@ -14,6 +14,7 @@ def get_ffmpeg_cmd_for_media(video_uri: str, **kwargs):
     target_fps = kwargs.get("target_fps", "24/1")
     image_period = kwargs.get("image_period")
     audio_sink = kwargs.get("audio_sink", "hw:1,0")
+    audio_on = kwargs.get("audio_on", True)
     global_opts = '-hide_banner -loglevel error -hwaccel auto'
     scale_param = 'scale=' + str(width) + ':' + str(height)
     filter_params = scale_param
@@ -29,16 +30,16 @@ def get_ffmpeg_cmd_for_media(video_uri: str, **kwargs):
             }
         )
     elif video_uri.endswith("mp4"):
+        output_options = {
+            pipe_sink: ["-filter_complex", filter_params, "-r", target_fps, "-pix_fmt", "rgb24", "-f", "rawvideo"]
+        }
+        if audio_on:
+            output_options[audio_sink] = ["-f", "alsa"]
+
         ff = ffmpy.FFmpeg(
             global_options=global_opts,
-            inputs={
-                video_uri: ["-re"]
-            },
-            outputs={
-                pipe_sink: ["-filter_complex", filter_params, "-r", target_fps, "-pix_fmt", "rgb24", "-f", "rawvideo"],
-                # unix_socket: ["-f", "rawvideo"],
-                audio_sink: ["-f", "alsa"]
-            },
+            inputs={video_uri: ["-re"]},
+            outputs=output_options
         )
     elif video_uri.endswith("jpeg") or video_uri.endswith("jpg") or video_uri.endswith("png"):
         log.debug("jpg to mp4")
