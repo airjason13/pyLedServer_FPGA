@@ -619,6 +619,8 @@ class Playing_HDMI_in_worker(QThread):
             if not self.agent_process or self.agent_process.poll() is not None:
                 log.debug("Missing agent! Trying to restart the shared memory agent.")
                 self.restart_agent()
+                time.sleep(1)
+                self.play_status_change(self.play_status, self.video_src)
                 if not self.agent_process:
                     log.debug("Failed to restart the agent. Aborting write operation.")
                     return False
@@ -656,9 +658,16 @@ class Playing_HDMI_in_worker(QThread):
             self.shm_sem = None
         if self.agent_process:
             log.debug("agent_process closed.")
-            self.agent_process.terminate()
-            self.agent_process.wait()
-            self.agent_process = None
+            try:
+                self.agent_process.terminate()
+                self.agent_process.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                log.debug("agent process termination timed out. Forcing kill.")
+                self.agent_process.kill()
+            except Exception as e:
+                log.debug(f"An error occurred while stopping the agent: {e}")
+            finally:
+                self.agent_process = None
         if self.ff_process:
             log.debug("ff_process closed.")
             try:
@@ -727,7 +736,6 @@ class Playing_HDMI_in_worker(QThread):
                     self.image_from_pipe = self.ff_process.stdout.read(self.output_width * self.output_height * 3)
 
                     if not self.image_from_pipe:
-                        self.force_stop = True
                         if self.agent_process is not None:
                             self.agent_process.kill()
                         log.debug("No data read from the pipe.")
