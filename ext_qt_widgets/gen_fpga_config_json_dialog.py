@@ -19,6 +19,13 @@ class GenFPGAConfigJsonDialog(QWidget):
                           }
                       """)
         self.setWindowTitle("New FPGA Config Json File")
+
+        self.layout = None
+        self.new_config_file_lable = None
+        self.new_config_file_textedit = None
+        self.confirm_btn = None
+        self.cancel_btn = None
+
         self.init_ui()
         self.config_files_exists = config_files_exists
         self.error_message_box = QMessageBox()
@@ -65,7 +72,7 @@ class GenFPGAConfigJsonDialog(QWidget):
         config_file_name = self.new_config_file_textedit.toPlainText() + ".json"
 
         for pl in self.config_files_exists:
-            if pl.name == config_file_name:
+            if pl == config_file_name:
                 self.show_error_message_box("Config json Name Already Exists")
                 return
 

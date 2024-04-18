@@ -11,6 +11,7 @@ import pyqtgraph as pg
 import platform
 import os
 import qdarkstyle
+from numpy.compat import unicode
 
 import utils.utils_file_access
 import utils.utils_system
@@ -126,7 +127,7 @@ class MainUi(QMainWindow):
 
         self.init_fpga_gamma()
 
-        self.set_fpga_test_register()
+        # self.set_fpga_test_register()
 
         for fpga in self.fpga_list:
             fpga.fpga_cmd_center.write_fpga_register(fpga.i_id, 'currentGammaTable', str(1))
@@ -285,18 +286,23 @@ class MainUi(QMainWindow):
         data["lcdVersion"] = 'LS240305001'
         data["fpgaID"] = []
         params = {}
-        '''for i in range(2):
-            params["deviceID"] = "2"
-            params["UTC"] = "test"
-            params["MD5"] = "test"
-            data["fpgaID"].append(params)
-        # data["fpgaID"][self.fpga_total_num] = dict()'''
 
         for i in range(FPGA_START_ID, FPGA_START_ID + self.fpga_total_num):
             params = {}
             for j in range(len(FPGAJsonParams.params_list)):
                 log.debug("read id: %d, %s", i, FPGAJsonParams.params_list[j])
-                ret, str_value = self.fpga_cmd_center.read_fpga_register(i, FPGAJsonParams.params_list[j])
+                if FPGAJsonParams.params_list[j] == "stringVersion":
+                    ret, reg_value = self.fpga_cmd_center.read_fpga_register_bytes(
+                        i, FPGAJsonParams.params_list[j])
+                    if ret == 0:
+                        str_value = reg_value.decode().replace('\u0000', '')
+                        for fpga in self.fpga_list:
+                            if fpga.i_id == i:
+                                fpga.set_version(str_value)
+                    else:
+                        str_value = "unknown"
+                else:
+                    ret, str_value = self.fpga_cmd_center.read_fpga_register(i, FPGAJsonParams.params_list[j])
 
                 if ret == 0:
                     params[FPGAJsonParams.params_list[j]] = str_value
@@ -308,6 +314,7 @@ class MainUi(QMainWindow):
         with open("dataFPGA.json", "w") as jsonFile:
             json.dump(data, jsonFile, indent=2)
             log.debug('write json')
+
 
     def set_fpga_test_register(self):
         for i in range(FPGA_START_ID, FPGA_START_ID + len(self.fpga_list)):
