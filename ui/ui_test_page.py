@@ -77,7 +77,6 @@ class TestPage(QWidget):
         self.rw_test_to_fpga()
 
 
-
     def write_test_value_to_fpga(self, test_opt_index=0):
         test_opt_index = 0
         for i in range(FPGA_START_ID, FPGA_START_ID + len(self.fpga_list)):

@@ -63,7 +63,7 @@ def get_fpga_ota_file_list(dir, with_path=False):
     return file_list
 
 
-def get_led_config_from_file_uri(file_name, *args):
+def get_led_config_from_file_uri(file_name, *args) -> list[str]:
     root_dir = os.path.dirname(sys.modules['__main__'].__file__)
     led_config_dir = os.path.join(root_dir, 'led_config')
     with open(os.path.join(led_config_dir, file_name), "r") as f:
@@ -80,7 +80,7 @@ def get_led_config_from_file_uri(file_name, *args):
     return ret_val
 
 
-def get_int_led_config_from_file_uri(file_name, *args):
+def get_int_led_config_from_file_uri(file_name, *args) -> int:
     root_dir = os.path.dirname(sys.modules['__main__'].__file__)
     led_config_dir = os.path.join(root_dir, 'led_config')
     with open(os.path.join(led_config_dir, file_name), "r") as f:

@@ -1,3 +1,4 @@
+import logging
 import time
 
 from PyQt5 import QtWidgets
@@ -15,7 +16,8 @@ from global_def import *
 from media_engine.media_engine import MediaEngine
 from qt_ui_style.button_qss import *
 from qt_ui_style.set_qstyle import set_qstyle_dark
-from utils.utils_file_access import get_fpga_config_file_list, load_fpga_json_file, get_fpga_ota_file_list
+from utils.utils_file_access import get_fpga_config_file_list, load_fpga_json_file, get_fpga_ota_file_list, \
+    get_led_config_from_file_uri
 import json
 from FPGA_protocol.protocol2 import dataAddressDict
 
@@ -87,9 +89,9 @@ class FpgaListPage(QWidget):
 
     def init_ui(self):
         self.label_name = QLabel(self.frame)
-        self.label_name.setFixedSize(180, 64)
+        self.label_name.setFixedSize(240, 64)
         self.label_name.setAlignment(Qt.AlignLeft)
-        self.label_name.setFont(QFont(QFont_Style_Default, QFont_Style_Size_L))
+        self.label_name.setFont(QFont(QFont_Style_Default, QFont_Style_Size_XL))
         self.label_name.setText(self.name)
         self.client_table_widget.setSizeAdjustPolicy(QAbstractScrollArea.AdjustToContents)
 
@@ -118,10 +120,12 @@ class FpgaListPage(QWidget):
         self.fpga_write_flash_btn.setFixedSize(240, 64)
         self.fpga_write_flash_btn.setFont(QFont(QFont_Style_Default, QFont_Style_Size_L))
         self.fpga_write_flash_btn.setText("Write Flash")
+        self.fpga_write_flash_btn.clicked.connect(self.func_fpga_write_flash_btn)
         self.fpga_read_flash_btn = QPushButton()
         self.fpga_read_flash_btn.setFixedSize(240, 64)
         self.fpga_read_flash_btn.setFont(QFont(QFont_Style_Default, QFont_Style_Size_L))
         self.fpga_read_flash_btn.setText("Read Flash")
+        self.fpga_read_flash_btn.clicked.connect(self.func_fpga_read_flash_btn)
 
         self.label_widget = QWidget()
         self.label_widget_layout = QHBoxLayout()
@@ -175,7 +179,9 @@ class FpgaListPage(QWidget):
         self.rgb_gamma_label.setText("Red Gamma:")
         self.rgb_gamma_lineedit = QLineEdit()
         self.rgb_gamma_lineedit.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
-        self.rgb_gamma_lineedit.setText("2.2")
+        str_gamma_index = get_led_config_from_file_uri("led_parameters", "led_gamma")
+        log.debug("str_gamma_index : %s", str_gamma_index[0])
+        self.rgb_gamma_lineedit.setText(str_gamma_index[0])
 
         # Frame Width/Height
         self.frame_width_label = QLabel()
@@ -183,14 +189,17 @@ class FpgaListPage(QWidget):
         self.frame_width_label.setText("Frame Width:")
         self.frame_width_lineedit = QLineEdit()
         self.frame_width_lineedit.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
-        self.frame_width_lineedit.setText("640")
+        str_frame_width, str_frame_height = get_led_config_from_file_uri("led_wall_resolution",
+                                                                         "led_wall_width", "led_wall_height")
+        log.debug("str_frame_width : %s, str_frame_height : %s", str_frame_width, str_frame_height)
+        self.frame_width_lineedit.setText(str_frame_width)
 
         self.frame_height_label = QLabel()
         self.frame_height_label.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
         self.frame_height_label.setText("Frame Width:")
         self.frame_height_lineedit = QLineEdit()
         self.frame_height_lineedit.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
-        self.frame_height_lineedit.setText("480")
+        self.frame_height_lineedit.setText(str_frame_height)
 
         self.set_params_btn = QPushButton(self.frame)
         # self.set_params_btn.setFixedSize(320, 240)
@@ -226,11 +235,36 @@ class FpgaListPage(QWidget):
 
     def func_set_btn(self):
         log.debug("func test btn clicked")
-        self.cmd_test_timer.timeout.connect(self.fpga_write_flash_test)
-        self.cmd_test_timer.start(3 * 1000)
+
+
+        # below is for test use
+        # self.cmd_test_timer.timeout.connect(self.fpga_write_flash_test)
+        # self.cmd_test_timer.timeout.connect(self.fpga_read_flash_test)
+        # self.cmd_test_timer.start(3 * 1000)
 
     def func_rescan_btn(self):
-        log.debug("to be implemented")
+        log.debug("func_rescan_btn")
+        self.main_windows.fpga_cmd_center.set_fpga_id_broadcast(FPGA_START_ID)
+        self.main_windows.fpga_list = []
+        self.fpga_total_num = self.main_windows.get_fpga_total_num()
+        for i in range(FPGA_START_ID, FPGA_START_ID + self.main_windows.fpga_total_num):
+            fpga_tmp = FPGAClient(i, self.main_windows.fpga_cmd_center)
+            self.main_windows.fpga_list.append(fpga_tmp)
+        self.fpga_list = self.main_windows.fpga_list
+        self.sync_clients_table(self.fpga_list)
+        log.debug("func_rescan_btn end")
+
+    def func_fpga_write_flash_btn(self):
+        self.main_windows.fpga_cmd_center.set_fpga_write_flash()
+        time.sleep(5)
+        # 需補dialog
+        log.debug("need a ok dialog")
+
+    def func_fpga_read_flash_btn(self):
+        self.main_windows.fpga_cmd_center.set_fpga_read_flash()
+        time.sleep(5)
+        # 需補dialog
+        log.debug("need a ok dialog")
 
     def func_gen_fpga_config_file_btn(self):
         log.debug("func func_gen_fpga_config_file_btn clicked")
@@ -318,11 +352,9 @@ class FpgaListPage(QWidget):
             self.client_table_widget.insertRow(row_count)
             self.client_table_widget.setItem(row_count, 0, QTableWidgetItem(str(fpga.i_id)))
             self.client_table_widget.setItem(row_count, 1, QTableWidgetItem(fpga.s_version))
-            self.client_table_widget.setItem(row_count, 2, QTableWidgetItem(str(fpga.i_status)))
-            if row_count == 3:
-                self.client_table_widget.setItem(row_count, 3, QTableWidgetItem(self.TEST_CONTROLS_ITEMS_ERROR))
-            else:
-                self.client_table_widget.setItem(row_count, 3, QTableWidgetItem(self.TEST_CONTROLS_ITEMS))
+            self.client_table_widget.setItem(row_count, 2, QTableWidgetItem(fpga.s_status))
+
+            self.client_table_widget.setItem(row_count, 3, QTableWidgetItem(fpga.s_controls))
 
         # self.client_table_widget.item(3,3).setForeground(QBrush(QColor(255, 0, 0)))
 
@@ -356,20 +388,115 @@ class FpgaListPage(QWidget):
                 log.debug("UTC read/write failed!")
 
     def fpga_write_flash_test(self):
-        log.debug("self.frame_res_test_count : %d", self.frame_res_test_count)
+        log.debug("flash read write frame res test count : %d", self.frame_res_test_count)
         self.frame_res_test_count += 1
-        self.main_windows.fpga_cmd_center.set_fpga_write_flash()
+        flash_write_count_list = []
+        flash_write_ok_list = [0, 0]
         for i in range(len(self.fpga_list)):  # send cmd to id 2/3
-            start_time = time.time()
+            ret, write_flash_count = self.fpga_list[i].read_cmd("flashWriteCount")
+            if ret != 0:
+                log.debug("read write_flash_count failed!")
+                return
+            else:
+                log.debug("id : %d,write_flash_count : %d", i, write_flash_count)
+            flash_write_count_list.append(write_flash_count)
+        # time.sleep(2)
+        self.main_windows.fpga_cmd_center.set_fpga_write_flash()
+        time.sleep(5)
+        while True:
+            for i in range(len(self.fpga_list)):  # send cmd to id 2/3
+                ret, write_flash_count = self.fpga_list[i].read_cmd("flashWriteCount")
+                if ret != 0:
+                    log.debug("read write_flash_count failed!")
+                else:
+                    log.debug("id : %d,write_flash_count : %d", i, write_flash_count)
+                    if flash_write_count_list[i] < 255:
+                        if write_flash_count != flash_write_count_list[i] + 1:
+                            log.error("id: %d,write_flash_count did not add", i)
+                        else:
+                            log.debug("id : %d,write_flash_count add ok", i)
+                            flash_write_ok_list[i] = 1
+                    else:
+                        if write_flash_count != 0:
+                            log.error("id: %d,write_flash_count did not add", i)
+                        else:
+                            log.debug("id : %d,write_flash_count add ok", i)
+                            flash_write_ok_list[i] = 1
+            if flash_write_ok_list[0] == 1 and flash_write_ok_list[1] == 1:
+                break
+            time.sleep(1)
+
+        for i in range(len(self.fpga_list)):  # send cmd to id 2/3
             ret, id_width = self.fpga_list[i].read_cmd("frameWidth")
             if ret == 0:
-                log.debug("id: %d, id_width: %s", self.fpga_list[i].i_id, id_width)
-                if int(id_width) != 640:
+                if int(id_width) != 160:
                     log.fatal("id: %d, read frame width : %s, not match test frame width",
                               self.fpga_list[i].i_id, id_width)
             ret, id_height = self.fpga_list[i].read_cmd("frameHeight")
             if ret == 0:
-                if int(id_height) != 480:
+                if int(id_height) != 48:
+                    log.debug("id: %d, id_height: %s", self.fpga_list[i].i_id, id_height)
+                    log.fatal("id: %d, read frame height : %s, not match test frame height",
+                              self.fpga_list[i].i_id, id_width)
+
+            '''ret, write_flash_count = self.fpga_list[i].read_cmd("flashWriteCount")
+            if ret != 0:
+                log.debug("read write_flash_count failed!")
+            else:
+                log.debug("id : %d,write_flash_count : %d", i, write_flash_count)
+
+                if write_flash_count != flash_write_count_list[i] + 1:
+                    log.error("id: %d,write_flash_count did not add", i)
+                else:
+                    log.debug("id : %d,write_flash_count add ok", i)'''
+
+    def fpga_read_flash_test(self):
+        log.debug("flash read write frame res test count : %d", self.frame_res_test_count)
+        self.frame_res_test_count += 1
+        flash_read_count_list = []
+        flash_read_ok_list = [0, 0]
+        for i in range(len(self.fpga_list)):  # send cmd to id 2/3
+            ret, read_flash_count = self.fpga_list[i].read_cmd("flashReadCount")
+            if ret != 0:
+                log.debug("read read_flash_count failed!")
+                return
+            else:
+                log.debug("id : %d,read_flash_count : %d", i, read_flash_count)
+            flash_read_count_list.append(read_flash_count)
+        # time.sleep(2)
+        self.main_windows.fpga_cmd_center.set_fpga_read_flash()
+        time.sleep(5)
+        while True:
+            for i in range(len(self.fpga_list)):  # send cmd to id 2/3
+                ret, read_flash_count = self.fpga_list[i].read_cmd("flashReadCount")
+                if ret != 0:
+                    log.debug("read read_flash_count failed!")
+                else:
+                    log.debug("id : %d,read_flash_count : %d", i, read_flash_count)
+                    if flash_read_count_list[i] < 255:
+                        if read_flash_count != flash_read_count_list[i] + 1:
+                            log.error("id: %d,read_flash_count did not add", i)
+                        else:
+                            log.debug("id : %d,read_flash_count add ok", i)
+                            flash_read_ok_list[i] = 1
+                    else:
+                        if read_flash_count != 0:
+                            log.error("id: %d,read_flash_count did not add", i)
+                        else:
+                            log.debug("id : %d,read_flash_count add ok", i)
+                            flash_read_ok_list[i] = 1
+            if flash_read_ok_list[0] == 1 and flash_read_ok_list[1] == 1:
+                break
+
+        for i in range(len(self.fpga_list)):  # send cmd to id 2/3
+            ret, id_width = self.fpga_list[i].read_cmd("frameWidth")
+            if ret == 0:
+                if int(id_width) != 160:
+                    log.fatal("id: %d, read frame width : %s, not match test frame width",
+                              self.fpga_list[i].i_id, id_width)
+            ret, id_height = self.fpga_list[i].read_cmd("frameHeight")
+            if ret == 0:
+                if int(id_height) != 48:
                     log.debug("id: %d, id_height: %s", self.fpga_list[i].i_id, id_height)
                     log.fatal("id: %d, read frame height : %s, not match test frame height",
                               self.fpga_list[i].i_id, id_width)

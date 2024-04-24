@@ -1,36 +1,26 @@
 import json
-import logging
 import random
-import subprocess
 import time
 
-from PyQt5.QtCore import QThread, pyqtSignal, QDateTime, QObject, Qt, QTimer
-from PyQt5.QtWidgets import QMainWindow, QFrame, QSplitter, QGridLayout, QWidget, QStackedLayout, QPushButton, \
-    QVBoxLayout
-import pyqtgraph as pg
-import platform
-import os
 import qdarkstyle
+from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import QApplication
+from PyQt5.QtWidgets import QMainWindow, QFrame, QSplitter, QGridLayout, QWidget, QStackedLayout, QVBoxLayout
 
 import utils.utils_file_access
 import utils.utils_system
 from FPGA_protocol.gamma import init_gamma_table_list, gamma_table_list, max_gamma_value
+from FPGA_protocol.protocol2 import FPGACmdCenter, protocolDict, FPGAJsonParams, fpga_test_value
 from fpga.fpga_clients import FPGAClient
 from global_def import *
-from PyQt5.QtWidgets import QApplication
-
 from media_engine.media_engine import MediaEngine
 from ui.ui_fpga_list_page import FpgaListPage
 from ui.ui_functions_frame import UiFuncFrame
-from ui.ui_sys_sw_info import UiSystemSoftware
-from ui.ui_media_files_page import MediaFilesPage
 from ui.ui_hdmi_in_page import HDMIInPage
 from ui.ui_led_settings_page import LedSettingsPage
+from ui.ui_media_files_page import MediaFilesPage
+from ui.ui_sys_sw_info import UiSystemSoftware
 from ui.ui_test_page import TestPage
-from ext_qt_widgets.media_file_list import MediaFileList
-from utils.utils_file_access import determine_file_match_platform, run_cmd_with_su
-from FPGA_protocol.protocol2 import FPGACmdCenter, protocolDict, dataAddressDict, FPGAJsonParams, dataLenDict, \
-    fpga_test_value, dump_register_address
 
 '''List of Page Selector Button Name '''
 Page_Select_Btn_Name_List = ["FPGA_List", "Media_Files", "HDMI_In", "Led_Settings", "Test"]
@@ -44,10 +34,6 @@ class MainUi(QMainWindow):
     def __init__(self):
         log.debug("Venom A Main Window Init!")
         super().__init__()
-        pg.setConfigOptions(antialias=True)
-
-        # run_cmd_with_su('sudo -S cp /usr/bin/test /usr/bin/testA', sudo_password='workout13')
-        # run_cmd_with_su('cp /usr/bin/test /usr/bin/testC')
 
         eth_if_promisc_cmd = os.popen("ifconfig {} promisc".format(ETH_DEV))
         eth_if_promisc_cmd.close()
@@ -108,17 +94,6 @@ class MainUi(QMainWindow):
             log.debug("read device ID from id2, ret : %d, str_value: %s", ret, str_value)
         self.init_fpga_json_file()
 
-        # self.right_frame_page_list[0].cmd_frame_res_test()
-        # self.fpga_cmd_center.set_fpga_write_flash()
-        # time.sleep(1)
-        # self.fpga_cmd_center.set_fpga_read_flash()
-        # self.init_fpga_json_file()
-        '''self.utc_test_count = 0
-        self.test_timer = QTimer(self)
-        self.test_timer.timeout.connect(self.utc_test)
-        self.test_timer.start(3 * 1000)'''
-        # self.get_fpga_panel_way()
-
         self.init_ui_total()
         log.debug("Init UI ok!")
 
@@ -126,7 +101,7 @@ class MainUi(QMainWindow):
 
         self.init_fpga_gamma()
 
-        self.set_fpga_test_register()
+        # self.set_fpga_test_register()
 
         for fpga in self.fpga_list:
             fpga.fpga_cmd_center.write_fpga_register(fpga.i_id, 'currentGammaTable', str(1))
@@ -143,18 +118,6 @@ class MainUi(QMainWindow):
             # log.debug("%s : %s", "gammaTable_g{}".format(str(0)), str(reg_value))
             ret, reg_value = self.fpga_cmd_center.read_fpga_register(fpga.i_id, "gammaTable_b{}".format(str(0)))
             # log.debug("%s : %s", "gammaTable_b{}".format(str(0)), str(reg_value))'''
-
-        # log.debug("hex(328965) : %s", hex(328965))
-        # log.debug("int('050505', 16) : %d", int("050505", 16))
-
-        # dump_register_address()
-        # init_fpga_layout_register(3)
-        #for k, v in dataAddressDict.items():
-        #    if "gammaTable" in k:
-        #        log.debug("%s : %s", k, v)
-
-        # for k, v in dataLenDict.items():
-        #    log.debug("dataLenDict %s : %d", k, v)
 
     def utc_test(self):
         log.debug("self.utc_test_count : %d", self.utc_test_count)
@@ -179,8 +142,6 @@ class MainUi(QMainWindow):
                     log.debug("UTC read/write failed!")
             else:
                 log.debug("UTC read/write failed!")
-
-
 
     def init_ui_total(self):
         self.setWindowTitle("GIS FPGA LED Server")
@@ -268,7 +229,8 @@ class MainUi(QMainWindow):
             ret, i_panel_way = self.fpga_cmd_center.read_fpga_register(i, "panelWay")
             log.debug("id : %d, i_panel_way : %d", ret, i_panel_way)
 
-    def load_fpga_json_file(self):
+    @staticmethod
+    def load_fpga_json_file():
         log.debug("load_fpga_json_file")
         with open(os.getcwd() + "/ori_dataFPGA.json", "r") as jsonFile:
             python_dict = json.load(fp=jsonFile)
@@ -285,18 +247,23 @@ class MainUi(QMainWindow):
         data["lcdVersion"] = 'LS240305001'
         data["fpgaID"] = []
         params = {}
-        '''for i in range(2):
-            params["deviceID"] = "2"
-            params["UTC"] = "test"
-            params["MD5"] = "test"
-            data["fpgaID"].append(params)
-        # data["fpgaID"][self.fpga_total_num] = dict()'''
 
         for i in range(FPGA_START_ID, FPGA_START_ID + self.fpga_total_num):
             params = {}
             for j in range(len(FPGAJsonParams.params_list)):
                 log.debug("read id: %d, %s", i, FPGAJsonParams.params_list[j])
-                ret, str_value = self.fpga_cmd_center.read_fpga_register(i, FPGAJsonParams.params_list[j])
+                if FPGAJsonParams.params_list[j] == "stringVersion":
+                    ret, reg_value = self.fpga_cmd_center.read_fpga_register_bytes(
+                        i, FPGAJsonParams.params_list[j])
+                    if ret == 0:
+                        str_value = reg_value.decode().replace('\u0000', '')
+                        for fpga in self.fpga_list:
+                            if fpga.i_id == i:
+                                fpga.set_version(str_value)
+                    else:
+                        str_value = "unknown"
+                else:
+                    ret, str_value = self.fpga_cmd_center.read_fpga_register(i, FPGAJsonParams.params_list[j])
 
                 if ret == 0:
                     params[FPGAJsonParams.params_list[j]] = str_value
@@ -360,6 +327,3 @@ class MainUi(QMainWindow):
                     fpga.fpga_cmd_center.write_fpga_register_with_bytes(fpga.i_id,
                                                                         'gammaTable_b{}'.format(str(gamma_index)),
                                                                         gamma_table_list[gamma_index])
-
-
-

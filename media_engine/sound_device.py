@@ -76,6 +76,8 @@ class SoundDevices:
 
         if platform.machine() in ('arm', 'arm64', 'aarch64'):
             match = re.search(r'card (\d+): Headphones.*device (\d+):', output)
+            if match is None: # Pi5 USB Audio adapter
+                match = re.search(r'card (\d+): Device \[USB Audio Device\], device (\d+):', output)
         else:
             match = re.search(r'card (\d+): Audio.*device (\d+):', output)
 
