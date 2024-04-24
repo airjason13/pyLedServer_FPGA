@@ -41,27 +41,50 @@ class TC358743(QObject):
             self.check_hdmi_status_mutex.unlock()
 
     def x86_get_video_timing(self):
-        # log.debug("")
+        video_device = self.get_video_device(self)
         connected = False
-        p = os.popen("lsusb").read()
-        # log.debug("lsusb : %s", p)
-        if '322e:202c' not in p:
-            return connected, 0, 0, 0
-        '''
-        ffprobe_v4l2 = subprocess.Popen(f"ffprobe -hide_banner {self.video_device}", shell=True, stdout=subprocess.PIPE,
-                                        stderr=subprocess.PIPE)
-        stdout, stderr = ffprobe_v4l2.communicate()
+        width = 0
+        height = 0
+        fps = 0
 
-        data = stderr.decode().split(", ")
-        ffprobe_v4l2.terminate()
-        for s in data:
-            # log.debug("s:%s", s)
-            if '640x480' in s:
-                connected = True
-        '''
-        if self.get_video_device(self) is not None:
+        p = os.popen("lsusb").read()
+        if '322e:202c' not in p:
+            return connected, width, height, fps
+
+        if video_device is not None:
             connected = True
-        return connected, 640, 480, 30
+            result = subprocess.run(['v4l2-ctl', '--get-fmt-video', '-d', video_device], capture_output=True, text=True)
+            if result.returncode == 0:
+                lines = result.stdout.split('\n')
+                count_max = 10
+                for line in lines:
+                    count_max = count_max - 1
+                    if count_max == 0:
+                        break
+                    if "Width/Height" in line:
+                        resolution = line.split(':')[1].strip()
+                        parts = resolution.split('/')
+                        if len(parts) == 2:
+                            width, height = map(int, parts)
+                        break
+
+                result = subprocess.run(['v4l2-ctl', '--list-formats-ext', '-d', video_device], capture_output=True,
+                                        text=True)
+                if result.returncode == 0:
+                    lines = result.stdout.split('\n')
+                    count_max = 10
+                    for line in lines:
+                        count_max = count_max - 1
+                        if count_max == 0:
+                            break
+                        if 'fps' in line:
+                            try:
+                                fps = int(float(line.split('(')[-1].split(' ')[0]))
+                                break
+                            except ValueError:
+                                continue
+
+        return connected, width, height, fps
 
     def get_tc358743_dv_timing(self):
         # log.debug("")
@@ -132,11 +155,6 @@ class TC358743(QObject):
             if '322e:202c' not in p:
                 log.debug("not connected")
                 return connected, width, height, fps
-
-            if self.get_video_device(self) is not None:
-                connected = True
-
-            return connected, width, height, fps
 
         connected, width, height, fps = self.get_tc358743_dv_timing()
 

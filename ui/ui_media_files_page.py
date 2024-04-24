@@ -202,7 +202,8 @@ class MediaFilesPage(QWidget):
             self.sound_control_btn.setIcon(QIcon('materials/soundOffIcon.png'))
 
         self.sound_control_btn.setIconSize(QSize(32, 32))
-        self.sound_control_btn.setCheckable(self.audioActiveToggle)
+        self.sound_control_btn.setCheckable(True)
+        self.sound_control_btn.setChecked(not self.audioActiveToggle)
         self.sound_control_btn.clicked.connect(self.sound_btn_clicked)
 
         self.preview_control_btn = QPushButton()
@@ -212,7 +213,8 @@ class MediaFilesPage(QWidget):
             self.preview_control_btn.setIcon(QIcon('materials/eyeCloseIcon.png'))
 
         self.preview_control_btn.setIconSize(QSize(32, 32))
-        self.preview_control_btn.setCheckable(self.previewVisibleToggle)
+        self.preview_control_btn.setCheckable(True)
+        self.preview_control_btn.setChecked(not self.previewVisibleToggle)
         self.preview_control_btn.clicked.connect(self.preview_btn_clicked)
 
         self.media_control_panel_layout.addWidget(self.play_pause_btn, 0, 0, 4, 2)

@@ -9,7 +9,6 @@ from global_def import log
 from utils.utils_file_access import get_led_config_from_file_uri, get_int_led_config_from_file_uri
 
 
-
 class PlayingPreviewWindow(QWidget):
 
     def __init__(self):

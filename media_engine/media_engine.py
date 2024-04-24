@@ -5,6 +5,7 @@ import signal
 import subprocess
 import time
 import atexit
+import select
 
 import numpy as np
 import psutil
@@ -196,10 +197,28 @@ class MediaEngine(QObject):
     def install_hdmi_play_status_changed_slot(self, slot_func):
         self.hdmi_play_status_changed.connect(slot_func)
 
-    def hdmi_in_play(self, video_src, audio_active=True, preview_visible=True):
+    def hdmi_in_play(self, video_src, **kwargs):
+        audio_active = kwargs.get('audio_active', True)
+        preview_visible = kwargs.get('preview_visible', True)
+        active_width = kwargs.get('active_width')
+        active_height = kwargs.get('active_height')
+        c_width = None
+        c_height = None
+        c_pos_x = 0
+        c_pos_y = 0
+        if (self.led_video_params.get_hdmi_in_crop_w() is not None
+                and self.led_video_params.get_hdmi_in_crop_h() is not None):
+            c_width = min(self.led_video_params.get_hdmi_in_crop_w(), active_width)
+            c_height = min(self.led_video_params.get_hdmi_in_crop_h(), active_height)
+            c_pos_x = self.led_video_params.get_hdmi_in_start_x()
+            c_pos_y = self.led_video_params.get_hdmi_in_start_y()
         self.play_hdmi_in_thread = QThread()
-        self.play_hdmi_in_worker = Playing_HDMI_in_worker(self, video_src, with_audio=audio_active,
-                                                          with_preview=preview_visible)
+        self.play_hdmi_in_worker = Playing_HDMI_in_worker(self, video_src,
+                                                          with_audio=audio_active,
+                                                          with_preview=preview_visible,
+                                                          c_width=c_width, c_height=c_height,
+                                                          c_pos_x=c_pos_x, c_pos_y=c_pos_y,
+                                                          )
         self.play_hdmi_in_worker.install_play_status_slot(self.play_status_changed)
         self.play_hdmi_in_worker.moveToThread(self.play_hdmi_in_thread)
 
@@ -493,7 +512,10 @@ class Playing_HDMI_in_worker(QThread):
     pysignal_hdmi_play_finished = pyqtSignal()
     pysignal_refresh_image_pixmap = pyqtSignal(np.ndarray)
 
-    def __init__(self, media_engine: MediaEngine, video_src, with_audio: bool, with_preview: bool):
+    def __init__(self, media_engine: MediaEngine,
+                 video_src, c_width: int, c_height: int,
+                 c_pos_x: int, c_pos_y: int, with_audio: bool,
+                 with_preview: bool):
         super().__init__()
         self.ffmpeg_cmd = None
         self.agent_cmd = None
@@ -508,6 +530,10 @@ class Playing_HDMI_in_worker(QThread):
         self.video_src = video_src
         self.play_with_audio = with_audio
         self.play_with_preview = with_preview
+        self.crop_visible_area_width = c_width
+        self.crop_visible_area_height = c_height
+        self.crop_position_x = c_pos_x
+        self.crop_position_y = c_pos_y
         self.ff_process = self.media_engine.ff_process
         self.play_status = self.media_engine.playing_status
         self.output_width = self.media_engine.output_streaming_width
@@ -702,7 +728,12 @@ class Playing_HDMI_in_worker(QThread):
             self.ffmpeg_cmd = get_ffmpeg_cmd_for_media(self.video_src,
                                                        width=self.output_width,
                                                        height=self.output_height,
-                                                       target_fps=target_fps_str)
+                                                       target_fps=target_fps_str,
+                                                       c_width=self.crop_visible_area_width,
+                                                       c_height=self.crop_visible_area_height,
+                                                       c_pos_x=self.crop_position_x,
+                                                       c_pos_y=self.crop_position_y,
+                                                       )
             if self.play_with_audio is True:
                 if self.media_engine.pulse_audio_status is True:
                     if self.media_engine.hdmi_sound is not None and self.media_engine.headphone_sound is not None:
@@ -733,12 +764,17 @@ class Playing_HDMI_in_worker(QThread):
 
                 while self.worker_status and self.force_stop is False:
 
-                    self.image_from_pipe = self.ff_process.stdout.read(self.output_width * self.output_height * 3)
+                    data_ready, _, _ = select.select([self.ff_process.stdout], [], [], 3000)
 
-                    if not self.image_from_pipe:
-                        if self.agent_process is not None:
-                            self.agent_process.kill()
-                        log.debug("No data read from the pipe.")
+                    if data_ready:
+                        self.image_from_pipe = self.ff_process.stdout.read(self.output_width * self.output_height * 3)
+                        if not self.image_from_pipe:
+                            if self.agent_process is not None:
+                                self.agent_process.kill()
+                            log.debug("Pipe read attempt returned no data.")
+                            break
+                    else:
+                        log.debug("No data available from pipe.")
                         break
 
                     self.raw_image = np.frombuffer(self.image_from_pipe, dtype='uint8')

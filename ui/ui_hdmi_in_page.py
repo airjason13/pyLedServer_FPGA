@@ -9,6 +9,7 @@ from PyQt5.QtWidgets import QTreeWidget, QTableWidget, QWidget, QVBoxLayout, QTa
     QPushButton, QLineEdit, QComboBox, QRadioButton, QGroupBox, QHBoxLayout, QStyle, QFrame
 from subprocess import Popen, PIPE
 
+import media_configs.video_params
 from media_engine.media_engine import MediaEngine, Playing_HDMI_in_worker
 from media_configs.video_params import VideoParams
 from media_engine.media_engine_def import PlayStatus
@@ -27,6 +28,12 @@ class HDMIInPage(QWidget):
 
     def __init__(self, _main_window, _frame: QWidget, _name, media_engine: MediaEngine, **kwargs):
         super(HDMIInPage, self).__init__(**kwargs)
+        self.hdmi_in_crop_h_lineedit = None
+        self.hdmi_in_crop_w_lineedit = None
+        self.hdmi_in_crop_y_lineedit = None
+        self.hdmi_in_crop_x_lineedit = None
+        self.crop_setting_widget_layout = None
+        self.crop_setting_widget = None
         self.hdmi_ctrl_frame = None
         self.hdmi_info_group_box = None
         self.process_status_layout = None
@@ -54,6 +61,7 @@ class HDMIInPage(QWidget):
         self.play_action_btn = None
         self.sound_control_btn = None
         self.preview_control_btn = None
+        self.adj_ctrl_param_btn = None
         self.hdmi_in_layout = None
         self.hdmi_in_widget = None
         self.main_windows = _main_window
@@ -80,7 +88,7 @@ class HDMIInPage(QWidget):
         self.check_tc358743_interval = 1000
         self.check_tc358743_timer = QTimer(self)
         self.check_tc358743_timer.timeout.connect(self.check_tc358743_timer_event)
-        if platform.machine() in ('arm', 'arm64', 'aarch64'):   # Venom add for script not found
+        if platform.machine() in ('arm', 'arm64', 'aarch64'):  # Venom add for script not found
             ensure_edid_validity(self)
 
         try:
@@ -121,30 +129,71 @@ class HDMIInPage(QWidget):
         self.hdmi_ctrl_frame.setFrameShadow(QFrame.Raised)
 
         hdmi_ctrl_layout = QGridLayout(self.hdmi_ctrl_frame)
+
         # Setup Sound action button
         self.sound_control_btn = QPushButton("Sound", self.hdmi_ctrl_frame)
-        if self.audioActiveToggle is True:
-            self.sound_control_btn.setIcon(QIcon('materials/soundOnIcon.png'))
-        else:
-            self.sound_control_btn.setIcon(QIcon('materials/soundOffIcon.png'))
-
+        self.sound_control_btn.setIcon(
+            QIcon('materials/soundOnIcon.png') if self.audioActiveToggle else QIcon('materials/soundOffIcon.png'))
         self.sound_control_btn.setIconSize(QSize(32, 32))
-        self.sound_control_btn.setCheckable(self.audioActiveToggle)
+        self.sound_control_btn.setCheckable(True)
+        self.sound_control_btn.setChecked(not self.audioActiveToggle)
         self.sound_control_btn.clicked.connect(self.sound_btn_clicked)
 
         # Setup Preview action button
         self.preview_control_btn = QPushButton("Preview", self.hdmi_ctrl_frame)
-        if self.previewVisibleToggle is True:
-            self.preview_control_btn.setIcon(QIcon('materials/eyeOpenIcon.png'))
-        else:
-            self.preview_control_btn.setIcon(QIcon('materials/eyeCloseIcon.png'))
-
+        self.preview_control_btn.setIcon(
+            QIcon('materials/eyeOpenIcon.png') if self.previewVisibleToggle else QIcon('materials/eyeCloseIcon.png'))
         self.preview_control_btn.setIconSize(QSize(32, 32))
-        self.preview_control_btn.setCheckable(self.previewVisibleToggle)
+        self.preview_control_btn.setCheckable(True)
+        self.preview_control_btn.setChecked(not self.previewVisibleToggle)
         self.preview_control_btn.clicked.connect(self.preview_btn_clicked)
 
-        hdmi_ctrl_layout.addWidget(self.sound_control_btn, 0, 0)
-        hdmi_ctrl_layout.addWidget(self.preview_control_btn, 0, 1)
+        # Add control buttons to the layout
+        hdmi_ctrl_layout.addWidget(self.preview_control_btn, 0, 0)
+        hdmi_ctrl_layout.addWidget(self.sound_control_btn, 0, 1)
+
+        # Setup crop widget and layout for controls
+        self.crop_setting_widget = QWidget(self.hdmi_ctrl_frame)
+        self.crop_setting_widget_layout = QGridLayout(self.crop_setting_widget)
+
+        # Initializing the line edit widgets to be used in the loop
+        self.hdmi_in_crop_x_lineedit = QLineEdit(self.crop_setting_widget)
+        self.hdmi_in_crop_y_lineedit = QLineEdit(self.crop_setting_widget)
+        self.hdmi_in_crop_w_lineedit = QLineEdit(self.crop_setting_widget)
+        self.hdmi_in_crop_h_lineedit = QLineEdit(self.crop_setting_widget)
+
+        self.hdmi_in_crop_x_lineedit.setText(str(self.media_engine.led_video_params.get_hdmi_in_start_x()))
+        self.hdmi_in_crop_y_lineedit.setText(str(self.media_engine.led_video_params.get_hdmi_in_start_y()))
+        self.hdmi_in_crop_w_lineedit.setText(str(self.media_engine.led_video_params.get_hdmi_in_crop_w()))
+        self.hdmi_in_crop_h_lineedit.setText(str(self.media_engine.led_video_params.get_hdmi_in_crop_h()))
+
+        edits = [self.hdmi_in_crop_x_lineedit, self.hdmi_in_crop_y_lineedit, self.hdmi_in_crop_w_lineedit,
+                 self.hdmi_in_crop_h_lineedit]
+
+        labels = ["Crop Start X:", "Crop Start Y:", "Crop Width:", "Crop Height:"]
+        for i, label in enumerate(labels):
+            lbl = QLabel(label, self.crop_setting_widget)
+            lbl.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
+            edit = edits[i]
+            edit.setFixedWidth(100)
+            edit.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
+            self.crop_setting_widget_layout.addWidget(lbl, i + 1, 0)
+            self.crop_setting_widget_layout.addWidget(edit, i + 1, 1)
+
+        # Adding a button to adjust control parameters
+        self.adj_ctrl_param_btn = QPushButton("Adjust Parameter", self.crop_setting_widget)
+        self.adj_ctrl_param_btn.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
+        self.adj_ctrl_param_btn.clicked.connect(self.adj_hdmi_ctrl_param)
+
+        self.crop_setting_widget_layout.addWidget(self.adj_ctrl_param_btn, 5, 0, 1, 2)
+
+        # Adding the crop settings widget to the main layout
+        self.crop_setting_widget.setLayout(self.crop_setting_widget_layout)
+        hdmi_ctrl_layout.addWidget(self.crop_setting_widget, 6, 0, 1, 4)
+
+        # Set the frame layout
+        self.hdmi_ctrl_frame.setLayout(hdmi_ctrl_layout)
+        self.hdmi_in_layout.addWidget(self.hdmi_ctrl_frame)
 
     def setup_preview_widget(self):
         self.preview_widget = QWidget()
@@ -272,7 +321,11 @@ class HDMIInPage(QWidget):
             self.media_engine.stop_play()
             if self.media_engine.play_hdmi_in_worker is None:
                 log.debug("Start streaming")
-                self.media_engine.hdmi_in_play(self.video_device, self.audioActiveToggle, self.previewVisibleToggle)
+                self.media_engine.hdmi_in_play(self.video_device,
+                                               active_width=int(self.tc358743.hdmi_width),
+                                               active_height=int(self.tc358743.hdmi_height),
+                                               audio_active=self.audioActiveToggle,
+                                               preview_visible=self.previewVisibleToggle)
                 self.streamingStatus = True
             self.measurement_tc358743 = True
         self.streamStateMutex.unlock()
@@ -282,7 +335,7 @@ class HDMIInPage(QWidget):
         self.streamingStatus = False
         self.measurement_tc358743 = MeasurementEnable
         self.media_engine.stop_play()
-        self.refresh_tc358743_param(False)
+        self.refresh_tc358743_param(False, self.tc358743.hdmi_width, self.tc358743.hdmi_height, self.tc358743.hdmi_fps)
         self.update_process_info()
         self.streamStateMutex.unlock()
 
@@ -368,6 +421,11 @@ class HDMIInPage(QWidget):
         self.hdmi_in_info_height_res_label.setText(str(height))
         self.hdmi_in_info_fps_res_label.setText(str(fps))
 
+        self.hdmi_in_crop_x_lineedit.setText(str(self.media_engine.led_video_params.get_hdmi_in_start_x()))
+        self.hdmi_in_crop_y_lineedit.setText(str(self.media_engine.led_video_params.get_hdmi_in_start_y()))
+        self.hdmi_in_crop_w_lineedit.setText(str(self.media_engine.led_video_params.get_hdmi_in_crop_w()))
+        self.hdmi_in_crop_h_lineedit.setText(str(self.media_engine.led_video_params.get_hdmi_in_crop_h()))
+
     def handleHdmiStreamStart(self):
 
         self.streamStateMutex.lock()
@@ -405,7 +463,11 @@ class HDMIInPage(QWidget):
 
         if self.tc358743.set_tc358743_dv_bt_timing() is True:
             self.tc358743.reinit_tc358743_dv_timing()
-            self.media_engine.hdmi_in_play(self.video_device, self.audioActiveToggle, self.previewVisibleToggle)
+            self.media_engine.hdmi_in_play(self.video_device,
+                                           active_width=int(self.tc358743.hdmi_width),
+                                           active_height=int(self.tc358743.hdmi_height),
+                                           audio_active=self.audioActiveToggle,
+                                           preview_visible=self.previewVisibleToggle)
         self.streamStateMutex.unlock()
 
     def sound_btn_clicked(self):
@@ -461,6 +523,16 @@ class HDMIInPage(QWidget):
             )
         except Exception as e:
             log.debug("Error updating process label:", e)
+
+    def adj_hdmi_ctrl_param(self):
+        self.media_engine.led_video_params.set_hdmi_in_crop_w(int(self.hdmi_in_crop_w_lineedit.text()))
+        self.media_engine.led_video_params.set_hdmi_in_crop_h(int(self.hdmi_in_crop_h_lineedit.text()))
+        self.media_engine.led_video_params.set_hdmi_in_start_x(int(self.hdmi_in_crop_x_lineedit.text()))
+        self.media_engine.led_video_params.set_hdmi_in_start_y(int(self.hdmi_in_crop_y_lineedit.text()))
+        self.media_engine.led_video_params.sync_video_param()
+        if self.streamingStatus is True:
+            self.stop_streaming(False)
+            self.start_streaming()
 
 
 def ensure_edid_validity(self):

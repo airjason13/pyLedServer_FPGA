@@ -97,7 +97,7 @@ class SoundDevices:
         if self.audio_process and self.audio_process.poll() is None:
             pass
         else:
-            log.debug("Audio process restart...")
+            # log.debug("Audio process restart...")
             self.start_play(self.tc358743_card, self.tc358743_device,
                             self.headphones_card, self.headphones_device,
                             fmt="cd", file_type="wav", buf_us="200000", period_us="50000")
@@ -116,7 +116,7 @@ class SoundDevices:
         audio_play = f"aplay -q -D {audio_sink} -"
         audio_cmd = f"{audio_recorder} | {audio_play}"
 
-        log.debug("audio.cmd : %s", audio_cmd)
+        # log.debug("audio.cmd : %s", audio_cmd)
         try:
             self.audio_process = subprocess.Popen(audio_cmd, shell=True, preexec_fn=os.setsid,
                                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
