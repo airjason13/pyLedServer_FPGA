@@ -421,11 +421,6 @@ class HDMIInPage(QWidget):
         self.hdmi_in_info_height_res_label.setText(str(height))
         self.hdmi_in_info_fps_res_label.setText(str(fps))
 
-        self.hdmi_in_crop_x_lineedit.setText(str(self.media_engine.led_video_params.get_hdmi_in_start_x()))
-        self.hdmi_in_crop_y_lineedit.setText(str(self.media_engine.led_video_params.get_hdmi_in_start_y()))
-        self.hdmi_in_crop_w_lineedit.setText(str(self.media_engine.led_video_params.get_hdmi_in_crop_w()))
-        self.hdmi_in_crop_h_lineedit.setText(str(self.media_engine.led_video_params.get_hdmi_in_crop_h()))
-
     def handleHdmiStreamStart(self):
 
         self.streamStateMutex.lock()

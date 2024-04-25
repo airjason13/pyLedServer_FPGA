@@ -1,6 +1,7 @@
 import enum
 import os
 import platform
+import re
 import signal
 import subprocess
 import time
@@ -15,7 +16,7 @@ import utils.utils_file_access
 from ext_qt_widgets.playing_preview_widget import PlayingPreviewWindow
 from media_engine.media_engine_def import PlayStatus, RepeatOption
 from media_engine.sound_device import SoundDevices, mute_audio_sinks
-from utils.utils_ffmpy import get_ffmpeg_cmd_for_media
+from utils.utils_ffmpy import get_ffmpeg_cmd_for_media, get_media_resolution_from_ffmpeg
 from utils.utils_file_access import get_led_config_from_file_uri, get_int_led_config_from_file_uri
 from utils.utils_system import get_eth_interface
 from media_configs.video_params import VideoParams
@@ -103,13 +104,34 @@ class MediaEngine(QObject):
             self.playing_preview_window.setVisible(True)
         self.playing_preview_window.refresh_image(raw_image_np_array)
 
-    def single_play(self, file_uri, audio_active=True, preview_visible=True):
+    def single_play(self, file_uri, **kwargs):
+
         log.debug("single play file uri: %s", file_uri)
+        audio_active = kwargs.get('audio_active', True)
+        preview_visible = kwargs.get('preview_visible', True)
+        active_width = kwargs.get('active_width')
+        active_height = kwargs.get('active_height')
+        c_width = None
+        c_height = None
+        c_pos_x = 0
+        c_pos_y = 0
+        if (self.led_video_params.get_media_file_crop_w() is not None
+                and self.led_video_params.get_media_file_crop_h() is not None
+                and active_width is not None and active_height is not None):
+            c_width = min(self.led_video_params.get_media_file_crop_w(), active_width)
+            c_height = min(self.led_video_params.get_media_file_crop_h(), active_height)
+            c_pos_x = self.led_video_params.get_media_file_start_x()
+            c_pos_y = self.led_video_params.get_media_file_start_y()
+
         # stop play first
         self.stop_play()
         self.play_single_file_thread = QThread()
-        self.play_single_file_worker = PlaySingleFileWorker(self, file_uri, with_audio=audio_active,
-                                                            with_preview=preview_visible)
+        self.play_single_file_worker = PlaySingleFileWorker(self, file_uri,
+                                                            with_audio=audio_active,
+                                                            with_preview=preview_visible,
+                                                            c_width=c_width, c_height=c_height,
+                                                            c_pos_x=c_pos_x, c_pos_y=c_pos_y
+                                                            )
         self.play_single_file_worker.install_play_status_slot(self.play_status_changed)
         self.play_single_file_worker.install_pixmap_refreshed_slot(self.preview_pixmap_changed)
 
@@ -277,6 +299,23 @@ class MediaEngine(QObject):
                 return child
         return None
 
+    def get_video_resolution(self, file_uri):
+        try:
+            ffmpeg_cmd = get_media_resolution_from_ffmpeg(file_uri)
+            self.ff_process = subprocess.Popen(ffmpeg_cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                               text=True)
+            output, error = self.ff_process.communicate()
+            match = re.search(r'(\d{2,5})x(\d{2,5})', error)
+            if match:
+                width, height = map(int, match.groups())
+                return width, height
+        except Exception as e:
+            log.debug(f"Error processing video file: {str(e)}")
+            return None, None
+        finally:
+            if self.ff_process and self.ff_process.poll() is None:
+                self.ff_process.kill()
+
 
 class PlaySingleFileWorker(QObject):
     pysignal_single_file_play_status_change = pyqtSignal(int, str)
@@ -284,7 +323,8 @@ class PlaySingleFileWorker(QObject):
     pysignal_refresh_image_pixmap = pyqtSignal(np.ndarray)
     pysignal_send_raw_frame = pyqtSignal(bytes)
 
-    def __init__(self, media_engine: MediaEngine, file_uri, with_audio: bool, with_preview: bool):
+    def __init__(self, media_engine: MediaEngine, file_uri, c_width: int, c_height: int,
+                 c_pos_x: int, c_pos_y: int, with_audio: bool, with_preview: bool):
         super().__init__()
         self.shm_sem = None
         self.shm = None
@@ -303,6 +343,10 @@ class PlaySingleFileWorker(QObject):
         self.output_width = self.media_engine.output_streaming_width
         self.output_height = self.media_engine.output_streaming_height
         self.output_fps = self.media_engine.output_streaming_fps
+        self.crop_visible_area_width = c_width
+        self.crop_visible_area_height = c_height
+        self.crop_position_x = c_pos_x
+        self.crop_position_y = c_pos_y
         self.playing_source = None
         self.image_from_pipe = None
         self.raw_image = None
@@ -334,6 +378,7 @@ class PlaySingleFileWorker(QObject):
         # su_kill_agent_cmd = 'echo {} | '.format(SU_PWD) + kill_agent_cmd
         # log.debug("su_kill_agent_cmd : %s", kill_agent_cmd)
         # os.system(su_kill_agent_cmd)
+
         time.sleep(1)
 
         while True:
@@ -410,7 +455,12 @@ class PlaySingleFileWorker(QObject):
             ffmpeg_cmd = get_ffmpeg_cmd_for_media(self.file_uri,
                                                   width=self.output_width, height=self.output_height,
                                                   target_fps=target_fps_str, image_period=20,
-                                                  audio_sink=audio_sink_str, audio_on=self.play_with_audio)
+                                                  c_width=self.crop_visible_area_width,
+                                                  c_height=self.crop_visible_area_height,
+                                                  c_pos_x=self.crop_position_x,
+                                                  c_pos_y=self.crop_position_y,
+                                                  audio_sink=audio_sink_str, audio_on=self.play_with_audio
+                                                  )
             log.debug("ffmpeg_cmd : %s", ffmpeg_cmd)
             try:
                 self.ff_process = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, bufsize=10 ** 8, shell=True)

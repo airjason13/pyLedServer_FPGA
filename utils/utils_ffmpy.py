@@ -31,7 +31,8 @@ def get_ffmpeg_cmd_for_media(video_uri: str, **kwargs):
         ff = ffmpy.FFmpeg(
             inputs={video_uri: None},
             outputs={
-                pipe_sink: ["-loglevel", "error", "-vf", filter_params, "-r", target_fps, "-pix_fmt", "rgb24", "-f", "rawvideo"],
+                pipe_sink: ["-loglevel", "error", "-vf", filter_params, "-r", target_fps, "-pix_fmt", "rgb24", "-f",
+                            "rawvideo"],
                 # audio_sink: ["-f", "alsa"]
             }
         )
@@ -63,4 +64,12 @@ def get_ffmpeg_cmd_for_media(video_uri: str, **kwargs):
 
     log.debug("ff.cmd : %s", ff.cmd)
     ff.cmd += " -y"
+    return ff.cmd
+
+
+def get_media_resolution_from_ffmpeg(file_uri):
+    ff = ffmpy.FFmpeg(
+        inputs={file_uri: None},
+        outputs={'': None}
+    )
     return ff.cmd

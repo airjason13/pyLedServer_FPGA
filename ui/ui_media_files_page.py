@@ -7,11 +7,12 @@ import qdarkstyle
 from PyQt5.QtCore import Qt, QRect, QSize
 from PyQt5.QtGui import QFont, QMouseEvent, QMovie, QPixmap, QIcon
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, \
-    QAbstractItemView, QTreeWidgetItem, QLabel, QFrame, QMenu, QAction, QGridLayout, QPushButton
+    QAbstractItemView, QTreeWidgetItem, QLabel, QFrame, QMenu, QAction, QGridLayout, QPushButton, QLineEdit
 
 from media_engine.media_engine import MediaEngine
 from media_engine.media_engine_def import PlayStatus
-from qt_ui_style.button_qss import QPushFileStopButton_Style, QPushFilePlayButton_Style
+from qt_ui_style.button_qss import QPushFileStopButton_Style, QPushFilePlayButton_Style, QFont_Style_Default, \
+    QFont_Style_Size_M
 from utils.utils_file_access import get_playlist_file_list, get_mount_points, get_led_config_from_file_uri
 from ext_qt_widgets.media_file_list import MediaFileList
 from ext_qt_widgets.media_playlist import PlayList
@@ -48,6 +49,16 @@ class MediaFilesPage(QWidget):
 
     def __init__(self, _main_window, _frame: QWidget, _name: str, media_engine: MediaEngine, **kwargs):
         super(MediaFilesPage, self).__init__()
+        self.media_active_height = None
+        self.media_active_width = None
+        self.media_crop_setting_widget = None
+        self.media_crop_x_lineedit = None
+        self.media_crop_y_lineedit = None
+        self.media_crop_w_lineedit = None
+        self.media_crop_h_lineedit = None
+        self.media_adj_crop_btn = None
+        self.media_crop_setting_layout = None
+
         self.preview_control_btn = None
         self.sound_control_btn = None
         self.main_windows = _main_window
@@ -172,6 +183,8 @@ class MediaFilesPage(QWidget):
         self.media_control_panel = QWidget()
         self.media_control_panel_layout = QGridLayout()
         self.media_control_panel.setLayout(self.media_control_panel_layout)
+        self.media_crop_setting_widget = QWidget(self.media_control_panel)
+        self.media_crop_setting_layout = QGridLayout(self.media_crop_setting_widget)
 
         ''' Handle Play/Pause/Stop/Preview/Sound Button'''
         self.play_pause_btn = QPushButton()
@@ -217,10 +230,38 @@ class MediaFilesPage(QWidget):
         self.preview_control_btn.setChecked(not self.previewVisibleToggle)
         self.preview_control_btn.clicked.connect(self.preview_btn_clicked)
 
-        self.media_control_panel_layout.addWidget(self.play_pause_btn, 0, 0, 4, 2)
-        self.media_control_panel_layout.addWidget(self.play_stop_btn, 0, 1, 4, 2)
-        self.media_control_panel_layout.addWidget(self.preview_control_btn, 0, 2, 1, 1)
-        self.media_control_panel_layout.addWidget(self.sound_control_btn, 1, 2, 1, 1)
+        self.media_crop_x_lineedit = QLineEdit(self.media_crop_setting_widget)
+        self.media_crop_y_lineedit = QLineEdit(self.media_crop_setting_widget)
+        self.media_crop_w_lineedit = QLineEdit(self.media_crop_setting_widget)
+        self.media_crop_h_lineedit = QLineEdit(self.media_crop_setting_widget)
+
+        self.media_crop_x_lineedit.setText(str(self.media_engine.led_video_params.get_media_file_start_x()))
+        self.media_crop_y_lineedit.setText(str(self.media_engine.led_video_params.get_media_file_start_y()))
+        self.media_crop_w_lineedit.setText(str(self.media_engine.led_video_params.get_media_file_crop_w()))
+        self.media_crop_h_lineedit.setText(str(self.media_engine.led_video_params.get_media_file_crop_h()))
+
+        edits = [self.media_crop_x_lineedit, self.media_crop_y_lineedit, self.media_crop_w_lineedit,
+                 self.media_crop_h_lineedit]
+
+        labels = ["Crop Start X:", "Crop Start Y:", "Crop Width:", "Crop Height:"]
+        for i, label in enumerate(labels):
+            lbl = QLabel(label, self.media_crop_setting_widget)
+            lbl.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
+            edit = edits[i]
+            edit.setFixedWidth(100)
+            edit.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
+            self.media_crop_setting_layout.addWidget(lbl, i, 0)
+            self.media_crop_setting_layout.addWidget(edit, i, 1)
+
+        self.media_adj_crop_btn = QPushButton("Adjust Parameter", self.media_crop_setting_widget)
+        self.media_adj_crop_btn.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
+        self.media_adj_crop_btn.clicked.connect(self.adj_media_ctrl_param)
+        self.media_crop_setting_layout.addWidget(self.media_adj_crop_btn, 4, 0, 1, 2)
+        self.media_control_panel_layout.addWidget(self.play_pause_btn, 0, 1, 1, 2)
+        self.media_control_panel_layout.addWidget(self.play_stop_btn, 0, 2, 1, 2)
+        self.media_control_panel_layout.addWidget(self.preview_control_btn, 1, 0)
+        self.media_control_panel_layout.addWidget(self.sound_control_btn, 1, 1)
+        self.media_control_panel_layout.addWidget(self.media_crop_setting_widget, 5, 0, 4, 4)
 
         self.layout = QVBoxLayout()
         self.layout.addWidget(self.media_files_tree_widget)
@@ -513,8 +554,14 @@ class MediaFilesPage(QWidget):
             selected_file_name = selected_widget.text(0)
             select_file_uri = self.internal_media_folder[0] + "/" + selected_widget.text(0)
             self.select_current_file_uri = select_file_uri
-            self.media_engine.single_play(self.select_current_file_uri, self.audioActiveToggle,
-                                          self.previewVisibleToggle)
+            self.media_active_width, self.media_active_height = self.media_engine.get_video_resolution(
+                self.select_current_file_uri)
+
+            self.media_engine.single_play(self.select_current_file_uri,
+                                          active_width=self.media_active_width,
+                                          active_height=self.media_active_height,
+                                          audio_active=self.audioActiveToggle,
+                                          preview_visible=self.previewVisibleToggle)
             '''w, h = get_led_config_from_file_uri("led_wall_resolution",
                                                 "led_wall_width", "led_wall_height")
             log.debug("w : %s, h : %s", w, h)
@@ -643,9 +690,13 @@ class MediaFilesPage(QWidget):
         elif (PlayStatus.Stop == self.media_engine.playing_status or
               PlayStatus.Initial == self.media_engine.playing_status):
             if self.media_engine.play_single_file_worker is None:
-                if os.path.exists(self.select_current_file_uri):
-                    self.media_engine.single_play(self.select_current_file_uri, self.audioActiveToggle,
-                                                  self.previewVisibleToggle)
+                if self.select_current_file_uri:
+                    if os.path.exists(self.select_current_file_uri):
+                        self.media_engine.single_play(self.select_current_file_uri,
+                                                      active_width=self.media_active_width,
+                                                      active_height=self.media_active_height,
+                                                      audio_active=self.audioActiveToggle,
+                                                      preview_visible=self.previewVisibleToggle)
 
     def sound_btn_clicked(self):
         log.debug("")
@@ -660,8 +711,11 @@ class MediaFilesPage(QWidget):
             if self.media_engine.play_single_file_worker:
                 if os.path.exists(self.select_current_file_uri):
                     self.media_engine.stop_play()
-                    self.media_engine.single_play(self.select_current_file_uri, self.audioActiveToggle,
-                                                  self.previewVisibleToggle)
+                    self.media_engine.single_play(self.select_current_file_uri,
+                                                  active_width=self.media_active_width,
+                                                  active_height=self.media_active_height,
+                                                  audio_active=self.audioActiveToggle,
+                                                  preview_visible=self.previewVisibleToggle)
 
     def preview_btn_clicked(self):
         log.debug("")
@@ -676,5 +730,25 @@ class MediaFilesPage(QWidget):
             if self.media_engine.play_single_file_worker:
                 if os.path.exists(self.select_current_file_uri):
                     self.media_engine.stop_play()
-                    self.media_engine.single_play(self.select_current_file_uri, self.audioActiveToggle,
-                                                  self.previewVisibleToggle)
+                    self.media_engine.single_play(self.select_current_file_uri,
+                                                  active_width=self.media_active_width,
+                                                  active_height=self.media_active_height,
+                                                  audio_active=self.audioActiveToggle,
+                                                  preview_visible=self.previewVisibleToggle)
+
+    def adj_media_ctrl_param(self):
+        self.media_engine.led_video_params.set_media_file_crop_w(int(self.media_crop_w_lineedit.text()))
+        self.media_engine.led_video_params.set_media_file_crop_h(int(self.media_crop_h_lineedit.text()))
+        self.media_engine.led_video_params.set_media_file_start_x(int(self.media_crop_x_lineedit.text()))
+        self.media_engine.led_video_params.set_media_file_start_y(int(self.media_crop_y_lineedit.text()))
+        self.media_engine.led_video_params.sync_video_param()
+
+        if PlayStatus.Playing == self.media_engine.playing_status:
+            if self.media_engine.play_single_file_worker:
+                if os.path.exists(self.select_current_file_uri):
+                    self.media_engine.stop_play()
+                    self.media_engine.single_play(self.select_current_file_uri,
+                                                  active_width=self.media_active_width,
+                                                  active_height=self.media_active_height,
+                                                  audio_active=self.audioActiveToggle,
+                                                  preview_visible=self.previewVisibleToggle)
