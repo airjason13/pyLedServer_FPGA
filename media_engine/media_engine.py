@@ -109,15 +109,15 @@ class MediaEngine(QObject):
         log.debug("single play file uri: %s", file_uri)
         audio_active = kwargs.get('audio_active', True)
         preview_visible = kwargs.get('preview_visible', True)
-        active_width = kwargs.get('active_width')
-        active_height = kwargs.get('active_height')
-        c_width = None
-        c_height = None
+        active_width = kwargs.get('active_width', 0)
+        active_height = kwargs.get('active_height', 0)
+        c_width = 0
+        c_height = 0
         c_pos_x = 0
         c_pos_y = 0
         if (self.led_video_params.get_media_file_crop_w() is not None
                 and self.led_video_params.get_media_file_crop_h() is not None
-                and active_width is not None and active_height is not None):
+                and active_width and active_height):
             c_width = min(self.led_video_params.get_media_file_crop_w(), active_width)
             c_height = min(self.led_video_params.get_media_file_crop_h(), active_height)
             c_pos_x = self.led_video_params.get_media_file_start_x()
@@ -308,7 +308,10 @@ class MediaEngine(QObject):
             match = re.search(r'(\d{2,5})x(\d{2,5})', error)
             if match:
                 width, height = map(int, match.groups())
-                return width, height
+                if (0 < width <= 4096 and
+                        0 < height <= 3112):
+                    return width, height
+            return None, None
         except Exception as e:
             log.debug(f"Error processing video file: {str(e)}")
             return None, None

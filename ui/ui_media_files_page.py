@@ -49,8 +49,8 @@ class MediaFilesPage(QWidget):
 
     def __init__(self, _main_window, _frame: QWidget, _name: str, media_engine: MediaEngine, **kwargs):
         super(MediaFilesPage, self).__init__()
-        self.media_active_height = None
-        self.media_active_width = None
+        self.media_active_height = 0
+        self.media_active_width = 0
         self.media_crop_setting_widget = None
         self.media_crop_x_lineedit = None
         self.media_crop_y_lineedit = None
@@ -554,8 +554,11 @@ class MediaFilesPage(QWidget):
             selected_file_name = selected_widget.text(0)
             select_file_uri = self.internal_media_folder[0] + "/" + selected_widget.text(0)
             self.select_current_file_uri = select_file_uri
-            self.media_active_width, self.media_active_height = self.media_engine.get_video_resolution(
-                self.select_current_file_uri)
+            self.media_active_width = 0
+            self.media_active_height = 0
+            resolution = self.media_engine.get_video_resolution(self.select_current_file_uri)
+            if resolution is not None:
+                self.media_active_width, self.media_active_height = resolution
 
             self.media_engine.single_play(self.select_current_file_uri,
                                           active_width=self.media_active_width,
