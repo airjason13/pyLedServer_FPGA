@@ -1,33 +1,66 @@
 {
-  "ledWidth": "100",
-  "ledHeight": "10",
+  "frameWidth": "20",
+  "frameHeight": "50",
   "fpgaID": [
     {
-      "id": "2",
-      "portStyle": "4",
-      "portNumber": "3",
-      "startX": "60",
-      "startY": "60",
-      "portWidth": "10",
-      "portHeight": "10"
+      "deviceID": "2",
+      "portNumber": "4",
+      "portWay": 2,
+      "portStyle": "7",
+      "startX": "9",
+      "startY": "0",
+      "portWidth": "2",
+      "portHeight": "10",
+      "frameWidth": "20",
+      "frameHeight": "50"
     },
     {
-      "id": "3",
-      "portStyle": "4",
-      "portNumber": "8",
-      "startX": "10",
-      "startY": "10",
-      "portWidth": "10",
-      "portHeight": "20"
+      "deviceID": "3",
+      "portNumber": "5",
+      "portWay": 2,
+      "portStyle": "5",
+      "startX": "9",
+      "startY": "9",
+      "portWidth": "2",
+      "portHeight": "10",
+      "frameWidth": "20",
+      "frameHeight": "50"
     },
     {
-      "id": "4",
-      "portStyle": "2",
-      "portNumber": "60",
-      "startX": "50",
-      "startY": "30",
-      "portWidth": "70",
-      "portHeight": "80"
+      "deviceID": "4",
+      "portNumber": "5",
+      "portWay": 3,
+      "portStyle": "3",
+      "startX": "9",
+      "startY": "9",
+      "portWidth": "10",
+      "portHeight": "2",
+      "frameWidth": "20",
+      "frameHeight": "50"
+    },
+    {
+      "deviceID": "5",
+      "portNumber": "5",
+      "portWay": 2,
+      "portStyle": "5",
+      "startX": "9",
+      "startY": "9",
+      "portWidth": "2",
+      "portHeight": "10",
+      "frameWidth": "20",
+      "frameHeight": "50"
+    },
+    {
+      "deviceID": "6",
+      "portNumber": "5",
+      "portWay": 2,
+      "portStyle": "5",
+      "startX": "9",
+      "startY": "9",
+      "portWidth": "2",
+      "portHeight": "10",
+      "frameWidth": "20",
+      "frameHeight": "50"
     }
   ]
 }
