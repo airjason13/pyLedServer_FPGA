@@ -129,11 +129,11 @@ int main(int argc, char ** argv){
 	printf("src_frame_width = %d\n", src_frame_width);
 	printf("src_frame_height = %d\n", src_frame_height);
 	printf("show_preview = %d\n", show_preview);
-#if 0
+#if 1
 	int width = src_frame_width;
 	int height = src_frame_height;
 	bool need_scale = false;
-#else	
+#else //for temp test
 	int width = 640, height = 480;
 	bool need_scale = false;
 	if((src_frame_width > 640) || (src_frame_height > 480)){
