@@ -12,8 +12,12 @@ LD_PATH = root_dir + "/ext_binaries/"
 FPGA_START_ID = 2
 
 if platform.machine() in ('arm', 'arm64', 'aarch64'):
-    SU_PWD = 'workout13'
-    ETH_DEV = 'eth0'
+    if "pi5" in platform.node():    # pi5
+        SU_PWD = 'workout13'
+        ETH_DEV = 'end0'
+    else:   # pi4-64
+        SU_PWD = 'workout13'
+        ETH_DEV = 'eth0'
 else:
     # x86 base, you should define your own superuser password and eth device
     SU_PWD = 'workout13'

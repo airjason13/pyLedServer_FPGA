@@ -13,6 +13,7 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <stdbool.h>
 
 #define MAX_FRAME_SIZE 1476
 //#define MAX_FRAME_SIZE 1024
@@ -164,7 +165,7 @@ int send_frame_sync(void)
 
     return 1;
 }
-int send_rgb_frame_with_raw_socket(const unsigned char *rgb_frame, int frame_sz, unsigned int frame_id) 
+int send_rgb_frame_with_raw_socket(const unsigned char *rgb_frame, int frame_sz, unsigned int frame_id, bool need_delay)
 {    
     unsigned int i = 0;
     unsigned int segment_length = 0;
@@ -198,19 +199,19 @@ int send_rgb_frame_with_raw_socket(const unsigned char *rgb_frame, int frame_sz,
         memcpy(raw_socket_packet, rgb_frame + i, segment_length);
         send_frame_packet(raw_socket_packet, data_length, offset + 0x000F0000);
         offset +=data_length;
-        //usleep(1000*20);
-        //usleep(1);
-    	if(nanosleep(&tim, NULL)<0){
-		    printf("nsec sleep failed!\n");
+
+        if(need_delay == true){
+            if(nanosleep(&tim, NULL)<0){
+                printf("nsec sleep failed!\n");
+            }
 	    }
         i += MAX_FRAME_SIZE;
     }
-    //usleep(1000*1000);
-    //usleep(2);
-    if(nanosleep(&tim, &tim2)<0){
-	//printf("nsec sleep failed!\n");
+    if(need_delay == true){
+        if(nanosleep(&tim, &tim2)<0){
+	        printf("nsec sleep failed!\n");
+        }
     }
-    //nanosleep(&tim, NULL);
     send_frame_sync();
     return 1;
 }

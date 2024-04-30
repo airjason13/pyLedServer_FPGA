@@ -89,7 +89,6 @@ def get_int_led_config_from_file_uri(file_name, *args) -> int:
 
     ret_val = [''] * len(args)
     for i in range(len(args)):
-        log.debug("arg : %s", args[i])
         for line in lines:
             if args[i] in line:
                 ret_val[i] = int(line.split("=")[1].strip("\n"))

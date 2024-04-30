@@ -11,6 +11,7 @@
 #include "linux_ipc_sem.h"
 #include <stdbool.h>
 #include <time.h>
+#include <sys/utsname.h>
 
 #define CLOCKID CLOCK_REALTIME
 
@@ -126,22 +127,24 @@ int main(int argc, char ** argv){
 	int show_preview = atoi(argv[4]);
     char chgrp_cmd[256] = {0};
     char chown_cmd[256] = {0};
+    bool b_need_delay = false;
+    struct utsname unameData;
+
+    uname(&unameData);
+
+    if(strstr(unameData.nodename, "pi4" )){
+        b_need_delay = true;
+    }
+    printf("b_need_delay : %d\n", b_need_delay);
+
 	printf("src_frame_width = %d\n", src_frame_width);
 	printf("src_frame_height = %d\n", src_frame_height);
 	printf("show_preview = %d\n", show_preview);
-#if 1
+
 	int width = src_frame_width;
 	int height = src_frame_height;
 	bool need_scale = false;
-#else //for temp test
-	int width = 640, height = 480;
-	bool need_scale = false;
-	if((src_frame_width > 640) || (src_frame_height > 480)){
-		width = src_frame_width / 2;
-		height = src_frame_height / 2;
-		need_scale = true;
-	}
-#endif
+
 	printf("pewview width : %d\n", width);
 	printf("pewview height : %d\n", height);
 	int color_channels = 3; //RGB24
@@ -216,25 +219,18 @@ int main(int argc, char ** argv){
 
 	while(!flag_exit){
 		int sem_read_ret = py_sem_timedwait(sem_read_flag, 0, 3);
-		//int sem_read_ret = py_sem_trywait(sem_read_flag);
-		//printf("sem_read_ret = %d\n", sem_read_ret);
 		if(sem_read_ret == -1){
-			//printf("sem_read_ret = %d\n", sem_read_ret);
-			//gettimeofday(&current_time, NULL);
-			//printf("r micro sec : %ld, usec : %ld\n", current_time.tv_sec,  current_time.tv_usec);
 			usleep(1);
 			continue;
 		}
-		//printf("sem_read_ret = %d\n", sem_read_ret);
-		//gettimeofday(&start_time, NULL);
+
 		// send packet
 		frame_id += 1;
 		if(frame_id >= 0xffff){
 			frame_id = 0;
 		}
-		//memcpy(buffer, p, src_frame_width*src_frame_height*3);
-		//send_rgb_frame_with_raw_socket(buffer, width*height*3, frame_id);
-		send_rgb_frame_with_raw_socket(p, width*height*3, frame_id);
+
+		send_rgb_frame_with_raw_socket(p, width*height*3, frame_id, b_need_delay);
 		
 		//gettimeofday(&memcpy_time, NULL);
 
@@ -257,11 +253,7 @@ int main(int argc, char ** argv){
 			//printf("render!\n");
 			render(sdl_sf);
 		}
-		//gettimeofday(&render_time, NULL);
-		//printf("s micro sec : %ld\n", start_time.tv_usec);
-		//printf("m micro sec : %ld\n", memcpy_time.tv_usec);
-		//printf("r micro sec : %ld\n", render_time.tv_usec);
-		//usleep(1000);
+
 	}
     printf("ready to quit!\n");
 	py_sem_close(sem_write_flag);
