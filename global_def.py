@@ -1,3 +1,4 @@
+import enum
 import os
 import sys
 from version import *
@@ -27,3 +28,19 @@ Version = (
     "{}{}{}_{}{}{}".format(Version_Year, Version_Month, Version_Date,
                            Version_Major, Version_Minor, Version_Patch))
 
+
+if platform.machine() in ('arm', 'arm64', 'aarch64'):
+    internal_media_folder = "/home/root/Videos"
+else:
+    internal_media_folder = "/home/venom/Videos"
+
+ThumbnailFileFolder = "/.thumbnails/"
+PlaylistFolder = "/.playlists/"
+SubtitleFolder = "/.subtitle_data"
+
+class play_type(enum.IntEnum):
+    play_none = 0
+    play_single = 1
+    play_playlist = 2
+    play_hdmi_in = 3
+    play_cms = 4

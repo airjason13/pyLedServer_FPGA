@@ -2,9 +2,145 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
-</head>
-<body>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GIS</title>
 
+    <!-- <script src="static/script.js" defer></script> -->
+    <script type="text/javascript" src="static/playlist.js"></script>
+    <script src="static/js/jquery-3.6.4.min.js"></script>
+    <script src="static/js/bootstrap.min.js"></script>
+    <script src="static/js/sweetalert2.min.js"></script>
+    <script src="static/contextMenu/jquery.contextMenu.min.js"></script>
+    <script src="static/contextMenu/jquery.ui.position.min.js"></script>
+    <link href="static/css/bootstrap.min.css" rel="stylesheet">
+    <link href="static/contextMenu/jquery.contextMenu.min.css" rel="stylesheet">
+    <link href="static/css/all.min.css" rel="stylesheet">
+    <link href="static/css/sweetalert2.min.css" rel="stylesheet">
+
+    <style>
+        body{
+            /* background-color: #000000; */
+		    text-align: center;
+            justify-content: center;
+            margin: auto;
+            font-family: "Microsoft JhengHei", sans-serif; /*"Comic Sans MS"*/
+        }
+
+        h1, h2{
+            color: #3C3C3C;
+        }
+        h5{
+            font-size: 6.5vmin;
+        }
+        img{
+            /* width: 50vw; */
+            /* height: 200px; */
+            border-radius: 15px;
+        }
+
+        #carouselCaptions{
+            width: 70vw;
+            margin: auto;;
+        }
+
+        .context{
+		    text-align: left;
+        }
+
+        .imgText{
+            color: #ffeb38;
+            font-weight: bold;
+        }
+
+        .hight-light {
+            /* 前 50% 是透明 ( transparent ) ，後 50% 才是有顏色的 */
+            /* % 數比例跟色碼可以依照自己需求變更 */
+            background-image: linear-gradient(transparent 50%, #FFECF5 50%);
+
+            /* 下面是做一些偏移，依每人需求而定 */
+            margin: 0rem 0.25rem;
+            padding: 0rem 0.25rem;
+        }
+        .item {
+            background-color: #FFECF5;
+            border: none;
+            border-radius: 15px;
+            color: #7B7B7B;
+            text-align: center;
+            display: inline-block;
+            font-size: 5vmin;
+            margin: 3vw 0vw;
+            width: 40vw;
+            height: 20vh;
+        }
+        .item:active {
+            background-color: #FFFFFF;
+            transform: translateY(4px);
+        }
+        button:disabled {
+            background-color: #E0E0E0;
+            border: none;
+            border-radius: 15px;
+            color: #7B7B7B;
+            text-align: center;
+            display: inline-block;
+            font-size: 5vmin;
+            margin: 3vw 0vw;
+            width: 40vw;
+            height: 20vh;
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .modalImg{
+            width: 50vmin;
+        }
+        .contextMediaFile{
+            /* display: flex; */
+            text-align: justify;
+        }
+        /* .svgImg{
+            width: 8vmin;
+            filter: invert(5%) sepia(78%) saturate(6858%) hue-rotate(276deg) brightness(97%) contrast(101%);
+        } */
+    </style>
+</head>
+
+<body>
+    </br>
+    <h1><b class="hight-light" style="font-size: 6.5vmin">LED Control Web</b></h1>
+    <h2><b>{{sw_version}}</b></h2>
+
+    <div id="carouselCaptions" class="carousel slide" data-bs-ride="carousel">
+        <div class="carousel-indicators">
+          {% for i in range(files|length) %}
+              <button type="button" data-bs-target="#carouselCaptions" data-bs-slide-to="{{i}}" class="active" aria-current="true" aria-label="Slide {{i}}"></button>
+          {% endfor %}
+        </div>
+
+        <div class="carousel-inner carousel-fade">
+        {% for k,v in files.items() %}
+            <!-- 如果是第一個值 -->
+            {% if k == files|first %}
+                <div class="carousel-item active">
+            {% else %}
+                <div class="carousel-item">
+            {% endif %}
+            <img src="./get_thumbnail/{{v}}" class="d-block w-100 contextMediaFile" name="{{k}}" onclick="play(name)">
+                <div class="carousel-caption">
+                <p class="imgText">{{k}}</p>
+                </div>
+            </div>
+        {% endfor %}
+        </div>
+        <button class="carousel-control-prev" type="button" data-bs-target="#carouselCaptions" data-bs-slide="prev">
+          <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+          <span class="visually-hidden">Previous</span>
+        </button>
+        <button class="carousel-control-next" type="button" data-bs-target="#carouselCaptions" data-bs-slide="next">
+          <span class="carousel-control-next-icon" aria-hidden="true"></span>
+          <span class="visually-hidden">Next</span>
+        </button>
+    </div>
 </body>
 </html>

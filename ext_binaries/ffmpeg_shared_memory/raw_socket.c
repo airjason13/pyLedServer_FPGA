@@ -1,29 +1,20 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <netinet/ip.h>
-#include <netinet/udp.h>
-#include <arpa/inet.h>
-#include <string.h>
-#include <linux/if_packet.h>
-#include <sys/ioctl.h>
-#include <sys/socket.h>
-#include <net/if.h>
-#include <netinet/ether.h>
-#include <pthread.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <stdbool.h>
+#include "raw_socket.h"
 
-#define MAX_FRAME_SIZE 1476
-//#define MAX_FRAME_SIZE 1024
-#define CMD_HEAD_SZ 20
-#define MAX_DATA_LENGTH 1500
 
 int raw_sock = -1;
 unsigned short int packet_index = 0;
 struct sockaddr_ll socket_address;
 struct ifreq ifr;
+
+int brightness_value = 0xff; // brightness : brightness_value/255,
+
+int set_brightness_value(int value){
+    if((value < 0) || (value > 0xff)){
+        return -1;
+    }
+    brightness_value = value;
+    return 0;
+}
 
 int set_raw_socket_init(const char *interface)
 {
@@ -165,7 +156,15 @@ int send_frame_sync(void)
 
     return 1;
 }
-int send_rgb_frame_with_raw_socket(const unsigned char *rgb_frame, int frame_sz, unsigned int frame_id, bool need_delay)
+
+/***************************************************************************************
+*   Function    : int send_rgb_frame_with_raw_socket(const unsigned char *rgb_frame, int frame_sz, unsigned int frame_id, int )
+*   return      : int, <0 -> failed, > 0 -> success
+*   parameters  : rgb_frame -> address pointer
+*                 frame_sz -> frame size
+*                 machine_type -> pi4 or pi5
+***************************************************************************************/
+int send_rgb_frame_with_raw_socket(unsigned char *rgb_frame, int frame_sz, unsigned int frame_id, int machine_type)
 {    
     unsigned int i = 0;
     unsigned int segment_length = 0;
@@ -175,11 +174,18 @@ int send_rgb_frame_with_raw_socket(const unsigned char *rgb_frame, int frame_sz,
     struct timespec tim, tim2;
     tim.tv_sec = 0;
     tim.tv_nsec = 1;
-    //nanosleep(&tim, NULL);
 
     if (frame_id > 0xffff) {
         printf("frame_id out of 0xffff\n");
         return -1;
+    }
+
+    // Pi5 or X86
+    if (machine_type != MACHINE_TYPE_Pi4){
+        #pragma omp parallel for
+        for (int z = 0; z < frame_sz; z ++){
+            rgb_frame[z] = ((int)(rgb_frame[z] * brightness_value) >> 8);
+        }
     }
     
     while (i < frame_sz) {
@@ -195,19 +201,34 @@ int send_rgb_frame_with_raw_socket(const unsigned char *rgb_frame, int frame_sz,
             printf("Send rgb frame , Data too long to fit into the buffer. sz:%u \n",data_length);
             return -1;
         }
-        
-        memcpy(raw_socket_packet, rgb_frame + i, segment_length);
+
+        /* Venom test adjust brightness start*/
+        if (machine_type == MACHINE_TYPE_Pi4){
+            // Pi4 work around method
+            memcpy(raw_socket_packet, rgb_frame + i, segment_length); // for fake memcpy
+
+            /* If we enable the openmp operation, the operation time seems unstable*/
+            //#pragma omp parallel for    //although we set omp operation here, but we do not compile with -fopenmp,
+            for (int z = 0; z < 4; z++){    //dummy fake copy 3 times for network work around
+                for (int k = 0; k < segment_length; k ++){
+                    raw_socket_packet[k] = ((int)(rgb_frame[i + k] * brightness_value) >> 8);
+                }
+            }
+        }else{  //Pi5 and X86 should go here
+            memcpy(raw_socket_packet, rgb_frame + i, segment_length); // for fake memcpy
+            /*for (int k = 0; k < segment_length; k ++){
+                raw_socket_packet[k] = ((int)(rgb_frame[i + k] * brightness_value) >> 8);
+            }*/
+        }
+
+        /* Venom test adjust brightness end*/
+
         send_frame_packet(raw_socket_packet, data_length, offset + 0x000F0000);
         offset +=data_length;
 
-        if(need_delay == true){
-            if(nanosleep(&tim, NULL)<0){
-                printf("nsec sleep failed!\n");
-            }
-	    }
         i += MAX_FRAME_SIZE;
     }
-    if(need_delay == true){
+    if (machine_type == MACHINE_TYPE_Pi4){
         if(nanosleep(&tim, &tim2)<0){
 	        printf("nsec sleep failed!\n");
         }

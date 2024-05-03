@@ -11,7 +11,7 @@
 #include <sys/time.h>
 #include <errno.h>
 
-#include <fcntl.h>	/* O_CRAT */
+//#include <fcntl.h>	/* O_CRAT */
 #include <sys/stat.h>
 #include <semaphore.h>
 

@@ -1,17 +1,4 @@
-#include <sys/shm.h>
-#include <sys/mman.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <string.h>
-#include <stdlib.h>
-#include <SDL/SDL.h>
-#include <assert.h>
-#include <sys/time.h>
-#include <signal.h>
-#include "linux_ipc_sem.h"
-#include <stdbool.h>
-#include <time.h>
-#include <sys/utsname.h>
+#include "show_ffmpeg_shared_memory.h"
 
 #define CLOCKID CLOCK_REALTIME
 
@@ -32,6 +19,7 @@ int frame_id = 0;
 static int filter(const SDL_Event * event){
 	return event->type == SDL_QUIT;
 }
+
 
 static _Bool init_app(const char *name, SDL_Surface *icon, uint32_t flags){
 	printf("init_app start\n");
@@ -127,15 +115,19 @@ int main(int argc, char ** argv){
 	int show_preview = atoi(argv[4]);
     char chgrp_cmd[256] = {0};
     char chown_cmd[256] = {0};
-    bool b_need_delay = false;
+    int machine_type = 0;
     struct utsname unameData;
+    pthread_t fs_inotify_tid;
 
     uname(&unameData);
 
     if(strstr(unameData.nodename, "pi4" )){
-        b_need_delay = true;
+        machine_type = MACHINE_TYPE_Pi4;
+    }else{
+        machine_type = MACHINE_TYPE_Pi5;
     }
-    printf("b_need_delay : %d\n", b_need_delay);
+    printf("machine_type : %d\n", machine_type);
+    pthread_create(&fs_inotify_tid, NULL, fs_inotify, &machine_type);
 
 	printf("src_frame_width = %d\n", src_frame_width);
 	printf("src_frame_height = %d\n", src_frame_height);
@@ -145,8 +137,8 @@ int main(int argc, char ** argv){
 	int height = src_frame_height;
 	bool need_scale = false;
 
-	printf("pewview width : %d\n", width);
-	printf("pewview height : %d\n", height);
+	printf("preview width : %d\n", width);
+	printf("preview height : %d\n", height);
 	int color_channels = 3; //RGB24
 	char buffer[width*height*3];
 	SDL_Surface *sdl_sf;
@@ -165,24 +157,7 @@ int main(int argc, char ** argv){
 	struct timeval memcpy_time;
 	struct timeval render_time;
 	struct timeval current_time;
-#if 0
-    system("rm /dev/shm/posixsm");
-    system("sync");
-    shm_fd = shm_open("posixsm", O_CREAT | O_RDWR, 0777);
-    system("sync");
-    system("ls -al /dev/shm/posixsm");
 
-    sprintf(chgrp_cmd, "chgrp %s /dev/shm/posixsm", argv[1]);
-    printf("chgrp_cmd : %s\n", chgrp_cmd);
-    //system("chgrp venom /dev/shm/posixsm");
-    system(chgrp_cmd);
-    sprintf(chown_cmd, "chown %s /dev/shm/posixsm", argv[1]);
-    printf("chown_cmd : %s\n", chown_cmd);
-    //system("chown venom /dev/shm/posixsm");
-    system(chown_cmd);
-    system("chmod 666 /dev/shm/posixsm");
-
-#endif
     system("pulseaudio -D");
 
 	shm_fd = shm_open("posixsm", O_CREAT | O_RDWR, 0666);
@@ -230,9 +205,9 @@ int main(int argc, char ** argv){
 			frame_id = 0;
 		}
 
-		send_rgb_frame_with_raw_socket(p, width*height*3, frame_id, b_need_delay);
+		send_rgb_frame_with_raw_socket(p, width*height*3, frame_id, machine_type);
 		
-		//gettimeofday(&memcpy_time, NULL);
+
 
 		if(show_preview > 0){
 			//gettimeofday(&start_time, NULL);
