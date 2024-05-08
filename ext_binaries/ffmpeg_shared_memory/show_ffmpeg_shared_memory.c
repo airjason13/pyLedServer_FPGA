@@ -71,7 +71,8 @@ void fps_counter(void){
 	preview_fps = 0;
 }
 
-timer_t jset_timer(timer_t start_sec, long start_nsec, timer_t interval_sec, long interval_nsec, void *func, int sival){
+
+timer_t jset_timer(long start_sec, long start_nsec, long interval_sec, long interval_nsec, void *func, int sival){
 	timer_t timerid;
 	struct sigevent evp;
 	memset(&evp, 0, sizeof(struct sigevent));
@@ -119,12 +120,22 @@ int main(int argc, char ** argv){
     struct utsname unameData;
     pthread_t fs_inotify_tid;
 
+
+
     uname(&unameData);
 
     if(strstr(unameData.nodename, "pi4" )){
         machine_type = MACHINE_TYPE_Pi4;
-    }else{
+        set_inotify_path("/home/root/pyLedServer_FPGA/led_config/");
+        set_inotify_file_name("led_parameters");
+    }else if(strstr(unameData.nodename, "pi5" )){
         machine_type = MACHINE_TYPE_Pi5;
+        set_inotify_path("/home/root/pyLedServer_FPGA/led_config/");
+        set_inotify_file_name("led_parameters");
+    }else{
+        machine_type = MACHINE_TYPE_X86;
+        set_inotify_path("/home/venom/PycharmProjects/pyLedServer_FPGA/led_config/");
+        set_inotify_file_name("led_parameters");
     }
     printf("machine_type : %d\n", machine_type);
     pthread_create(&fs_inotify_tid, NULL, fs_inotify, &machine_type);

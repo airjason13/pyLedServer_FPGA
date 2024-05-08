@@ -353,7 +353,6 @@ class FpgaListPage(QWidget):
             self.client_table_widget.setItem(row_count, 0, QTableWidgetItem(str(fpga.i_id)))
             self.client_table_widget.setItem(row_count, 1, QTableWidgetItem(fpga.s_version))
             self.client_table_widget.setItem(row_count, 2, QTableWidgetItem(fpga.s_status))
-
             self.client_table_widget.setItem(row_count, 3, QTableWidgetItem(fpga.s_controls))
 
         # self.client_table_widget.item(3,3).setForeground(QBrush(QColor(255, 0, 0)))

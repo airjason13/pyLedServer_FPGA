@@ -25,6 +25,7 @@
 
 #define MACHINE_TYPE_Pi4    0
 #define MACHINE_TYPE_Pi5    1
+#define MACHINE_TYPE_X86    2
 
 
 int send_rgb_frame_with_raw_socket(unsigned char *rgb_frame, int frame_sz, unsigned int frame_id, int machine_type);
