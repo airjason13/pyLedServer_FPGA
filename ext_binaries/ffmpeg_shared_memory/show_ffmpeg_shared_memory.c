@@ -120,8 +120,6 @@ int main(int argc, char ** argv){
     struct utsname unameData;
     pthread_t fs_inotify_tid;
 
-
-
     uname(&unameData);
 
     if(strstr(unameData.nodename, "pi4" )){
@@ -138,6 +136,7 @@ int main(int argc, char ** argv){
         set_inotify_file_name("led_parameters");
     }
     printf("machine_type : %d\n", machine_type);
+
     pthread_create(&fs_inotify_tid, NULL, fs_inotify, &machine_type);
 
 	printf("src_frame_width = %d\n", src_frame_width);

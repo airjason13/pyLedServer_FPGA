@@ -13,12 +13,12 @@ def send_message(**data):
     # log("in send message, SERVER:", get_server_name())
     # socket.connectToServer(get_server_name(), QtCore.QIODevice.WriteOnly)
     socket.connectToServer(get_server_name(), QtCore.QIODevice.ReadWrite)
-    if socket.waitForConnected(500):
+    if socket.waitForConnected(50):
         socket.write(json.dumps(data).encode('utf-8'))
-        if not socket.waitForBytesWritten(2000):
+        if not socket.waitForBytesWritten(200):
             raise RuntimeError('could not write to socket: %s' %
                   socket.errorString())
-        socket.waitForReadyRead(3000)
+        socket.waitForReadyRead(300)
         try:
             b_recv_data = socket.readAll()
             recv_data = b_recv_data.data().decode()

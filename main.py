@@ -1,4 +1,6 @@
 from flask import Flask
+
+import jqlocalserver
 from c_mainwindow import MainUi
 from PyQt5.QtWidgets import QApplication
 from global_def import *
@@ -21,6 +23,8 @@ if __name__ == '__main__':
     qt_app = QApplication(sys.argv)
     main_window = MainUi()
     main_window.show()
+    server = jqlocalserver.Server()
+    server.dataReceived.connect(main_window.parser_cmd_from_qlocalserver)
 
     flask_app = FlaskPlugin(app_=app)
     flask_app.start()

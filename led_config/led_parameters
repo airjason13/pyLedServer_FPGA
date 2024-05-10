@@ -1,5 +1,5 @@
-led_brightness=50
-led_gamma=2.2
+led_brightness=26
+led_gamma=2.0
 led_r_gain=15
 led_g_gain=15
 led_b_gain=15

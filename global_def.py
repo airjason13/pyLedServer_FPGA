@@ -44,3 +44,11 @@ class play_type(enum.IntEnum):
     play_playlist = 2
     play_hdmi_in = 3
     play_cms = 4
+
+
+MIN_FRAME_BRIGHTNESS=0
+MAX_FRAME_BRIGHTNESS=100
+
+MIN_FRAME_GAMMA=0
+MAX_FRAME_GAMMA=2.5
+

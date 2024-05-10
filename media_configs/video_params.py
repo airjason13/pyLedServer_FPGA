@@ -1,13 +1,14 @@
 import os
 import sys
 
-from PyQt5.QtCore import QObject
+from PyQt5.QtCore import QObject, pyqtSignal
 
 from ext_qt_widgets.system_file_watcher import FileWatcher
 from global_def import log
 
 
 class VideoParams(QObject):
+    signal_video_params_changed = pyqtSignal()
 
     def __init__(self, from_config, led_brightness, led_gamma, led_r_gain, led_g_gain, led_b_gain, **kwargs):
         super(VideoParams, self).__init__(**kwargs)
@@ -35,6 +36,9 @@ class VideoParams(QObject):
             self.hdmi_in_start_x = 0
             self.hdmi_in_crop_h = 0
             self.hdmi_in_crop_w = 0
+
+    def install_video_params_changed_slot(self, slot):
+        self.signal_video_params_changed.connect(slot)
 
     def init_video_param_file(self):
         content_lines = [
@@ -101,6 +105,7 @@ class VideoParams(QObject):
     def sync_video_param_from_file_watcher(self):
         log.debug("")
         self.parse_init_config()
+        self.signal_video_params_changed.emit()
 
     def sync_video_param(self):
         params_brightness = "led_brightness=" + str(self.led_brightness) + '\n'
@@ -130,13 +135,17 @@ class VideoParams(QObject):
         os.system('sync')
 
     def set_led_brightness(self, br_level):
-        self.led_brightness = br_level
+        if self.led_brightness != br_level:
+            self.led_brightness = br_level
+            self.sync_video_param()
 
     def get_led_brightness(self):
         return self.led_brightness
 
     def set_led_gamma(self, gamma_value):
-        self.led_gamma = gamma_value
+        if self.led_gamma != gamma_value:
+            self.led_gamma = gamma_value
+            self.sync_video_param()
 
     def get_led_gamma(self):
         return self.led_gamma

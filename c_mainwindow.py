@@ -3,7 +3,7 @@ import random
 import time
 
 import qdarkstyle
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtWidgets import QMainWindow, QFrame, QSplitter, QGridLayout, QWidget, QStackedLayout, QVBoxLayout
 
@@ -30,6 +30,7 @@ Page_Map = dict(zip(Page_Select_Btn_Name_List, Page_List))
 
 
 class MainUi(QMainWindow):
+    from _handle_qlocal_message import parser_cmd_from_qlocalserver, cmd_function_map
 
     def __init__(self):
         log.debug("Venom A Main Window Init!")
@@ -104,7 +105,12 @@ class MainUi(QMainWindow):
         # self.set_fpga_test_register()
 
         for fpga in self.fpga_list:
-            fpga.fpga_cmd_center.write_fpga_register(fpga.i_id, 'currentGammaTable', str(1))
+            fpga.fpga_cmd_center.write_fpga_register(fpga.i_id, 'currentGammaTable', str(22))
+
+        # test frame brightness adjust
+        # self.test_timer = QTimer(self)
+        # self.test_timer.timeout.connect(self.test_timer_function)
+        # self.test_timer.start(3*1000)
 
         '''target_gamma_table_list = [
             "gammaTable_r{}".format(str(0)),
@@ -118,6 +124,17 @@ class MainUi(QMainWindow):
             # log.debug("%s : %s", "gammaTable_g{}".format(str(0)), str(reg_value))
             ret, reg_value = self.fpga_cmd_center.read_fpga_register(fpga.i_id, "gammaTable_b{}".format(str(0)))
             # log.debug("%s : %s", "gammaTable_b{}".format(str(0)), str(reg_value))'''
+
+    def test_timer_function(self):
+        br = int(self.media_engine.led_video_params.get_led_brightness())
+        if br == 100:
+            br = 0
+        else:
+            br += 1
+        log.debug("br : %d", br)
+        self.media_engine.led_video_params.set_led_brightness(br)
+
+
 
     def utc_test(self):
         log.debug("self.utc_test_count : %d", self.utc_test_count)

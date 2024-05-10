@@ -11,6 +11,7 @@ from flask_wtf import Form
 from wtforms import validators, RadioField, SubmitField, IntegerField, SelectField, StringField, TimeField, DateField, \
     DateTimeField
 from main import app
+from qlocalmessage import send_message
 
 SECRET_KEY = os.urandom(32)
 app.config['SECRET_KEY'] = SECRET_KEY
@@ -205,4 +206,5 @@ def refresh_template():
 @app.route("/")
 def index():
     log.debug("flask route index")
+    # send_message(cmd="got_index")
     return refresh_template()

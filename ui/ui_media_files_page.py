@@ -11,6 +11,7 @@ from PyQt5.QtWidgets import QWidget, QVBoxLayout, \
 
 from media_engine.media_engine import MediaEngine
 from media_engine.media_engine_def import PlayStatus
+from qlocalmessage import send_message
 from qt_ui_style.button_qss import QPushFileStopButton_Style, QPushFilePlayButton_Style, QFont_Style_Default, \
     QFont_Style_Size_M
 from utils.utils_file_access import get_playlist_file_list, get_mount_points, get_led_config_from_file_uri
@@ -18,7 +19,7 @@ from ext_qt_widgets.media_file_list import MediaFileList
 from ext_qt_widgets.media_playlist import PlayList
 from ext_qt_widgets.new_playlist_dialog_widget import NewPlaylistDialog
 from ext_qt_widgets.system_file_watcher import FileWatcher
-from global_def import log
+from global_def import log, MIN_FRAME_BRIGHTNESS, MAX_FRAME_BRIGHTNESS, MIN_FRAME_GAMMA, MAX_FRAME_GAMMA
 from ext_qt_widgets.custom_tree_widget import CTreeWidget
 from media_configs.media_path_configs import *
 from utils.gen_thumbnails import gen_webp_from_video_threading
@@ -51,13 +52,20 @@ class MediaFilesPage(QWidget):
         super(MediaFilesPage, self).__init__()
         self.media_active_height = 0
         self.media_active_width = 0
-        self.media_crop_setting_widget = None
-        self.media_crop_x_lineedit = None
-        self.media_crop_y_lineedit = None
-        self.media_crop_w_lineedit = None
-        self.media_crop_h_lineedit = None
+        self.video_params_setting_widget = None
+        self.video_crop_x_lineedit = None
+        self.video_crop_y_lineedit = None
+        self.video_crop_w_lineedit = None
+        self.video_crop_h_lineedit = None
         self.media_adj_crop_btn = None
-        self.media_crop_setting_layout = None
+
+        self.video_brightness_label = None
+        self.video_gamma_label = None
+        self.video_brightness_lineedit = None
+        self.video_gamma_lineedit = None
+        self.video_adj_br_ga_btn = None
+
+        self.video_params_setting_layout = None
 
         self.preview_control_btn = None
         self.sound_control_btn = None
@@ -143,6 +151,9 @@ class MediaFilesPage(QWidget):
             self.external_file_watcher = FileWatcher([self.TAG_Str_Media_Folder + os.getlogin()])
             self.external_file_watcher.install_folder_changed_slot(self.external_media_files_changed)
 
+        # install media_engine.video_params video_params_changed slot
+        self.media_engine.led_video_params.install_video_params_changed_slot(self.video_params_changed)
+
     def init_ui(self):
         self.media_files_tree_widget = CTreeWidget(self.frame)
         '''install media_files_tree_widget mouse qsignal/slot'''
@@ -183,8 +194,8 @@ class MediaFilesPage(QWidget):
         self.media_control_panel = QWidget()
         self.media_control_panel_layout = QGridLayout()
         self.media_control_panel.setLayout(self.media_control_panel_layout)
-        self.media_crop_setting_widget = QWidget(self.media_control_panel)
-        self.media_crop_setting_layout = QGridLayout(self.media_crop_setting_widget)
+        self.video_params_setting_widget = QWidget(self.media_control_panel)
+        self.video_params_setting_layout = QGridLayout(self.video_params_setting_widget)
 
         ''' Handle Play/Pause/Stop/Preview/Sound Button'''
         self.play_pause_btn = QPushButton()
@@ -230,38 +241,67 @@ class MediaFilesPage(QWidget):
         self.preview_control_btn.setChecked(not self.previewVisibleToggle)
         self.preview_control_btn.clicked.connect(self.preview_btn_clicked)
 
-        self.media_crop_x_lineedit = QLineEdit(self.media_crop_setting_widget)
-        self.media_crop_y_lineedit = QLineEdit(self.media_crop_setting_widget)
-        self.media_crop_w_lineedit = QLineEdit(self.media_crop_setting_widget)
-        self.media_crop_h_lineedit = QLineEdit(self.media_crop_setting_widget)
+        self.video_crop_x_lineedit = QLineEdit(self.video_params_setting_widget)
+        self.video_crop_y_lineedit = QLineEdit(self.video_params_setting_widget)
+        self.video_crop_w_lineedit = QLineEdit(self.video_params_setting_widget)
+        self.video_crop_h_lineedit = QLineEdit(self.video_params_setting_widget)
 
-        self.media_crop_x_lineedit.setText(str(self.media_engine.led_video_params.get_media_file_start_x()))
-        self.media_crop_y_lineedit.setText(str(self.media_engine.led_video_params.get_media_file_start_y()))
-        self.media_crop_w_lineedit.setText(str(self.media_engine.led_video_params.get_media_file_crop_w()))
-        self.media_crop_h_lineedit.setText(str(self.media_engine.led_video_params.get_media_file_crop_h()))
+        self.video_crop_x_lineedit.setText(str(self.media_engine.led_video_params.get_media_file_start_x()))
+        self.video_crop_y_lineedit.setText(str(self.media_engine.led_video_params.get_media_file_start_y()))
+        self.video_crop_w_lineedit.setText(str(self.media_engine.led_video_params.get_media_file_crop_w()))
+        self.video_crop_h_lineedit.setText(str(self.media_engine.led_video_params.get_media_file_crop_h()))
 
-        edits = [self.media_crop_x_lineedit, self.media_crop_y_lineedit, self.media_crop_w_lineedit,
-                 self.media_crop_h_lineedit]
+        edits = [self.video_crop_x_lineedit, self.video_crop_y_lineedit, self.video_crop_w_lineedit,
+                 self.video_crop_h_lineedit]
 
         labels = ["Crop Start X:", "Crop Start Y:", "Crop Width:", "Crop Height:"]
         for i, label in enumerate(labels):
-            lbl = QLabel(label, self.media_crop_setting_widget)
+            lbl = QLabel(label, self.video_params_setting_widget)
             lbl.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
             edit = edits[i]
             edit.setFixedWidth(100)
             edit.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
-            self.media_crop_setting_layout.addWidget(lbl, i, 0)
-            self.media_crop_setting_layout.addWidget(edit, i, 1)
+            self.video_params_setting_layout.addWidget(lbl, i, 0)
+            self.video_params_setting_layout.addWidget(edit, i, 1)
 
-        self.media_adj_crop_btn = QPushButton("Adjust Parameter", self.media_crop_setting_widget)
+        self.media_adj_crop_btn = QPushButton("Adjust Crop Parameter", self.video_params_setting_widget)
         self.media_adj_crop_btn.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
         self.media_adj_crop_btn.clicked.connect(self.adj_media_ctrl_param)
-        self.media_crop_setting_layout.addWidget(self.media_adj_crop_btn, 4, 0, 1, 2)
+
+        self.video_brightness_label = QLabel(self.video_params_setting_widget)
+        self.video_brightness_label.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
+        self.video_brightness_label.setText("Frame Brightness:")
+        self.video_gamma_label = QLabel(self.video_params_setting_widget)
+        self.video_gamma_label.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
+        self.video_gamma_label.setText("Frame Gamma:")
+
+        self.video_brightness_lineedit = QLineEdit(self.video_params_setting_widget)
+        self.video_brightness_lineedit.setFixedWidth(100)
+        self.video_brightness_lineedit.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
+        self.video_brightness_lineedit.setText(str(self.media_engine.led_video_params.get_led_brightness()))
+
+        self.video_gamma_lineedit = QLineEdit(self.video_params_setting_widget)
+        self.video_gamma_lineedit.setFixedWidth(100)
+        self.video_gamma_lineedit.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
+        self.video_gamma_lineedit.setText(str(self.media_engine.led_video_params.get_led_gamma()))
+
+        self.video_adj_br_ga_btn = QPushButton("Adjust Brightness Parameter", self.video_params_setting_widget)
+        self.video_adj_br_ga_btn.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
+        self.video_adj_br_ga_btn.clicked.connect(self.adj_video_br_ga_param)
+
+        self.video_params_setting_layout.addWidget(self.video_brightness_label, 0, 2)
+        self.video_params_setting_layout.addWidget(self.video_gamma_label, 1, 2)
+        self.video_params_setting_layout.addWidget(self.video_brightness_lineedit, 0, 3)
+        self.video_params_setting_layout.addWidget(self.video_gamma_lineedit, 1, 3)
+        self.video_params_setting_layout.addWidget(self.video_adj_br_ga_btn, 4, 2, 1, 2)
+
+        self.video_params_setting_layout.addWidget(self.media_adj_crop_btn, 4, 0, 1, 2)
+
         self.media_control_panel_layout.addWidget(self.play_pause_btn, 0, 1, 1, 2)
         self.media_control_panel_layout.addWidget(self.play_stop_btn, 0, 2, 1, 2)
-        self.media_control_panel_layout.addWidget(self.preview_control_btn, 1, 0)
-        self.media_control_panel_layout.addWidget(self.sound_control_btn, 1, 1)
-        self.media_control_panel_layout.addWidget(self.media_crop_setting_widget, 5, 0, 4, 4)
+        self.media_control_panel_layout.addWidget(self.preview_control_btn, 1, 0, 1, 2)
+        self.media_control_panel_layout.addWidget(self.sound_control_btn, 1, 2, 1, 2)
+        self.media_control_panel_layout.addWidget(self.video_params_setting_widget, 5, 0, 4, 2)
 
         self.layout = QVBoxLayout()
         self.layout.addWidget(self.media_files_tree_widget)
@@ -326,7 +366,6 @@ class MediaFilesPage(QWidget):
         # gen_webp_from_video_threading(self.external_media_folder, os.path.basename(base_fname))
 
     ''' show preview widget or not'''
-
     def mouse_move_on_tree(self, event: QMouseEvent):
         try:
             self.grabMouse()
@@ -409,13 +448,13 @@ class MediaFilesPage(QWidget):
                     self.show_playlist_content_popup_menu(self.media_files_tree_widget.mapToGlobal(position))
             # elif widgetitem.parent().text(0) == self.TAG_Str_Playlist:
             #    log.debug("Playlist")
-                # self.show_internal_media_file_popup_menu(self.media_files_tree_widget.mapToGlobal(position))
+            # self.show_internal_media_file_popup_menu(self.media_files_tree_widget.mapToGlobal(position))
 
     def show_internal_media_file_popup_menu(self, pos):
         pop_menu = QMenu()
         try:
             pop_menu.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5() + \
-                              """
+                                   """
                               QMenu{
                                   button-layout : 2;
                                   font: bold 16pt "Brutal Type";
@@ -433,7 +472,7 @@ class MediaFilesPage(QWidget):
         add_to_playlist_menu = QMenu(self.TAG_Str_Popup_Menu_Add_to_Playlist)
         try:
             add_to_playlist_menu.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5() + \
-                                   """
+                                               """
                                    QMenu{
                                        button-layout : 2;
                                        font: bold 16pt "Brutal Type";
@@ -498,7 +537,7 @@ class MediaFilesPage(QWidget):
         pop_menu = QMenu()
         try:
             pop_menu.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5() + \
-                              """
+                                   """
                               QMenu{
                                   button-layout : 2;
                                   font: bold 16pt "Brutal Type";
@@ -551,7 +590,7 @@ class MediaFilesPage(QWidget):
         elif q.text() == self.TAG_Str_Popup_Menu_Play:
             log.debug("Play not Implemented")
             selected_widget = self.media_files_tree_widget.itemAt(self.right_clicked_pos)
-            selected_file_name = selected_widget.text(0)
+            # selected_file_name = selected_widget.text(0)
             select_file_uri = self.internal_media_folder[0] + "/" + selected_widget.text(0)
             self.select_current_file_uri = select_file_uri
             self.media_active_width = 0
@@ -650,6 +689,7 @@ class MediaFilesPage(QWidget):
             self.refresh_media_playlist_tree_widget()
 
     def slot_new_playlist(self, new_playlist_name):
+        file_uri_add_to_playlist = None
         log.debug("new_playlist_name : %s", new_playlist_name)
         new_playlist_uri = (self.internal_media_folder[0] + PlaylistFolder
                             + new_playlist_name + self.TAG_Str_Playlist_Extension)
@@ -740,10 +780,10 @@ class MediaFilesPage(QWidget):
                                                   preview_visible=self.previewVisibleToggle)
 
     def adj_media_ctrl_param(self):
-        self.media_engine.led_video_params.set_media_file_crop_w(int(self.media_crop_w_lineedit.text()))
-        self.media_engine.led_video_params.set_media_file_crop_h(int(self.media_crop_h_lineedit.text()))
-        self.media_engine.led_video_params.set_media_file_start_x(int(self.media_crop_x_lineedit.text()))
-        self.media_engine.led_video_params.set_media_file_start_y(int(self.media_crop_y_lineedit.text()))
+        self.media_engine.led_video_params.set_media_file_crop_w(int(self.video_crop_w_lineedit.text()))
+        self.media_engine.led_video_params.set_media_file_crop_h(int(self.video_crop_h_lineedit.text()))
+        self.media_engine.led_video_params.set_media_file_start_x(int(self.video_crop_x_lineedit.text()))
+        self.media_engine.led_video_params.set_media_file_start_y(int(self.video_crop_y_lineedit.text()))
         self.media_engine.led_video_params.sync_video_param()
 
         if PlayStatus.Playing == self.media_engine.playing_status:
@@ -755,3 +795,30 @@ class MediaFilesPage(QWidget):
                                                   active_height=self.media_active_height,
                                                   audio_active=self.audioActiveToggle,
                                                   preview_visible=self.previewVisibleToggle)
+
+    def adj_video_br_ga_param(self):
+        if (int(self.video_brightness_lineedit.text()) < MIN_FRAME_BRIGHTNESS
+                or int(self.video_brightness_lineedit.text()) > MAX_FRAME_BRIGHTNESS):
+            self.video_brightness_lineedit.setText(str(self.media_engine.led_video_params.get_led_brightness()))
+            return
+        if (float(self.video_gamma_lineedit.text()) < MIN_FRAME_GAMMA
+                or float(self.video_gamma_lineedit.text()) > MAX_FRAME_GAMMA):
+            self.video_gamma_lineedit.setText(str(self.media_engine.led_video_params.get_led_gamma()))
+            return
+
+        if self.media_engine.led_video_params.get_led_brightness() != int(self.video_brightness_lineedit.text()):
+            self.media_engine.led_video_params.set_led_brightness(int(self.video_brightness_lineedit.text()))
+        if self.media_engine.led_video_params.get_led_gamma() != float(self.video_gamma_lineedit.text()):
+            log.debug("send_message set_gamma")
+            send_message(set_gamma=self.video_gamma_lineedit.text())
+            self.media_engine.led_video_params.set_led_gamma(float(self.video_gamma_lineedit.text()))
+
+    def video_params_changed(self):
+        log.debug("video_params_changed")
+        self.video_brightness_lineedit.setText(str(self.media_engine.led_video_params.get_led_brightness()))
+        self.video_gamma_lineedit.setText(str(self.media_engine.led_video_params.get_led_gamma()))
+        self.video_crop_x_lineedit.setText(str(self.media_engine.led_video_params.get_media_file_start_x()))
+        self.video_crop_y_lineedit.setText(str(self.media_engine.led_video_params.get_media_file_start_y()))
+        self.video_crop_w_lineedit.setText(str(self.media_engine.led_video_params.get_media_file_crop_w()))
+        self.video_crop_h_lineedit.setText(str(self.media_engine.led_video_params.get_media_file_crop_h()))
+

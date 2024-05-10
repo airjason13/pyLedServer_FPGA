@@ -36,6 +36,37 @@ int set_inotify_file_name(char *file_name){
     return 0;
 }
 
+int get_frame_brightness(char *folder_path, char *file_name){
+    FILE *fp;
+    int br = 0;
+    char *line = NULL;
+    size_t len = 0;
+    ssize_t read;
+    char file_uri[STR_BUFF_LEN];
+    sprintf(file_uri, "%s%s", folder_path, file_name);
+    printf("file_uri : %s\n", file_uri);
+    fp = fopen(file_uri, "r");
+    if(fp == NULL){
+        printf("no such file, %s\n", file_uri);
+        return -1;
+    }
+
+    while ((read = getline(&line, &len, fp)) != -1) {
+        printf("Retrieved line of length %zu:\n", read);
+        printf("%s", line);
+        if(strstr(line, "led_brightness") != NULL){
+            printf("got brightness\n");
+            sscanf(line, "led_brightness=%d", &br);
+            printf("%d", br);
+            break;
+        }
+    }
+    fclose(fp);
+    if(line)
+        free(line);
+    return br;
+}
+
 void* fs_inotify(void* args){
   	int length, i = 0;
   	int fd;
@@ -44,9 +75,16 @@ void* fs_inotify(void* args){
     struct utsname unameData;
 
   	int machine_type = 0;
+  	int br = 0;
 
     printf("inotify_path : %s\n", inotify_path);
     printf("inotify_file_name : %s\n", inotify_file_name);
+
+    br = get_frame_brightness(inotify_path, inotify_file_name);
+    //取到的br 為100為基底,要改成255為基底的
+    br = br * 255/100;
+    printf("final br : %d\n", br);
+    set_brightness_value(br);
 
   	uname(&unameData);
     if(strstr(unameData.nodename, "pi4" )){
@@ -108,6 +146,11 @@ void* fs_inotify(void* args){
           					if(!strcmp(event->name, inotify_file_name)){
           					    printf( "File %s modified.\n", event->name );
           					    printf( "event name and file matched. %s\n", inotify_file_name);
+          					    br = get_frame_brightness(inotify_path, inotify_file_name);
+          					    //取到的br 為100為基底,要改成255為基底的
+          					    br = br * 255/100;
+          					    printf("final br : %d\n", br);
+          					    set_brightness_value(br);
           					}
         				}
       				}
