@@ -181,3 +181,53 @@ def load_fpga_json_file(file_uri: str) -> dict:
         # log.debug("python_dict : %s", python_dict)
 
     return python_dict
+
+
+def set_sleep_params(start_time, end_time):
+    str_sleep_start_time = "sleep_start_time=" + start_time + "\n"
+    str_sleep_end_time = "sleep_end_time=" + end_time + "\n"
+    content_lines = [
+        str_sleep_start_time,
+        str_sleep_end_time,
+    ]
+    root_dir = os.path.dirname(sys.modules['__main__'].__file__)
+    led_config_dir = os.path.join(root_dir, 'led_config')
+    file_uri = os.path.join(led_config_dir, ".sleep_time_config")
+    config_file = open(file_uri, 'w')
+    config_file.writelines(content_lines)
+    config_file.close()
+    os.system('sync')
+
+
+def init_sleep_time_params():
+    content_lines = [
+        "sleep_start_time=00:30\n",
+        "sleep_end_time=04:30\n",
+    ]
+    root_dir = os.path.dirname(sys.modules['__main__'].__file__)
+    led_config_dir = os.path.join(root_dir, 'led_config')
+    file_uri = os.path.join(led_config_dir, ".sleep_time_config")
+    config_file = open(file_uri, 'w')
+    config_file.writelines(content_lines)
+    config_file.close()
+    os.system('sync')
+
+
+def get_sleep_time_from_file():
+    s_start_time = ""
+    s_end_time = ""
+    root_dir = os.path.dirname(sys.modules['__main__'].__file__)
+    led_config_dir = os.path.join(root_dir, 'led_config')
+    if os.path.isfile(os.path.join(led_config_dir, ".sleep_time_config")) is False:
+        init_sleep_time_params()
+
+    with open(os.path.join(led_config_dir, ".sleep_time_config"), "r") as f:
+        lines = f.readlines()
+    f.close()
+    for line in lines:
+        if "sleep_start_time" in line:
+            s_start_time = line.split("=")[1].strip("\n")
+        if "sleep_end_time" in line:
+            s_end_time = line.split("=")[1].strip("\n")
+
+    return s_start_time, s_end_time

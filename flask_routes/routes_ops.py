@@ -8,15 +8,29 @@ led_params_config_folder_name = "led_config"
 led_params_config_file_name = "led_parameters"
 led_reboot_config_file_name = "reboot_config"
 
+
 def init_video_params():
     content_lines = [
-        "frame_brightness=50\n", "led_gamma=2.2\n", "sleep_mode_enable=1\n", "target_city_index=0\n",
-        "frame_brightness_algorithm=0\n", "day_mode_frame_brightness=50\n",
-        "night_mode_frame_brightness=30\n", "sleep_mode_frame_brightness=0\n",
-        "frame_gamma=2.2\n", "image_period=60\n",
-        "hdmi_in_start_x=0\n", "hdmi_in_start_y=0\n", "hdmi_in_crop_w=0\n", "hdmi_in_crop_h=0\n",
-        "media_file_start_x=0\n", "media_file_start_y=0\n",
-        "media_file_crop_w=0\n", "media_file_crop_h=0\n",
+        "led_brightness=50\n",
+        "led_gamma=2.2\n",
+        "led_r_gain=1\n",
+        "led_b_gain=1\n",
+        "led_g_gain=1\n",
+        "sleep_mode_enable=1\n",
+        "target_city_index=0\n",
+        "frame_brightness_algorithm=0\n",
+        "day_mode_frame_brightness=50\n",
+        "night_mode_frame_brightness=30\n",
+        "sleep_mode_frame_brightness=0\n",
+        "image_period=6000\n",
+        "hdmi_in_start_x=0\n",
+        "hdmi_in_start_y=0\n",
+        "hdmi_in_crop_w=0\n",
+        "hdmi_in_crop_h=0\n",
+        "media_file_start_x=0\n",
+        "media_file_start_y=0\n",
+        "media_file_crop_w=0\n",
+        "media_file_crop_h=0\n",
     ]
     root_dir = os.path.dirname(sys.modules['__main__'].__file__)
     led_config_dir = os.path.join(root_dir, led_params_config_folder_name)

@@ -31,6 +31,7 @@ Page_Map = dict(zip(Page_Select_Btn_Name_List, Page_List))
 
 class MainUi(QMainWindow):
     from _handle_qlocal_message import parser_cmd_from_qlocalserver, cmd_function_map
+    from _handle_brightness_by_time import check_brightness_by_date_timer, is_sleep_time, check_daymode_nightmode
 
     def __init__(self):
         log.debug("Venom A Main Window Init!")
@@ -66,6 +67,9 @@ class MainUi(QMainWindow):
         self.left_bottom_frame_layout = None
         self.ui_funcs_select_frame = None
         self.ui_sys_sw_info_frame = None
+
+        '''frame brightness test log'''
+        self.brightness_test_log = True
 
         ''' each pages of right frame'''
         self.right_frame_page_list = []
@@ -106,6 +110,22 @@ class MainUi(QMainWindow):
 
         for fpga in self.fpga_list:
             fpga.fpga_cmd_center.write_fpga_register(fpga.i_id, 'currentGammaTable', str(22))
+
+        self.sleep_start_time, self.sleep_end_time = utils.utils_file_access.get_sleep_time_from_file()
+        log.debug("self.sleep_start_time = %s", self.sleep_start_time)
+        log.debug("self.sleep_end_time = %s", self.sleep_end_time)
+        self.i_sleep_start_time_hour = int(self.sleep_start_time.split(":")[0])
+        self.i_sleep_start_time_min = int(self.sleep_start_time.split(":")[1])
+        self.i_sleep_end_time_hour = int(self.sleep_end_time.split(":")[0])
+        self.i_sleep_end_time_min = int(self.sleep_end_time.split(":")[1])
+
+        self.date_timer = QTimer(self)
+        self.date_timer.timeout.connect(self.check_brightness_by_date_timer)
+        # self.date_timer.start(1*60*1000)
+        try:
+            self.date_timer.start(BRIGHTNESS_TIMER_INTERVAL)
+        except Exception as e:
+            log.debug(e)
 
         # test frame brightness adjust
         # self.test_timer = QTimer(self)

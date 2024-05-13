@@ -13,10 +13,10 @@ LD_PATH = root_dir + "/ext_binaries/"
 FPGA_START_ID = 2
 
 if platform.machine() in ('arm', 'arm64', 'aarch64'):
-    if "pi5" in platform.node():    # pi5
+    if "pi5" in platform.node():  # pi5
         SU_PWD = 'workout13'
         ETH_DEV = 'end0'
-    else:   # pi4-64
+    else:  # pi4-64
         SU_PWD = 'workout13'
         ETH_DEV = 'eth0'
 else:
@@ -28,7 +28,6 @@ Version = (
     "{}{}{}_{}{}{}".format(Version_Year, Version_Month, Version_Date,
                            Version_Major, Version_Minor, Version_Patch))
 
-
 if platform.machine() in ('arm', 'arm64', 'aarch64'):
     internal_media_folder = "/home/root/Videos"
 else:
@@ -38,6 +37,7 @@ ThumbnailFileFolder = "/.thumbnails/"
 PlaylistFolder = "/.playlists/"
 SubtitleFolder = "/.subtitle_data"
 
+
 class play_type(enum.IntEnum):
     play_none = 0
     play_single = 1
@@ -46,9 +46,17 @@ class play_type(enum.IntEnum):
     play_cms = 4
 
 
-MIN_FRAME_BRIGHTNESS=0
-MAX_FRAME_BRIGHTNESS=100
+class frame_brightness_alog(enum.IntEnum):
+    fix_mode = 0
+    auto_time_mode = 1
+    auto_als_mode = 2
+    test_mode = 3
 
-MIN_FRAME_GAMMA=0
-MAX_FRAME_GAMMA=2.5
 
+BRIGHTNESS_TIMER_INTERVAL = 1 * 1000
+
+MIN_FRAME_BRIGHTNESS = 0
+MAX_FRAME_BRIGHTNESS = 100
+
+MIN_FRAME_GAMMA = 0
+MAX_FRAME_GAMMA = 2.5
