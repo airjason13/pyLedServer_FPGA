@@ -142,5 +142,1068 @@
           <span class="visually-hidden">Next</span>
         </button>
     </div>
+
+    <table style="width:100vw" class="table">
+        <tr>
+          <td>
+            <button data-bs-toggle="modal" data-bs-target="#playList" class="item" onclick="">
+                <!-- <img src="svg/music-note-list.svg" class="svgImg"> -->
+              Playlist
+            </button>
+          </td>
+          <td>
+
+            <button data-bs-toggle="modal" data-bs-target="#brightnessMode" class="item">
+              Brightness Mode
+            </button>
+
+          </td>
+            <!-- <button data-bs-toggle="modal" data-bs-target="#brightnessValue" class="item">
+              Brightness Value
+            </button> -->
+        </tr>
+    </table>
+
+        <!-- 調亮度Modal -->
+    <div class="modal fade" id="brightnessValue" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBrightnessValue" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="staticBrightnessValue">Brightness Setting</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-floating mb-2">
+                    <input type="number" class="form-control" id="floatingFrameBrightness" onchange="checkValue0_100(this.id)" value={{ brightnessvalues.frame_brightness }}>
+                    <label for="floatingFrameBrightness">Frame Brightness</label>
+                </div>
+                <div class="form-floating mb-2">
+                    <input type="number" class="form-control" id="floatingNightModeFrameBrightness" onchange="checkValue0_100(this.id)" value={{ brightnessvalues.night_mode_frame_brightness }}>
+                    <label for="floatingNightModeFrameBrightness">Night Mode</label>
+                </div>
+                <div class="form-floating mb-2">
+                    <input type="number" class="form-control" id="floatingDayModeFrameBrightness" placeholder="25" onchange="checkValue0_100(this.id)" value={{ brightnessvalues.day_mode_frame_brightness }}>
+                    <label for="floatingDayModeFrameBrightness">Day Mode</label>
+                </div>
+                <div class="form-floating">
+                    <input type="number" class="form-control" id="floatingSleepModeFrameBrightness" placeholder="25" onchange="checkValue0_100(this.id)" value={{ brightnessvalues.sleep_mode_frame_brightness }}>
+                    <label for="floatingSleepModeFrameBrightness">Sleep Mode</label>
+                </div>
+            </div>
+            <div class="modal-footer">
+            {% if ledrole == "Server" %}
+                <button type="submit" class="btn btn-primary" onclick="submit_frame_brightness_values_option()">Submit</button>
+	 {% else %}
+	 <button type="submit" class="btn btn-primary" onclick="submit_aio_frame_brightness_values_option()">Submit</button>
+            {% endif %}
+            </div>
+        </div>
+        </div>
+    </div>
+
+        <!-- 亮度模式Modal -->
+    <div class="modal fade" id="brightnessMode" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBrightnessMode" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="staticBrightnessMode">Brightness Mode</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- <form> -->
+                    <div class="form-floating">
+                        <select class="form-select" id="floatingCity" onchange=""> <!-- submit_target_city_option() -->
+						<option selected value={{form.city_selectfiled.data}} disabled>{{form.city_selectfiled.data}}</option>
+						{% for i in range(form.city_selectfiled.choices|length) %}
+						<option value={{form.city_selectfiled.choices[i]}}>{{form.city_selectfiled.choices[i]}}</option>
+						{% endfor %}
+                        <!-- <option selected disabled>Where are you?</option>
+                        <option value="Taipei">Taipei</option>
+                        <option value="Taichung">Taichung</option>
+                        <option value="kaohsiung">Kaohsiung</option>
+                        <option value="Taoyuan">Taoyuan</option> -->
+                        </select>
+                        <label for="floatingCity">City</label>
+                    </div>
+
+                    <div class="form-floating mt-2">
+                        <select class="form-select" id="floatingBrightnessMode" onchange="selectBrightnessMode();"> <!-- submit_frame_brightness_mode_option(); -->
+                        <option value={{form.brightness_mode_switcher.data}} selected disabled>{{form.brightness_mode_switcher.data}}</option>
+
+	         <!-- <option selected disabled>Choose a Mode</option> -->
+	         {% for k,v in form.brightness_mode_switcher.choices %}
+                        <option value="{{k}}">{{v}}</option>
+	         {% endfor %}
+                        <!-- <option value="1">Time Mode</option>
+                        <option value="0">Fix Mode</option> -->
+                        </select>
+                        <label for="floatingBrightnessMode">Brightness Mode</label>
+                    </div>
+
+                    <div class="form-check form-switch mt-2" id="sleepModeDiv" style="text-align: left;">
+	         {% if form.sleep_mode_switcher.data == "Enable" %}
+                        <input class="form-check-input" type="checkbox" id="switchSleepMode" onchange="checkboxSleepMode(this);" checked> <!-- submit_sleep_mode_option(); -->
+                        {% else %}
+	         <input class="form-check-input" type="checkbox" id="switchSleepMode" onchange="checkboxSleepMode(this);"> <!-- submit_sleep_mode_option(); -->
+                        {% endif %}
+	         <label class="form-check-label" for="switchSleepMode">Sleep Mode</label>
+                    </div>
+                    <div class="form-floating mt-2" id="sleepStartDiv">
+                        <input type="time" class="form-control" id="floatingStartTime" value={{sleep_start_time}}>
+                        <label for="floatingStartTime">Start Time</label>
+                    </div>
+                    <div class="form-floating mt-2" id="sleepEndDiv">
+                        <input type="time" class="form-control" id="floatingEndTime" value={{sleep_end_time}}>
+                        <label for="floatingEndTime">End Time</label>
+                    </div>
+                <!-- </form> -->
+            </div>
+            <div class="modal-footer">
+            <div class="d-grid gap-2 d-md-block">
+                <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#brightnessValue">Set Values</button>
+                <button type="button" class="btn btn-primary" id="sleepModeButton" onclick="submitBrightnessMode()">Submit</button>
+            </div>
+            </div>
+        </div>
+        </div>
+    </div>
+
+    <script>
+        $(function(){
+            $("#sleepModeDiv").hide();
+            $("#sleepStartDiv").hide();
+            $("#sleepEndDiv").hide();
+            $("#uploadButton").hide();
+            // $("#removePlaylist").hide();
+            // $("#newPlaylist").hide();
+            // $("#addToPlaylist").hide();
+            $("#floatingPlayFileNameDiv").hide();
+            $("#floatingDefaultPlaylistNameDiv").hide();
+            if(!$("#switchReboot").is(":checked")){
+                $("#rebootDiv").hide();
+            }
+
+            var playlist_items = jsonstr;
+            //console.log(Object.keys(playlist_items).length);
+            var test_items=[];
+            for (let i=0; i<Object.keys(playlist_items).length; i++){
+                new_item = {"name": Object.keys(playlist_items)[i]};
+                test_items.push(new_item);
+            }
+            //console.log("test_items = " + test_items[0]);
+
+            // Media File's context menu
+            $.contextMenu({
+                selector: '.contextMediaFile',
+                className: 'context',
+                callback: function(key, options) {
+                    var id = options.$trigger.attr("id");
+                    var name = options.$trigger.attr("name");
+                    console.log("id : " + id + "  name : " + name);
+                    // var m = "clicked: " + key;
+                    // alert(m);
+                    switch(key){
+                        case "delete":
+                            Swal.fire({
+                                title: 'Are you sure?',
+                                text: "You won't be able to revert this!",
+                                icon: 'warning',
+                                showCancelButton: true,
+                                confirmButtonColor: '#3085d6',
+                                cancelButtonColor: '#d33',
+                                confirmButtonText: 'Yes, delete it!'
+                            }).then((result) => {
+                                if (result.isConfirmed) {
+                                    remove_media_file(name);
+									deleteConfirm();
+                                    // console.log("key = " + key);
+									/*
+                                    Swal.fire(
+                                        'Deleted!',
+                                        'Your file has been deleted.',
+                                        'success'
+                                    )
+									*/
+                                }
+                            })
+                            break;
+                        case "addNew":
+	                        create_new_playlist(name);
+                            // createPlaylist();
+                            // $('#playList').modal('show');
+                            // $("#addToPlaylist").show();
+                            // $("#removePlaylist").hide();
+                            // $("#newPlaylist").hide();
+                            break;
+                        default:
+                            if(key >= 0){
+                                var playlist_tmp = Array.from(Object.keys(playlist_items)[key]);
+                                var playlist = playlist_tmp.join("");
+                                add_to_playlist(name, playlist);
+                                console.log("name = " + name);
+                                console.log("playlist = " + playlist);
+                            }
+                            break;
+                    }
+                },
+                items: {
+                    "delete": {name: "Remove this file", icon: "fa-solid fa-folder-minus"},
+                    //"addExisting": {name: "Add to existing playlist", icon: "fa-solid fa-folder-plus"},
+                    "addNew": {name: "Add to new playlist", icon: "fa-solid fa-folder-plus"},
+	                "addToPlaylist": {
+                        name: "Add to existing playlist",
+                        icon: "fa-solid fa-folder-plus",
+                        "items": test_items
+                    }
+                }
+            });
+
+            // Remove a file from playlist's context menu
+            $.contextMenu({
+                selector: '.playListContext',
+	            className: 'context',
+                callback: function(key, options) {
+                    Swal.fire({
+                        title: 'Are you sure?',
+                        text: "You won't be able to revert this!",
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#3085d6',
+                        cancelButtonColor: '#d33',
+                        confirmButtonText: 'Yes, delete it!'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            var name = $("#floatingPlaylistName option:selected").text();
+                            var id = options.$trigger.attr("id");
+                            console.log("name = "+ name);
+                            console.log("id = "+ id);
+							remove_file_from_playlist(name, id);
+                            deleteConfirm();
+							//location.reload();
+                        }
+                    })
+                },
+                items: {
+                    "delete": {name: "Remove from playlist", icon: "fa-solid fa-folder-minus"}
+                }
+            });
+
+            // $('#modalImgDiv').on('click', function(e){
+            //     console.log('clicked', this);
+            // })
+        });
+
+        // $('input[type="radio"][name="brightnessRadio"]').on('change', function() {
+        //     switch($(this).val()) {
+        //         case '1':
+        //             $("#sleepModeDiv").show();
+        //             checkboxSleepMode($("#switchSleepMode").is(":checked"));
+        //             if($("#switchSleepMode").is(":checked")){
+        //                 $("#sleepStartDiv").show();
+        //                 $("#sleepEndDiv").show();
+        //             }
+        //             break;
+        //         case '2':
+        //             $("#sleepModeDiv").hide();
+        //             $("#sleepStartDiv").hide();
+        //             $("#sleepEndDiv").hide();
+        //             break;
+        //         default:
+        //             $("#sleepModeDiv").hide();
+        //             break;
+        //     }
+        //     console.log($(this).val());
+        //     console.log($("#switchSleepMode").is(":checked"));
+        // });
+
+        /*
+        function showPlaylistButton() {
+            $("#removePlaylist").show();
+            $("#newPlaylist").show();
+            $("#addToPlaylist").hide();
+        }
+        */
+		function deleteConfirm(){
+			Swal.fire({
+				icon: 'success',
+				title: 'Your file has been deleted.',
+				showConfirmButton: false,
+            })
+			setTimeout(function(){
+				Swal.close();
+				window.location.reload();
+			}, 1600);
+		}
+
+        function checkFile(){
+            var fileInput = $("#inputFile").val().split('\\').pop();
+            if(fileInput.endsWith("mp4") || fileInput.endsWith("jpg") || fileInput.endsWith("jpeg") || fileInput.endsWith("png")){//
+				var spot = fileInput.split('.').length - 1;
+				//console.log("spot = " + spot);
+				if(spot > 1){
+					Swal.fire({
+						icon: 'error',
+						title: 'File name is illegal',
+						text: 'Over one spot in file name'
+					})
+					$("#uploadButton").hide();
+					console.log("File name spot = " + spot);
+				}else{
+					console.log("fileInput = " + fileInput);
+					$("#uploadButton").show();
+				}
+			}else{
+				Swal.fire({
+					icon: 'error',
+					title: 'Data type not allowed',
+					text: 'Only allow jpg, jpeg, png and mp4.'
+				})
+				$("#uploadButton").hide();
+			}
+        }
+
+        function ICLEDsetting(){
+            var input = $( "#floatingICLED option:selected" ).text();
+            console.log("ICLED option = " + input);
+        }
+
+        function currentGainSetting(){
+            var red = $("#floatingRed").val();
+            var green = $("#floatingGreen").val();
+            var blue = $("#floatingBlue").val();
+            console.log("red = " + red);
+            console.log("green = " + green);
+            console.log("blue = " + blue);
+        }
+
+        function onchangePlaylist() {
+			document.getElementById("modalImgDiv").innerHTML = '';
+            var input = $("#floatingPlaylistName").val();
+			input = input.replaceAll("'", "\"");
+			var obj = JSON.parse(input, function(key, value) {
+				if (value.toString().endsWith('webp')){
+					document.getElementById("modalImgDiv").innerHTML += '<img class="w-75 img-thumbnail playListContext" id="' + key + '" src="./get_thumbnail/' + value + '" />';
+					console.log("key = " + key);
+					console.log("value = " + value);
+				}
+			});
+            // var inputPlaylist = $( "#floatingPlaylistName option:selected" ).text();
+			/* // 舊寫法
+            input = input.replaceAll(":", ",");
+            input = input.replaceAll(" ", "");
+            input = input.replaceAll("'", "");
+            input = input.replace("{", "");
+            input = input.replace("}", "");
+            var split_string = input.split(",");
+            console.log("split_string = " + split_string);
+
+            document.getElementById("modalImgDiv").innerHTML = '';
+            for(let i=1; i<split_string.length; i+=2){
+                // document.getElementById("modalImgDiv").innerHTML += '<img class="w-75 img-thumbnail playListContext" id="' + split_string[i-1] + '" src="./get_thumbnail/' + split_string[i] + '" onclick="play_playlist(\'' + inputPlaylist + '\')" />';
+                document.getElementById("modalImgDiv").innerHTML += '<img class="w-75 img-thumbnail playListContext" id="' + split_string[i-1] + '" src="./get_thumbnail/' + split_string[i] + '" />';
+				console.log("id = " + split_string[i-1]);
+				console.log("split_string = " + split_string[i]);
+            }
+			*/
+        }
+
+        function checkValue0_100(value){
+            var input = $("#" + value).val();
+            console.log("input = " + input);
+            if(input > 100 || input < 0){
+                Swal.fire({
+                    icon: 'warning',
+                    text: 'Input should between 0 to 100',
+                    showConfirmButton: false,
+                    timer: 2000
+                })
+            }
+        }
+
+        function checkboxSleepMode(value){
+            if(value.checked){
+                $("#sleepStartDiv").show();
+                $("#sleepEndDiv").show();
+                //$("#sleepModeButton").attr("onclick", "submit_sleep_time_option();submitBrightnessMode();");
+                // $("#sleepModeButton").attr("data-bs-dismiss", null);
+                // document.getElementById("sleepModeButton").innerHTML ='<button type="submit" class="btn btn-primary" onclick="submit_sleep_time_option()">Submit</button>';
+            }else{
+                $("#sleepStartDiv").hide();
+                $("#sleepEndDiv").hide();
+                //$("#sleepModeButton").attr("onclick", "submitBrightnessMode()");
+                // $("#sleepModeButton").attr("data-bs-dismiss", "modal");
+            }
+            // console.log("checkboxSleepMode: " + $("#switchSleepMode").is(":checked"));
+        }
+
+        function checkboxReboot(value){
+            if(value.checked){
+                $("#rebootDiv").show();
+                $("#rebootSubmit").attr("onclick", "submit_reboot_time_option()");
+                // $("#rebootNowButton").hide();
+                // $("#rebootLaterButton").show();
+            }else{
+                // $("#rebootButton").show();
+                $("#rebootDiv").hide();
+                $("#rebootSubmit").attr("onclick", null);
+                // $("#rebootNowButton").show();
+                // $("#rebootLaterButton").hide();
+            }
+            console.log(value.checked);
+        }
+
+        function selectBrightnessMode(){
+            var brightnessMode = document.getElementById("floatingBrightnessMode").value;
+            switch(brightnessMode){
+                case "Time Mode":
+                    $("#sleepModeDiv").show();
+                    if($("#switchSleepMode").is(":checked")){
+                        $("#sleepStartDiv").show();
+                        $("#sleepEndDiv").show();
+                    }
+                    break;
+				/*
+                case "Fix Mode":
+                    $("#sleepModeDiv").hide();
+                    $("#sleepStartDiv").hide();
+                    $("#sleepEndDiv").hide();
+                    break;
+				*/
+                default:
+                    $("#sleepModeDiv").hide();
+                    $("#sleepStartDiv").hide();
+                    $("#sleepEndDiv").hide();
+                    break;
+            }
+            //console.log("val : " + brightnessMode);
+        }
+
+		// set 1.city  2.Brightness Mode  3.sleepMode & sleepTime
+        function submitBrightnessMode(){
+            var city = $("#floatingCity option:selected").text();
+            var brightnessModeTxt = $("#floatingBrightnessMode option:selected").text();
+            var brightnessMode = $("#floatingBrightnessMode option:selected").val();
+			/*
+			switch(brightnessMode){
+				case "Fix Mode":
+					brightnessMode = "0";
+					break;
+				case "Time Mode":
+					brightnessMode = "1";
+					break;
+				case "ALS Mode":
+					brightnessMode = "2";
+					break;
+				case "Test Mode":
+					brightnessMode = "3";
+					break;
+				default:
+					break;
+			}
+			*/
+
+			//console.log("text : " + brightnessMode);
+
+			// Brightness Mode; value=0, 1, 2, 3...
+			var url = "/set_brightness_algo/" + brightnessMode;
+			$.post(url, {});
+			console.log("Brightness Mode : " + url);
+
+			// city; value=Taipei, Taichung, Taoyuan, kaohsiung
+            url = "/set_target_city/" + city;
+            $.post(url, {});
+			console.log("city_select : " + url);
+
+            if(brightnessMode == "Time Mode"){
+				var sleepMode;
+                if($("#switchSleepMode").is(":checked")){
+                    var startTime = $("#floatingStartTime").val();
+                    var endTime = $("#floatingEndTime").val();
+                    if(!startTime || !endTime){
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Input cannot be empty',
+                        })
+                    }else{
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Set Data',
+                            html:
+                                '<table class="table table-striped table-bordered" style="text-align: left;">' +
+                                '<tr>' +
+                                    '<td>City</td>' +
+                                    '<td>' + city + '</td>' +
+                                '</tr>' +
+                                '<tr>' +
+                                    '<td>Brightness Mode</td>' +
+                                    '<td>' + brightnessModeTxt + '</td>' +
+                                '</tr>' +
+                                '<tr>' +
+                                    '<td>Sleep Mode</td>' +
+                                    '<td>ON</td>' +
+                                '</tr>' +
+                                '<tr>' +
+                                    '<td>Start Time</td>' +
+                                    '<td>' + startTime + '</td>' +
+                                '</tr>' +
+                                '<tr>' +
+                                    '<td>End Time</td>' +
+                                    '<td>' + endTime + '</td>' +
+                                '</tr>' +
+                                '</table>',
+                        })
+
+						// 先設定完sleepMode, 再寫入sleepTime
+						sleepMode = "Enable";
+						//url = "/set_sleep_mode/" + sleepMode;
+						//$.post(url, {});
+						//console.log('SleepMode : ' + sleepMode);
+
+						// Sleep Mode : set sleep & end time
+						var sleepTime = startTime + ";" + endTime;
+						url = "/set_sleep_time/" + sleepTime;
+						$.post(url, {});
+                        console.log("Sleep Mode : " + url);
+
+                        $('#brightnessMode').modal('hide');
+                    }
+                }else{
+					sleepMode = "Disable";
+					//url = "/set_sleep_mode/" + sleepMode;
+					//$.post(url, {});
+					//console.log('SleepMode : ' + url);
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Set Data',
+                        html:
+                            '<table class="table table-striped table-bordered" style="text-align: left;">' +
+                            '<tr>' +
+                                '<td>City</td>' +
+                                '<td>' + city + '</td>' +
+                            '</tr>' +
+                            '<tr>' +
+                                '<td>Brightness Mode</td>' +
+                                '<td>' + brightnessModeTxt + '</td>' +
+                            '</tr>' +
+                            '<tr>' +
+                                '<td>Sleep Mode</td>' +
+                                '<td>OFF</td>' +
+                            '</tr>' +
+                            '</table>',
+                    })
+                    $('#brightnessMode').modal('hide');
+                }
+				// Sleep Mode; value=Disable, Enable
+				url = "/set_sleep_mode/" + sleepMode;
+				$.post(url, {});
+				console.log('SleepMode : ' + url);
+            }else{
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Set Data',
+                    html:
+                        '<table class="table table-striped table-bordered" style="text-align: left;">' +
+                        '<tr>' +
+                            '<td>City</td>' +
+                            '<td>' + city + '</td>' +
+                        '</tr>' +
+                        '<tr>' +
+                            '<td>Brightness Mode</td>' +
+                            '<td>' + brightnessModeTxt + '</td>' +
+                        '</tr>' +
+                        '</table>',
+                })
+                $('#brightnessMode').modal('hide');
+            }
+        }
+
+        function onchangeDefaultPlayMode(){
+            var input = $("#floatingPlayMode").val();
+            switch(input){
+                case "single_file_mode":
+                    $("#floatingPlayFileNameDiv").show();
+                    $("#floatingDefaultPlaylistNameDiv").hide();
+                    break;
+                case "playlist_mode":
+                    $("#floatingPlayFileNameDiv").hide();
+                    $("#floatingDefaultPlaylistNameDiv").show();
+                    break;
+                default:
+                    $("#floatingPlayFileNameDiv").hide();
+                    $("#floatingDefaultPlaylistNameDiv").hide();
+                    break;
+            }
+
+
+        }
+
+        /* 以下開始為功能串接程式 */
+        // 刪掉某個playlist
+        function remove_playlist() {
+            var input = $("#floatingPlaylistName option:selected").text();
+            if(input == "Choose a playlist"){
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Input cannot be empty',
+					showConfirmButton: false,
+                    timer: 2000
+                })
+            }else{
+                Swal.fire({
+					title: 'Are you sure?',
+					text: "You won't be able to revert this!",
+					icon: 'warning',
+					showCancelButton: true,
+					confirmButtonColor: '#3085d6',
+					cancelButtonColor: '#d33',
+					confirmButtonText: 'Yes, delete it!'
+	            }).then((result) => {
+					if (result.isConfirmed) {
+						var url = "/remove_playlist/" + input;
+						console.log("playlist = " + input);
+						$.post(url, {});
+						deleteConfirm();
+						/*
+						Swal.fire(
+							'Deleted!',
+							'Your file has been deleted.',
+							'success'
+						)
+						*/
+					}
+	            })
+            }
+        }
+
+        // Brightness Value
+        function submit_frame_brightness_values_option(){
+            var fr_br = document.getElementById("floatingFrameBrightness").value;
+            var day_mode_fr_br = document.getElementById("floatingDayModeFrameBrightness").value;
+            var night_mode_fr_br = document.getElementById("floatingNightModeFrameBrightness").value;
+            var sleep_mode_fr_br = document.getElementById("floatingSleepModeFrameBrightness").value;
+            if(!fr_br || !day_mode_fr_br || !night_mode_fr_br || !sleep_mode_fr_br){
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Input cannot be empty',
+					showConfirmButton: false,
+                    timer: 2000
+                })
+            }else if(fr_br>100 || fr_br<0 || day_mode_fr_br>100 || day_mode_fr_br<0
+            || night_mode_fr_br>100 || night_mode_fr_br<0 || sleep_mode_fr_br>100 || sleep_mode_fr_br<0){
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Illegal Value',
+					showConfirmButton: false,
+                    timer: 2000
+                })
+            }else{
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Set Data',
+					showConfirmButton: false,
+                    timer: 2000
+                })
+                $('#brightnessValue').modal('hide');
+                var data = "fr_br:" + fr_br + ";day_mode_fr_br:" + day_mode_fr_br +";night_mode_fr_br:" + night_mode_fr_br + ";sleep_mode_fr_br:" + sleep_mode_fr_br;
+                /*alert("data : " + data)*/
+                console.log('Brightness Value : ' + data);
+                var url = "/set_brightness_values/" + data;
+                $.post(url, {
+                    /*javascript_data: data*/
+                    });
+            }
+        }
+
+        function submit_aio_frame_brightness_values_option(){
+            var fr_br = document.getElementById("floatingFrameBrightness").value;
+            if(!fr_br){
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Input cannot be empty',
+					showConfirmButton: false,
+                    timer: 2000
+                })
+            }else if(fr_br>100 || fr_br<0){
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Illegal Value',
+					showConfirmButton: false,
+                    timer: 2000
+                })
+            }else{
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Set Data',
+					showConfirmButton: false,
+                    timer: 2000
+                })
+                $('#brightnessValue').modal('hide');
+                var data = "fr_br:" + fr_br + ";day_mode_fr_br:" + fr_br +";night_mode_fr_br:" + fr_br + ";sleep_mode_fr_br:" + fr_br;
+                var url = "/set_brightness_values/" + data;
+                $.post(url, {});
+            }
+        }
+
+        // Default Mode Setting
+        function submit_default_play_mode(){
+            // var mode = document.querySelector('input[name="launch_type_switcher"]:checked').value;
+            var mode = $("#floatingPlayMode").val();
+            var modeName = $("#floatingPlayMode option:selected").text();
+            var param = "";
+            console.log('mode = ' + mode);
+            console.log('modeName = ' + modeName);
+            console.log(param);
+            switch(mode){
+                case "single_file_mode":
+                    param = $("#floatingPlayFileNameDiv option:selected").text();
+                    //modeName = "Single File Mode";
+                    console.log('PlayFileName = ' + param);
+					if(!param){
+						Swal.fire({
+                            icon: 'error',
+                            title: 'Input cannot be empty',
+							showConfirmButton: false,
+                            timer: 2000
+                        })
+					}
+                    break;
+                case "playlist_mode":
+                    param = $("#floatingDefaultPlaylistNameDiv option:selected").text();
+                    //modeName = "Playlist Mode";
+                    console.log('DefaultPlaylistName = ' + param);
+					if(!param){
+						Swal.fire({
+                            icon: 'error',
+                            title: 'Input cannot be empty',
+							showConfirmButton: false,
+                            timer: 2000
+                        })
+					}
+                    break;
+                case "none_mode":
+                    //modeName = "Standby Mode";
+                    break;
+				case "hdmi_in_mode":
+                    //modeName = "Standby Mode";
+                    break;
+				case "cms_mode":
+                    //modeName = "Standby Mode";
+                    break;
+                default:
+                    break;
+            }
+            Swal.fire({
+				icon: 'success',
+                title: modeName + ' Mode',
+				text: param,
+                showConfirmButton: false,
+                timer: 2000
+            })
+			$('#defaultPlayMode').modal('hide');
+               data = mode + ":" + param;
+               var url = "/set_default_play_mode/" + data;
+               $.post(url, {});
+
+			}
+
+        // play media file
+        function play(data){
+            var url = "/play/" + data;
+            $.post(url, {});
+        }
+
+        // play playlist
+        function play_playlist(){
+            var inputPlaylist = $( "#floatingPlaylistName option:selected" ).text();
+            if(inputPlaylist == "Choose a playlist"){
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Input cannot be empty',
+					showConfirmButton: false,
+                    timer: 2000
+                })
+				return;
+            }
+            //console.log("data = " + data);
+            var url = "/play_playlist/" + inputPlaylist;
+            $.post(url, {});
+        }
+
+        function add_to_playlist(file, playlist) {
+            var data = "playlist_name:" + playlist + ";file_name:" + file;
+            var url = "/add_to_playlist/" + data;
+            $.post(url, {});
+			Swal.fire({
+                icon: 'success',
+                title: 'Add to ' + playlist,
+                showConfirmButton: false
+            })
+			setTimeout(function(){
+				Swal.close();
+				window.location.reload();
+			}, 1600);
+        }
+
+        // Brightness Mode; value=0, 1, 2, 3...
+		/*
+        function submit_frame_brightness_mode_option(){
+            // var data = document.querySelector('input[name="brightness_mode_switcher"]:checked').value;
+            var data = document.getElementById("floatingBrightnessMode").value;
+            // alert("data:" + data);
+            console.log('BrightnessMode : ' + data);
+            var url = "/set_brightness_algo/" + data;
+            $.post(url, {});
+        }
+		*/
+
+        // Sleep Mode; value=Disable, Enable
+		/*
+        function submit_sleep_mode_option(){
+            var data;
+            if($("#switchSleepMode").is(":checked")){
+                data = "Enable";
+            }else{
+                data = "Disable";
+            }
+            // alert(data);
+            console.log('SleepMode : ' + data);
+            var url = "/set_sleep_mode/" + data;
+            $.post(url, {});
+        }
+		*/
+
+        // Sleep Mode : set sleep & end time
+		/*
+        function submit_sleep_time_option(){
+            var sleep_start_time = document.getElementById("floatingStartTime").value;
+            var sleep_end_time = document.getElementById("floatingEndTime").value;
+
+            // const getSeconds = s => s.split(":").reduce((acc, curr) => acc * 60 + +curr, 0);
+            // var startSeconds = getSeconds(sleep_start_time);
+            // var endSeconds = getSeconds(sleep_end_time);
+            if (!sleep_start_time || !sleep_end_time) {
+                console.log('time input empty');
+                return;
+            }
+            // Swal.fire({
+            //     icon: 'success',
+            //     title: 'Sleep from ' + sleep_start_time + ' to ' + sleep_end_time,
+            // })
+            data = sleep_start_time + ";" + sleep_end_time;
+            var url = "/set_sleep_time/" + data;
+            $.post(url, {});
+        }
+		*/
+
+        // city; value=Taipei, Taichung, Taoyuan, kaohsiung
+		/*
+        function submit_target_city_option(){
+            var city_select = document.getElementById("floatingCity").value;
+            // Swal.fire({
+            //     icon: 'success',
+            //     title: 'Selected City : ' + city_select,
+            // })
+            // alert(city_select);
+            console.log("city_select : " + city_select);
+            var url = "/set_target_city/" + city_select;
+            $.post(url, {});
+        }
+		*/
+
+        // Set HDMI In
+        function submit_hdmi_in(data){
+            /*var data = "hdmi_in_start"*/
+            /*alert(data);*/
+            var url = "/play_hdmi_in/" + data;
+            $.post(url, {
+                /*javascript_data: data*/
+                });
+        }
+
+        // Set CMS Start
+        function submit_cms_start(data){
+            /*var data = "hdmi_in_start"*/
+            /*alert(data);*/
+            var url = "/play_cms/" + data;
+            $.post(url, {
+                /*javascript_data: data*/
+                });
+        }
+
+        // 跑馬燈 play text 設定
+        function submit_text_content(){
+            /*alert("submit_text_content")*/
+            var text_context = $("#floatingTextContext").val(); // data1
+            var text_font_size = document.getElementById('floatingFontSize').value; //data2
+            var text_speed = document.getElementById("floatingTextSpeed").value;
+            var text_position = document.getElementById("floatingTextPosition").value;
+            var text_period = document.getElementById("floatingTextPeriod").value;
+
+            if(!text_context || !text_font_size || !text_speed || !text_position || !text_period){
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Input cannot be empty',
+                })
+                return;
+            }
+
+            console.log('text_speed : ' + text_speed);
+            console.log('text_position : ' + text_position);
+            console.log('text_period : ' + text_period);
+            console.log('text_context : ' + text_context);
+            console.log('text_font_size : ' + text_font_size);
+
+            var url = "/set_text_speed/" + text_speed;
+            $.post(url, {
+                /*javascript_data: text_speed*/
+                });
+
+            var url = "/set_text_position/" + text_position;
+            $.post(url, {
+                /*javascript_data: text_position*/
+                });
+
+            var url = "/set_text_period/" + text_period;
+            $.post(url, {
+                /*javascript_data: text_period*/
+                });
+
+            var url = "/play_text/" + text_context;
+            $.post(url, {
+                /*javascript_data: data1*/
+                });
+
+            var url = "/set_text_size/" + text_font_size;
+            $.post(url, {
+                /*javascript_data: data2*/
+                });
+        }
+
+        // Reboot
+        function submit_reboot_time_option(){
+            var data = document.getElementById("floatingRebootTime").value;
+            if (!data) {
+                // $("#rebootSubmit").attr("data-bs-dismiss", "modal");
+                console.log('time input empty');
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Input cannot be empty',
+					showConfirmButton: false,
+                    timer: 2000
+                })
+                // $("#reboot").show();
+                return;
+            }
+            // $("#rebootSubmit").attr("data-bs-dismiss", null);
+            Swal.fire({
+                icon: 'success',
+                title: 'Reboot Time : ' + data,
+				showConfirmButton: false,
+                timer: 2000
+            })
+            // alert("Reboot Time : " + data);
+            var url = "/set_reboot_time/" + data;
+            $.post(url, {
+                /*javascript_data: data*/
+                });
+        }
+
+        // Reboot Switcher
+        function submit_reboot_option(){
+            var data;
+            if($("#switchReboot").is(":checked")){
+                data = "Enable";
+            }else{
+                data = "Disable";
+            }
+            // alert(data);
+            console.log('Reboot Mode : ' + data);
+
+            // var data = document.querySelector('input[name="reboot_mode_switcher"]:checked').value;
+            // alert("Reboot Mode : " + data);
+            var url = "/set_reboot_mode/" + data;
+            $.post(url, {
+                /*javascript_data: data*/
+                });
+        }
+
+        // 還沒動
+        // create playlist
+        async function create_new_playlist(file) {
+            const { value: playlistName } = await Swal.fire({
+                title: 'Enter playlist name',
+                input: 'text',
+                inputLabel: 'New playlist name',
+                // inputValue: inputValue,
+                showCancelButton: true,
+                inputValidator: (value) => {
+                    if (!value) {
+                        return 'You need to write something!'
+                    }
+                }
+            })
+            if (playlistName) {
+                // Swal.fire(`New playlist name is ${playlistName}`)
+				var data = "playlist_name:"+playlistName+";file_name:"+file;
+                var url = "/create_new_playlist/" + data;
+                $.post(url, {
+                    /*javascript_data: data*/
+                    });
+                Swal.fire({
+                    icon: 'success',
+                    title: 'New playlist name : ' + playlistName,
+                    showConfirmButton: false
+                })
+				setTimeout(function(){
+					Swal.close();
+					window.location.reload();
+				}, 1600);
+            }
+        }
+
+        function remove_file_from_playlist(playlist, file) {
+            data = "playlist:" + playlist + ";file:" + file
+            var url = "/remove_file_from_playlist/" + data;
+            $.post(url, {});
+        }
+
+        // 還沒動
+        function remove_media_file(data) {
+            var url = "/remove_media_file/" + data;
+            $.post(url, {
+                /*javascript_data: data*/
+                });
+        }
+        // $(document).ready(function(){
+        //     // $("#carouselCaptions").carousel();
+        //     alert(options.val());
+        // });
+
+        // $(".item").click(function(){
+        //     $("").modal("show");
+        // });
+        // $(document).ready(function() {
+        //     $("#myModal").modal("show");
+        // });
+        // $('#nav-tab a[href="#nav-playText"]').on('click', function (e) {
+        //     e.preventDefault()
+        //     $(this).tab('show')
+        // })
+
+        // $('#nav-tab a[href="#nav-mediaFiles"]').on('click', function (e) {
+        //     e.preventDefault()
+        //     $(this).tab('show')
+        // })
+
+        // $('#nav-tab a[href="#nav-playlists"]').on('click', function (e) {
+        //     e.preventDefault()
+        //     $(this).tab('show')
+        // })
+
+        // $('#nav-tab a[href="#nav-brightnessMode"]').on('click', function (e) {
+        //     e.preventDefault()
+        //     $(this).tab('show')
+        // })
+    </script>
 </body>
 </html>

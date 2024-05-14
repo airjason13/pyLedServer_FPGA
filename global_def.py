@@ -53,6 +53,11 @@ class frame_brightness_alog(enum.IntEnum):
     test_mode = 3
 
 
+class sleep_mode(enum.IntEnum):
+    disable = 0
+    enable = 1
+
+
 BRIGHTNESS_TIMER_INTERVAL = 1 * 1000
 
 MIN_FRAME_BRIGHTNESS = 0

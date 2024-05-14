@@ -152,3 +152,38 @@ def get_brightness_mode_default() -> str:
                 str_ret = 'TEXT Mode'
     f.close()
     return str_ret
+
+def get_brightness_value_default():
+    root_dir = os.path.dirname(sys.modules['__main__'].__file__)
+    led_config_dir = os.path.join(root_dir, led_params_config_folder_name)
+    brightness_values_maps = {}
+
+    str_fr_br = "0"
+    str_fr_br_day_mode = "0"
+    str_fr_br_night_mode = "0"
+    str_fr_br_sleep_mode = "0"
+    if os.path.exists(os.path.join(led_config_dir, led_params_config_file_name)) is False:
+        init_video_params()
+
+    with open(os.path.join(led_config_dir, led_params_config_file_name), "r+") as f:
+        lines = f.readlines()
+
+    for line in lines:
+        tag = line.split("=")[0]
+        if "led_brightness" == tag:
+            str_fr_br = line.strip("\n").split("=")[1]
+            brightness_values_maps["frame_brightness"] = str_fr_br
+        elif "day_mode_frame_brightness" == tag:
+            str_fr_br_day_mode = line.strip("\n").split("=")[1]
+            brightness_values_maps["day_mode_frame_brightness"] = str_fr_br_day_mode
+        elif "night_mode_frame_brightness" == tag:
+            str_fr_br_night_mode = line.strip("\n").split("=")[1]
+            brightness_values_maps["night_mode_frame_brightness"] = str_fr_br_night_mode
+        elif "sleep_mode_frame_brightness" == tag:
+            str_fr_br_sleep_mode = line.strip("\n").split("=")[1]
+            brightness_values_maps["sleep_mode_frame_brightness"] = str_fr_br_sleep_mode
+
+    f.close()
+
+    return brightness_values_maps
+

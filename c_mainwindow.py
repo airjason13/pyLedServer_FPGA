@@ -32,9 +32,11 @@ Page_Map = dict(zip(Page_Select_Btn_Name_List, Page_List))
 class MainUi(QMainWindow):
     from _handle_qlocal_message import parser_cmd_from_qlocalserver, cmd_function_map
     from _handle_brightness_by_time import check_brightness_by_date_timer, is_sleep_time, check_daymode_nightmode
+    '''frame brightness test log'''
+    brightness_test_log = False
 
     def __init__(self):
-        log.debug("Venom A Main Window Init!")
+        log.debug("Venom Main Window Init!")
         super().__init__()
 
         eth_if_promisc_cmd = os.popen("ifconfig {} promisc".format(ETH_DEV))
@@ -67,9 +69,6 @@ class MainUi(QMainWindow):
         self.left_bottom_frame_layout = None
         self.ui_funcs_select_frame = None
         self.ui_sys_sw_info_frame = None
-
-        '''frame brightness test log'''
-        self.brightness_test_log = True
 
         ''' each pages of right frame'''
         self.right_frame_page_list = []

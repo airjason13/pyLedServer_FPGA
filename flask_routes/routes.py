@@ -1,9 +1,9 @@
 import os
 
 from flask_routes.routes_ops import get_sleep_mode_default, get_brightness_mode_default, get_target_city_default, \
-    get_city_list, get_reboot_mode_default
+    get_city_list, get_reboot_mode_default, get_brightness_value_default
 from global_def import log, internal_media_folder, PlaylistFolder, play_type, ThumbnailFileFolder
-from flask import render_template, send_from_directory
+from flask import render_template, send_from_directory, Response
 import hashlib
 import glob
 import json
@@ -12,6 +12,7 @@ from wtforms import validators, RadioField, SubmitField, IntegerField, SelectFie
     DateTimeField
 from main import app
 from qlocalmessage import send_message
+from global_def import log, Version
 
 SECRET_KEY = os.urandom(32)
 app.config['SECRET_KEY'] = SECRET_KEY
@@ -140,6 +141,38 @@ def route_get_thumbnail(filename):
     return send_from_directory(internal_media_folder + ThumbnailFileFolder, filename, as_attachment=True)
 
 
+@app.route('/set_brightness_algo/<data>', methods=['POST'])
+def set_brightness_algo(data):
+    log.debug("set_brightness_algo data :" + data)
+    send_message(set_brightness_algo=data)
+    status_code = Response(status=200)
+    return status_code
+
+
+@app.route('/set_target_city/<data>', methods=['POST'])
+def set_target_city(data):
+    log.debug("set_target_city, data = %s", data)
+    send_message(set_target_city=data)
+    status_code = Response(status=200)
+    return status_code
+
+
+@app.route('/set_sleep_mode/<data>', methods=['POST'])
+def set_sleep_mode(data):
+    log.debug("set_sleep_mode, data = %s", data)
+    send_message(set_sleep_mode=data)
+    status_code = Response(status=200)
+    return status_code
+
+
+@app.route('/set_brightness_values/<data>', methods=['POST'])
+def set_brightness_values(data):
+    log.debug("set_brightness_values data :" + data)
+    send_message(set_frame_brightness_values_option=data)
+    status_code = Response(status=200)
+    return status_code
+
+
 class BrightnessAlgoForm(Form):
 
     style = {'class': 'ourClasses', 'style': 'font-size:24px;color:white', }
@@ -200,7 +233,17 @@ def refresh_template():
     playlist_js_file.truncate()
     playlist_js_file.close()
 
-    return render_template("index.html", files=maps)
+    brightnessAlgoform = BrightnessAlgoForm()
+    brightnessAlgoform.sleep_mode_switcher.data = get_sleep_mode_default()
+    brightnessAlgoform.city_selectfiled.data = get_target_city_default()
+    brightnessAlgoform.reboot_mode_switcher.data = get_reboot_mode_default()
+    # print(type(brightnessAlgoform.city_selectfiled.choices))
+    brightnessAlgoform.brightness_mode_switcher.data = get_brightness_mode_default()
+
+    brightnessvalues = get_brightness_value_default()
+
+    return render_template("index.html", title="GIS TLED", files=maps, sw_version=Version,
+                           form=brightnessAlgoform, brightnessvalues=brightnessvalues,)
 
 
 @app.route("/")

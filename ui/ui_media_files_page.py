@@ -21,7 +21,7 @@ from ext_qt_widgets.media_playlist import PlayList
 from ext_qt_widgets.new_playlist_dialog_widget import NewPlaylistDialog
 from ext_qt_widgets.system_file_watcher import FileWatcher
 from global_def import log, MIN_FRAME_BRIGHTNESS, MAX_FRAME_BRIGHTNESS, MIN_FRAME_GAMMA, MAX_FRAME_GAMMA, \
-    frame_brightness_alog
+    frame_brightness_alog, sleep_mode
 from ext_qt_widgets.custom_tree_widget import CTreeWidget
 from media_configs.media_path_configs import *
 from utils.gen_thumbnails import gen_webp_from_video_threading
@@ -69,6 +69,8 @@ class MediaFilesPage(QWidget):
 
         self.brightness_algo_label = None
         self.brightness_algo_combobox = None
+        self.sleep_mode_enable_label = None
+        self.sleep_mode_enable_combobox = None
         self.target_city_label = None
         self.target_city_combobox = None
 
@@ -309,6 +311,15 @@ class MediaFilesPage(QWidget):
             self.brightness_algo_combobox.addItem(str(i))
         self.brightness_algo_combobox.setCurrentIndex(self.media_engine.led_video_params.get_frame_brightness_algo())
 
+        self.sleep_mode_enable_label = QLabel(self.video_params_setting_widget)
+        self.sleep_mode_enable_label.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
+        self.sleep_mode_enable_label.setText("Sleep Mode:")
+        self.sleep_mode_enable_combobox = QComboBox(self.video_params_setting_widget)
+        self.sleep_mode_enable_combobox.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
+        for i in sleep_mode:
+            self.sleep_mode_enable_combobox.addItem(str(i))
+        self.sleep_mode_enable_combobox.setCurrentIndex(self.media_engine.led_video_params.get_sleep_mode_enable())
+
         self.target_city_label = QLabel(self.video_params_setting_widget)
         self.target_city_label.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
         self.target_city_label.setText("City:")
@@ -349,12 +360,13 @@ class MediaFilesPage(QWidget):
         self.video_params_setting_layout.addWidget(self.video_gamma_label, 1, 2)
         self.video_params_setting_layout.addWidget(self.video_brightness_lineedit, 0, 3)
         self.video_params_setting_layout.addWidget(self.video_gamma_lineedit, 1, 3)
-
+        self.video_params_setting_layout.addWidget(self.brightness_algo_label, 2, 2)
+        self.video_params_setting_layout.addWidget(self.brightness_algo_combobox, 2, 3)
         self.video_params_setting_layout.addWidget(self.target_city_label, 3, 2)
         self.video_params_setting_layout.addWidget(self.target_city_combobox, 3, 3)
 
-        self.video_params_setting_layout.addWidget(self.brightness_algo_label, 0, 4)
-        self.video_params_setting_layout.addWidget(self.brightness_algo_combobox, 0, 5)
+        self.video_params_setting_layout.addWidget(self.sleep_mode_enable_label, 0, 4)
+        self.video_params_setting_layout.addWidget(self.sleep_mode_enable_combobox, 0, 5)
         self.video_params_setting_layout.addWidget(self.day_mode_brightness_label, 1, 4)
         self.video_params_setting_layout.addWidget(self.day_mode_brightness_lineedit, 1, 5)
         self.video_params_setting_layout.addWidget(self.night_mode_brightness_label, 2, 4)
@@ -433,6 +445,7 @@ class MediaFilesPage(QWidget):
         # gen_webp_from_video_threading(self.external_media_folder, os.path.basename(base_fname))
 
     ''' show preview widget or not'''
+
     def mouse_move_on_tree(self, event: QMouseEvent):
         try:
             self.grabMouse()
@@ -873,24 +886,79 @@ class MediaFilesPage(QWidget):
             self.video_gamma_lineedit.setText(str(self.media_engine.led_video_params.get_led_gamma()))
             return
 
+        if (int(self.day_mode_brightness_lineedit.text()) < MIN_FRAME_BRIGHTNESS
+                or int(self.day_mode_brightness_lineedit.text()) > MAX_FRAME_BRIGHTNESS):
+            self.day_mode_brightness_lineedit.setText(
+                str(self.media_engine.led_video_params.get_day_mode_frame_brightness()))
+
+        if (int(self.night_mode_brightness_lineedit.text()) < MIN_FRAME_BRIGHTNESS
+                or int(self.night_mode_brightness_lineedit.text()) > MAX_FRAME_BRIGHTNESS):
+            self.night_mode_brightness_lineedit.setText(
+                str(self.media_engine.led_video_params.get_night_mode_frame_brightness()))
+
+        if (int(self.sleep_mode_brightness_lineedit.text()) < MIN_FRAME_BRIGHTNESS
+                or int(self.sleep_mode_brightness_lineedit.text()) > MAX_FRAME_BRIGHTNESS):
+            self.sleep_mode_brightness_lineedit.setText(
+                str(self.media_engine.led_video_params.get_sleep_mode_frame_brightness()))
+
+        ''' set led brightness '''
         if self.media_engine.led_video_params.get_led_brightness() != int(self.video_brightness_lineedit.text()):
             self.media_engine.led_video_params.set_led_brightness(int(self.video_brightness_lineedit.text()))
+        ''' set led gamma '''
         if self.media_engine.led_video_params.get_led_gamma() != float(self.video_gamma_lineedit.text()):
-            send_message(set_gamma=self.video_gamma_lineedit.text())
+            # send_message(set_gamma=self.video_gamma_lineedit.text()) # for test
             self.media_engine.led_video_params.set_led_gamma(float(self.video_gamma_lineedit.text()))
+
+        ''' set brightness algo '''
         if (self.media_engine.led_video_params.get_frame_brightness_algo() !=
                 self.brightness_algo_combobox.currentIndex()):
             log.debug("brightness_algo changed")
             self.media_engine.led_video_params.set_frame_brightness_algo(self.brightness_algo_combobox.currentIndex())
 
+        ''' set sleep mode enable '''
+        if (self.media_engine.led_video_params.get_sleep_mode_enable() !=
+                self.sleep_mode_enable_combobox.currentIndex()):
+            log.debug("sleep_mode changed")
+            self.media_engine.led_video_params.set_sleep_mode_enable(self.sleep_mode_enable_combobox.currentIndex())
 
+        ''' set target city'''
+        if (self.media_engine.led_video_params.get_target_city_index() !=
+                self.target_city_combobox.currentIndex()):
+            log.debug("target city changed")
+            self.media_engine.led_video_params.set_target_city_index(self.target_city_combobox.currentIndex())
+
+        ''' set led day mode brightness '''
+        if (self.media_engine.led_video_params.get_day_mode_frame_brightness() !=
+                int(self.day_mode_brightness_lineedit.text())):
+            self.media_engine.led_video_params.set_day_mode_frame_brightness(
+                int(self.day_mode_brightness_lineedit.text()))
+
+        ''' set led night mode brightness '''
+        if (self.media_engine.led_video_params.get_night_mode_frame_brightness() !=
+                int(self.night_mode_brightness_lineedit.text())):
+            self.media_engine.led_video_params.set_night_mode_frame_brightness(
+                int(self.night_mode_brightness_lineedit.text()))
+
+        ''' set led sleep mode brightness '''
+        if (self.media_engine.led_video_params.get_sleep_mode_frame_brightness() !=
+                int(self.sleep_mode_brightness_lineedit.text())):
+            self.media_engine.led_video_params.set_sleep_mode_frame_brightness(
+                int(self.sleep_mode_brightness_lineedit.text()))
 
     def video_params_changed(self):
         log.debug("video_params_changed")
         self.video_brightness_lineedit.setText(str(self.media_engine.led_video_params.get_led_brightness()))
         self.video_gamma_lineedit.setText(str(self.media_engine.led_video_params.get_led_gamma()))
+        self.brightness_algo_combobox.setCurrentIndex(self.media_engine.led_video_params.get_frame_brightness_algo())
+        self.sleep_mode_enable_combobox.setCurrentIndex(self.media_engine.led_video_params.get_sleep_mode_enable())
+        self.target_city_combobox.setCurrentIndex(self.media_engine.led_video_params.get_target_city_index())
+        self.day_mode_brightness_lineedit.setText(
+            str(self.media_engine.led_video_params.get_day_mode_frame_brightness()))
+        self.night_mode_brightness_lineedit.setText(
+            str(self.media_engine.led_video_params.get_night_mode_frame_brightness()))
+        self.sleep_mode_brightness_lineedit.setText(
+            str(self.media_engine.led_video_params.get_sleep_mode_frame_brightness()))
         self.video_crop_x_lineedit.setText(str(self.media_engine.led_video_params.get_media_file_start_x()))
         self.video_crop_y_lineedit.setText(str(self.media_engine.led_video_params.get_media_file_start_y()))
         self.video_crop_w_lineedit.setText(str(self.media_engine.led_video_params.get_media_file_crop_w()))
         self.video_crop_h_lineedit.setText(str(self.media_engine.led_video_params.get_media_file_crop_h()))
-
