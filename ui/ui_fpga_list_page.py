@@ -32,6 +32,7 @@ class FpgaListPage(QWidget):
         self.main_windows = _main_window
         self.frame = _frame
         self.widget = QWidget(self.frame)
+        self.media_engine = media_engine
         self.name = _name
         self.test_btn = None
         self.label_name = None
@@ -86,6 +87,8 @@ class FpgaListPage(QWidget):
         '''for test'''
         self.cmd_test_timer = QTimer()
         self.frame_res_test_count = 0
+
+        self.media_engine.led_video_params.install_video_params_changed_slot(self.video_params_changed)
 
     def init_ui(self):
         self.label_name = QLabel(self.frame)
@@ -189,8 +192,9 @@ class FpgaListPage(QWidget):
         self.frame_width_label.setText("Frame Width:")
         self.frame_width_lineedit = QLineEdit()
         self.frame_width_lineedit.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
-        str_frame_width, str_frame_height = get_led_config_from_file_uri("led_wall_resolution",
-                                                                         "led_wall_width", "led_wall_height")
+        # str_frame_width, str_frame_height = get_led_config_from_file_uri("led_wall_resolution",
+        #                                                                 "led_wall_width", "led_wall_height")
+        str_frame_width, str_frame_height = self.media_engine.led_video_params.get_output_frame_res_str()
         log.debug("str_frame_width : %s, str_frame_height : %s", str_frame_width, str_frame_height)
         self.frame_width_lineedit.setText(str_frame_width)
 
@@ -235,6 +239,25 @@ class FpgaListPage(QWidget):
 
     def func_set_btn(self):
         log.debug("func test btn clicked")
+        if self.media_engine.led_video_params.get_led_red_gain() != int(self.red_gain_lineedit.text()):
+            self.media_engine.led_video_params.set_led_red_gain()
+        if self.media_engine.led_video_params.get_led_green_gain() != int(self.green_gain_lineedit.text()):
+            self.media_engine.led_video_params.set_led_green_gain()
+        if self.media_engine.led_video_params.get_led_blue_gain() != int(self.blue_gain_lineedit.text()):
+            self.media_engine.led_video_params.set_led_blue_gain()
+
+        if self.media_engine.led_video_params.get_led_gamma() != float(self.rgb_gamma_lineedit.text()):
+            self.media_engine.led_video_params.set_led_gamma(float(self.rgb_gamma_lineedit.text()))
+
+        if self.media_engine.led_video_params.get_output_frame_width() != int(self.frame_width_lineedit.text()):
+            self.media_engine.led_video_params.set_output_frame_width(int(self.frame_width_lineedit.text()))
+
+        if self.media_engine.led_video_params.get_output_frame_width() != int(self.frame_width_lineedit.text()):
+            self.media_engine.led_video_params.set_output_frame_width(int(self.frame_width_lineedit.text()))
+
+        if self.media_engine.led_video_params.get_output_frame_height() != int(self.frame_height_lineedit.text()):
+            self.media_engine.led_video_params.set_output_frame_height(int(self.frame_height_lineedit.text()))
+
 
 
         # below is for test use
@@ -585,3 +608,11 @@ class FpgaListPage(QWidget):
             self.select_fpga_ota_file_dialog.signal_fpga_ota_file_get.connect(
                 self.slot_process_fpga_ota)
             self.select_fpga_ota_file_dialog.show()
+
+    def video_params_changed(self):
+        self.red_gain_lineedit.setText(str(self.media_engine.led_video_params.get_led_red_gain()))
+        self.green_gain_lineedit.setText(str(self.media_engine.led_video_params.get_led_green_gain()))
+        self.blue_gain_lineedit.setText(str(self.media_engine.led_video_params.get_led_blue_gain()))
+        self.rgb_gamma_lineedit.setText(str(self.media_engine.led_video_params.get_led_gamma()))
+        self.frame_width_lineedit.setText(str(self.media_engine.led_video_params.get_output_frame_width()))
+        self.frame_height_lineedit.setText(str(self.media_engine.led_video_params.get_output_frame_height()))

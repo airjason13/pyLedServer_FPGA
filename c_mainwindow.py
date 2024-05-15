@@ -79,6 +79,8 @@ class MainUi(QMainWindow):
         self.main_window_widget = None
 
         self.media_engine = MediaEngine()
+        self.media_engine.led_video_params.install_fpga_current_gain_changed_slot(self.fpga_current_gain_changed)
+        self.media_engine.led_video_params.install_fpga_gamma_index_changed_slot(self.fpga_gamma_index_changed)
 
         ''' Jason for test FPGA read/write '''
         self.fpga_cmd_center = FPGACmdCenter(ETH_DEV, protocolDict["sourceAddress"])
@@ -152,8 +154,6 @@ class MainUi(QMainWindow):
             br += 1
         log.debug("br : %d", br)
         self.media_engine.led_video_params.set_led_brightness(br)
-
-
 
     def utc_test(self):
         log.debug("self.utc_test_count : %d", self.utc_test_count)
@@ -314,7 +314,7 @@ class MainUi(QMainWindow):
 
     def set_fpga_test_register(self):
         for i in range(FPGA_START_ID, FPGA_START_ID + len(self.fpga_list)):
-            for test_item, value in fpga_test_value[i-2].items():
+            for test_item, value in fpga_test_value[i - 2].items():
                 if value is not None:
                     ret = self.fpga_cmd_center.write_fpga_register(i, test_item, value)
                     if ret < 0:
@@ -324,14 +324,14 @@ class MainUi(QMainWindow):
                 for n in range(0, 4):
                     self.fpga_cmd_center.write_fpga_register(i, 'numberOfPixel_p{}'.format(str(n)), str(960))
                     self.fpga_cmd_center.write_fpga_register(i, 'startX_p{}'.format(str(n)), str(159))
-                    self.fpga_cmd_center.write_fpga_register(i, 'startY_p{}'.format(str(n)), str(48 - ((n+1)*12)))
+                    self.fpga_cmd_center.write_fpga_register(i, 'startY_p{}'.format(str(n)), str(48 - ((n + 1) * 12)))
                     self.fpga_cmd_center.write_fpga_register(i, 'portWidth_p{}'.format(str(n)), str(80))
                     self.fpga_cmd_center.write_fpga_register(i, 'portHeight_p{}'.format(str(n)), str(12))
             elif i == 3:
                 for n in range(0, 4):
                     self.fpga_cmd_center.write_fpga_register(i, 'numberOfPixel_p{}'.format(str(n)), str(960))
                     self.fpga_cmd_center.write_fpga_register(i, 'startX_p{}'.format(str(n)), str(0))
-                    self.fpga_cmd_center.write_fpga_register(i, 'startY_p{}'.format(str(n)), str((n*12) + 11))
+                    self.fpga_cmd_center.write_fpga_register(i, 'startY_p{}'.format(str(n)), str((n * 12) + 11))
                     self.fpga_cmd_center.write_fpga_register(i, 'portWidth_p{}'.format(str(n)), str(80))
                     self.fpga_cmd_center.write_fpga_register(i, 'portHeight_p{}'.format(str(n)), str(12))
 
@@ -363,3 +363,24 @@ class MainUi(QMainWindow):
                     fpga.fpga_cmd_center.write_fpga_register_with_bytes(fpga.i_id,
                                                                         'gammaTable_b{}'.format(str(gamma_index)),
                                                                         gamma_table_list[gamma_index])
+
+    def fpga_current_gain_changed(self):
+        ''' check video params and send cmd to fpga '''
+        ''' check r/g/b/ current gain '''
+        if self.media_engine.led_video_params.get_icled_type() == icled_type.anapex:
+            ''' set current gain '''
+            log.debug("anapex set current gain")
+            i_r_gain_value = int(self.media_engine.led_video_params.get_led_red_gain())
+            i_g_gain_value = int(self.media_engine.led_video_params.get_led_green_gain())
+            i_b_gain_value = int(self.media_engine.led_video_params.get_led_blue_gain())
+            i_current_gain_value = i_r_gain_value << 16 | i_g_gain_value << 8 | i_b_gain_value
+            for fpga in self.fpga_list:
+                self.fpga.fpga_cmd_center.write_fpga_register(self.fpga.i_id, "currentGain",
+                                                              str(i_current_gain_value))
+
+    def fpga_gamma_index_changed(self):
+        ''' set fpga gamma '''
+        log.debug("fpga_gamma_index_changed")
+        for fpga in self.fpga_list:
+            fpga.fpga_cmd_center.write_fpga_register(fpga.i_id, 'currentGammaTable',
+                                                     str(self.media_engine.led_video_params.get_led_gamma()))

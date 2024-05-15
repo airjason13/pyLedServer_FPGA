@@ -45,15 +45,18 @@ class MediaEngine(QObject):
         self.play_hdmi_in_thread = None
         self.play_hdmi_in_worker = None
         log.debug("")
-        self.sync_output_streaming_resolution()
+
         self.led_video_params = VideoParams(True, 50, 2.2,
                                             15, 15, 15)
+
+        self.sync_output_streaming_resolution()
         self.playing_status = PlayStatus.Stop
         self.pre_playing_status = PlayStatus.Initial
         self.repeat_option = RepeatOption.Repeat_All
 
         self.play_change_mutex = QMutex()
-        self.playing_preview_window = PlayingPreviewWindow()
+        self.playing_preview_window = PlayingPreviewWindow(self.led_video_params.get_output_frame_width(),
+                                                           self.led_video_params.get_output_frame_height())
 
         self.shm_sem_write_uri = "/shm_write_sem"
         self.shm_sem_read_uri = "/shm_read_sem"
@@ -76,11 +79,15 @@ class MediaEngine(QObject):
         self.output_streaming_fps = fps
 
     def sync_output_streaming_resolution(self):
-        str_w, str_h, str_fps = (
+        '''str_w, str_h, str_fps = (
             get_led_config_from_file_uri("led_wall_resolution", "led_wall_width", "led_wall_height", "led_wall_fps"))
         self.output_streaming_width = int(str_w)
         self.output_streaming_height = int(str_h)
-        self.output_streaming_fps = int(str_fps)
+        self.output_streaming_fps = int(str_fps)'''
+        self.output_streaming_width = int(self.led_video_params.get_output_frame_width())
+        self.output_streaming_height = int(self.led_video_params.get_output_frame_height())
+        self.output_streaming_fps = int(self.led_video_params.get_output_fps())
+
 
     def play_status_changed(self, status: int, playing_src: str):
         log.debug("play_status_changed : status=%d", status)

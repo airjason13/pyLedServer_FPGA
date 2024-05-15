@@ -63,6 +63,43 @@ def adjust_frame_brightness(self, data: str):
     log.debug("i_sleep_mode_brightness : %d", i_sleep_mode_brightness)
 
 
+def adjust_icled_type(self, type: str):
+    if 'anapex' in type:
+        self.media_engine.led_video_params.set_icled_type(icled_type.anapex)
+    elif 'aos' in type:
+        self.media_engine.led_video_params.set_icled_type(icled_type.aos)
+
+
+def adjust_led_r_gain(self, red_gain: str):
+    log.debug("")
+    # if self.media_engine.led_video_params.get_led_red_gain():
+    #    self.media_engine.led_video_params.set_led_red_gain()
+
+
+def adjust_led_g_gain(self, red_gain: str):
+    log.debug("")
+    # if self.media_engine.led_video_params.get_led_green_gain():
+    #    self.media_engine.led_video_params.set_led_green_gain()
+
+
+def adjust_led_b_gain(self, red_gain: str):
+    log.debug("")
+    # if self.media_engine.led_video_params.get_led_blue_gain():
+    #    self.media_engine.led_video_params.set_led_blue_gain()
+
+
+def adjust_frame_width(self, w):
+    log.debug("")
+
+
+def adjust_frame_height(self, w):
+    log.debug("")
+
+
+def adjust_fps(self, w):
+    log.debug("")
+
+
 cmd_function_map = {
     "set_brightness": adjust_brightness_value,
     "set_gamma": adjust_gamma_value,
@@ -70,6 +107,13 @@ cmd_function_map = {
     "set_brightness_algo": adjust_brightness_algo,
     "set_target_city": adjust_target_city,
     "set_frame_brightness_values_option": adjust_frame_brightness,
+    "set_icled_type": adjust_icled_type,
+    "set_led_r_gain": adjust_led_r_gain,
+    "set_led_g_gain": adjust_led_g_gain,
+    "set_led_b_gain": adjust_led_b_gain,
+    "set_frame_width": adjust_frame_width,
+    "set_frame_height": adjust_frame_height,
+    "set_fps": adjust_fps,
 }
 
 """ handle the command from LocalServer"""

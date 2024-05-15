@@ -11,7 +11,7 @@ from utils.utils_file_access import get_led_config_from_file_uri, get_int_led_co
 
 class PlayingPreviewWindow(QWidget):
 
-    def __init__(self):
+    def __init__(self, preview_width, preview_height):
         super(PlayingPreviewWindow, self).__init__()
         self.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5() + \
                            """
@@ -27,8 +27,10 @@ class PlayingPreviewWindow(QWidget):
         self.preview_label = None
         self.live_icon_label = None
         self.live_icon_pixmap = QPixmap("materials/live_icon.png").scaledToWidth(48)
-        self.image_display_width, self.image_display_height = (
-            get_int_led_config_from_file_uri("led_wall_resolution", "led_wall_width", "led_wall_height"))
+        # self.image_display_width, self.image_display_height = (
+        #    get_int_led_config_from_file_uri("led_wall_resolution", "led_wall_width", "led_wall_height"))
+        self.image_display_width = preview_width
+        self.image_display_height = preview_height
         self.init_ui()
 
         # self.error_message_box.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())

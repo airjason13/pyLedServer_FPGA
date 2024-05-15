@@ -58,6 +58,15 @@ class sleep_mode(enum.IntEnum):
     enable = 1
 
 
+class icled_type(enum.IntEnum):
+    anapex = 0
+    aos = 1
+
+'''icled_type = { 
+                "ANAPEX": 0,
+                "AOS":  1,
+}'''
+
 BRIGHTNESS_TIMER_INTERVAL = 1 * 1000
 
 MIN_FRAME_BRIGHTNESS = 0

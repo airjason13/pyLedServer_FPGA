@@ -4,7 +4,7 @@ import platform
 import shutil
 
 import qdarkstyle
-from PyQt5.QtCore import Qt, QRect, QSize
+from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QFont, QMouseEvent, QMovie, QPixmap, QIcon
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, \
     QAbstractItemView, QTreeWidgetItem, QLabel, QFrame, QMenu, QAction, QGridLayout, QPushButton, QLineEdit, QComboBox
@@ -12,20 +12,18 @@ from PyQt5.QtWidgets import QWidget, QVBoxLayout, \
 from astral_hashmap import City_Map
 from media_engine.media_engine import MediaEngine
 from media_engine.media_engine_def import PlayStatus
-from qlocalmessage import send_message
 from qt_ui_style.button_qss import QPushFileStopButton_Style, QPushFilePlayButton_Style, QFont_Style_Default, \
     QFont_Style_Size_M
-from utils.utils_file_access import get_playlist_file_list, get_mount_points, get_led_config_from_file_uri
+from utils.utils_file_access import get_playlist_file_list, get_mount_points
 from ext_qt_widgets.media_file_list import MediaFileList
 from ext_qt_widgets.media_playlist import PlayList
 from ext_qt_widgets.new_playlist_dialog_widget import NewPlaylistDialog
 from ext_qt_widgets.system_file_watcher import FileWatcher
 from global_def import log, MIN_FRAME_BRIGHTNESS, MAX_FRAME_BRIGHTNESS, MIN_FRAME_GAMMA, MAX_FRAME_GAMMA, \
-    frame_brightness_alog, sleep_mode
+    frame_brightness_alog, sleep_mode, icled_type
 from ext_qt_widgets.custom_tree_widget import CTreeWidget
 from media_configs.media_path_configs import *
 from utils.gen_thumbnails import gen_webp_from_video_threading
-from utils.utils_ffmpy import get_ffmpeg_cmd_for_media
 
 
 class MediaFilesPage(QWidget):
@@ -80,6 +78,23 @@ class MediaFilesPage(QWidget):
         self.night_mode_brightness_lineedit = None
         self.sleep_mode_brightness_label = None
         self.sleep_mode_brightness_lineedit = None
+
+        self.icled_type_label = None
+        self.icled_type_combobox = None
+
+        self.led_r_gain_label = None
+        self.led_r_gain_lineedit = None
+        self.led_g_gain_label = None
+        self.led_g_gain_lineedit = None
+        self.led_b_gain_label = None
+        self.led_b_gain_lineedit = None
+
+        self.output_frame_width_label = None
+        self.output_frame_width_lineedit = None
+        self.output_frame_height_label = None
+        self.output_frame_height_lineedit = None
+        self.output_fps_label = None
+        self.output_fps_lineedit = None
 
         self.video_params_setting_layout = None
 
@@ -308,7 +323,7 @@ class MediaFilesPage(QWidget):
         self.brightness_algo_combobox = QComboBox(self.video_params_setting_widget)
         self.brightness_algo_combobox.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
         for i in frame_brightness_alog:
-            self.brightness_algo_combobox.addItem(str(i))
+            self.brightness_algo_combobox.addItem(str(i).split(".")[1])
         self.brightness_algo_combobox.setCurrentIndex(self.media_engine.led_video_params.get_frame_brightness_algo())
 
         self.sleep_mode_enable_label = QLabel(self.video_params_setting_widget)
@@ -317,7 +332,7 @@ class MediaFilesPage(QWidget):
         self.sleep_mode_enable_combobox = QComboBox(self.video_params_setting_widget)
         self.sleep_mode_enable_combobox.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
         for i in sleep_mode:
-            self.sleep_mode_enable_combobox.addItem(str(i))
+            self.sleep_mode_enable_combobox.addItem(str(i).split(".")[1])
         self.sleep_mode_enable_combobox.setCurrentIndex(self.media_engine.led_video_params.get_sleep_mode_enable())
 
         self.target_city_label = QLabel(self.video_params_setting_widget)
@@ -327,6 +342,7 @@ class MediaFilesPage(QWidget):
         self.target_city_combobox.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
         for city in City_Map:
             self.target_city_combobox.addItem(city.get("City"))
+        self.target_city_combobox.setCurrentIndex(int(self.media_engine.led_video_params.get_target_city_index()))
 
         self.day_mode_brightness_label = QLabel(self.video_params_setting_widget)
         self.day_mode_brightness_label.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
@@ -352,6 +368,60 @@ class MediaFilesPage(QWidget):
         self.sleep_mode_brightness_lineedit.setText(
             str(self.media_engine.led_video_params.get_sleep_mode_frame_brightness()))
 
+        self.led_r_gain_label = QLabel(self.video_params_setting_widget)
+        self.led_r_gain_label.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
+        self.led_r_gain_label.setText("Led R Gain:")
+        self.led_r_gain_lineedit = QLineEdit(self.video_params_setting_widget)
+        self.led_r_gain_lineedit.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
+        self.led_r_gain_lineedit.setText(
+            str(self.media_engine.led_video_params.get_led_red_gain()))
+
+        self.led_g_gain_label = QLabel(self.video_params_setting_widget)
+        self.led_g_gain_label.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
+        self.led_g_gain_label.setText("Led G Gain:")
+        self.led_g_gain_lineedit = QLineEdit(self.video_params_setting_widget)
+        self.led_g_gain_lineedit.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
+        self.led_g_gain_lineedit.setText(
+            str(self.media_engine.led_video_params.get_led_green_gain()))
+
+        self.led_b_gain_label = QLabel(self.video_params_setting_widget)
+        self.led_b_gain_label.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
+        self.led_b_gain_label.setText("Led G Gain:")
+        self.led_b_gain_lineedit = QLineEdit(self.video_params_setting_widget)
+        self.led_b_gain_lineedit.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
+        self.led_b_gain_lineedit.setText(
+            str(self.media_engine.led_video_params.get_led_blue_gain()))
+
+        self.icled_type_label = QLabel(self.video_params_setting_widget)
+        self.icled_type_label.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
+        self.icled_type_label.setText("ICLed Type:")
+        self.icled_type_combobox = QComboBox(self.video_params_setting_widget)
+        self.icled_type_combobox.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
+        for type in icled_type:
+            self.icled_type_combobox.addItem(str(type).split(".")[1])
+        self.icled_type_combobox.setCurrentIndex(int(self.media_engine.led_video_params.get_icled_type()))
+
+        self.output_frame_width_label = QLabel(self.video_params_setting_widget)
+        self.output_frame_width_label.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
+        self.output_frame_width_label.setText("Frame Width:")
+        self.output_frame_width_lineedit = QLineEdit(self.video_params_setting_widget)
+        self.output_frame_width_lineedit.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
+        self.output_frame_width_lineedit.setText(str(self.media_engine.led_video_params.get_output_frame_width()))
+
+        self.output_frame_height_label = QLabel(self.video_params_setting_widget)
+        self.output_frame_height_label.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
+        self.output_frame_height_label.setText("Frame Height:")
+        self.output_frame_height_lineedit = QLineEdit(self.video_params_setting_widget)
+        self.output_frame_height_lineedit.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
+        self.output_frame_height_lineedit.setText(str(self.media_engine.led_video_params.get_output_frame_height()))
+
+        self.output_fps_label = QLabel(self.video_params_setting_widget)
+        self.output_fps_label.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
+        self.output_fps_label.setText("FPS:")
+        self.output_fps_lineedit = QLineEdit(self.video_params_setting_widget)
+        self.output_fps_lineedit.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
+        self.output_fps_lineedit.setText(str(self.media_engine.led_video_params.get_output_fps()))
+
         self.video_adj_br_ga_btn = QPushButton("Adjust Brightness Parameter", self.video_params_setting_widget)
         self.video_adj_br_ga_btn.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
         self.video_adj_br_ga_btn.clicked.connect(self.adj_video_br_ga_param)
@@ -373,14 +443,31 @@ class MediaFilesPage(QWidget):
         self.video_params_setting_layout.addWidget(self.night_mode_brightness_lineedit, 2, 5)
         self.video_params_setting_layout.addWidget(self.sleep_mode_brightness_label, 3, 4)
         self.video_params_setting_layout.addWidget(self.sleep_mode_brightness_lineedit, 3, 5)
-        self.video_params_setting_layout.addWidget(self.video_adj_br_ga_btn, 4, 2, 1, 4)
+
+        self.video_params_setting_layout.addWidget(self.icled_type_label, 0, 6)
+        self.video_params_setting_layout.addWidget(self.icled_type_combobox, 0, 7)
+        self.video_params_setting_layout.addWidget(self.led_r_gain_label, 1, 6)
+        self.video_params_setting_layout.addWidget(self.led_r_gain_lineedit, 1, 7)
+        self.video_params_setting_layout.addWidget(self.led_g_gain_label, 2, 6)
+        self.video_params_setting_layout.addWidget(self.led_g_gain_lineedit, 2, 7)
+        self.video_params_setting_layout.addWidget(self.led_b_gain_label, 3, 6)
+        self.video_params_setting_layout.addWidget(self.led_b_gain_lineedit, 3, 7)
+
+        self.video_params_setting_layout.addWidget(self.output_frame_width_label, 0, 8)
+        self.video_params_setting_layout.addWidget(self.output_frame_width_lineedit, 0, 9)
+        self.video_params_setting_layout.addWidget(self.output_frame_height_label, 1, 8)
+        self.video_params_setting_layout.addWidget(self.output_frame_height_lineedit, 1, 9)
+        self.video_params_setting_layout.addWidget(self.output_fps_label, 2, 8)
+        self.video_params_setting_layout.addWidget(self.output_fps_lineedit, 2, 9)
+
+        self.video_params_setting_layout.addWidget(self.video_adj_br_ga_btn, 4, 2, 1, 8)
         self.video_params_setting_layout.addWidget(self.media_adj_crop_btn, 4, 0, 1, 2)
 
         self.media_control_panel_layout.addWidget(self.play_pause_btn, 0, 1, 1, 2)
         self.media_control_panel_layout.addWidget(self.play_stop_btn, 0, 2, 1, 2)
         self.media_control_panel_layout.addWidget(self.preview_control_btn, 1, 0, 1, 2)
         self.media_control_panel_layout.addWidget(self.sound_control_btn, 1, 2, 1, 2)
-        self.media_control_panel_layout.addWidget(self.video_params_setting_widget, 5, 0, 4, 3)
+        self.media_control_panel_layout.addWidget(self.video_params_setting_widget, 5, 0, 4, 4)
 
         self.layout = QVBoxLayout()
         self.layout.addWidget(self.media_files_tree_widget)
@@ -909,6 +996,18 @@ class MediaFilesPage(QWidget):
             # send_message(set_gamma=self.video_gamma_lineedit.text()) # for test
             self.media_engine.led_video_params.set_led_gamma(float(self.video_gamma_lineedit.text()))
 
+        ''' set icled type '''
+        if self.media_engine.led_video_params.get_icled_type() != int(self.icled_type_combobox.currentIndex()):
+            self.media_engine.led_video_params.set_icled_type(int(self.icled_type_combobox.currentIndex()))
+
+        ''' set led rgb gain '''
+        if self.media_engine.led_video_params.get_led_red_gain() != int(self.led_r_gain_lineedit.text()):
+            self.media_engine.led_video_params.set_led_red_gain(int(self.led_r_gain_lineedit.text()))
+        if self.media_engine.led_video_params.get_led_green_gain() != int(self.led_g_gain_lineedit.text()):
+            self.media_engine.led_video_params.set_led_green_gain(int(self.led_g_gain_lineedit.text()))
+        if self.media_engine.led_video_params.get_led_blue_gain() != int(self.led_b_gain_lineedit.text()):
+            self.media_engine.led_video_params.set_led_blue_gain(int(self.led_b_gain_lineedit.text()))
+
         ''' set brightness algo '''
         if (self.media_engine.led_video_params.get_frame_brightness_algo() !=
                 self.brightness_algo_combobox.currentIndex()):
@@ -945,11 +1044,23 @@ class MediaFilesPage(QWidget):
             self.media_engine.led_video_params.set_sleep_mode_frame_brightness(
                 int(self.sleep_mode_brightness_lineedit.text()))
 
+        ''' Frame width/height/fps'''
+        if self.media_engine.led_video_params.get_output_frame_width() != int(self.output_frame_width_lineedit.text()):
+            self.media_engine.led_video_params.set_output_frame_width(int(self.output_frame_width_lineedit.text()))
+
+        if (self.media_engine.led_video_params.get_output_frame_height() !=
+                int(self.output_frame_height_lineedit.text())):
+            self.media_engine.led_video_params.set_output_frame_height(int(self.output_frame_height_lineedit.text()))
+
+        if self.media_engine.led_video_params.get_output_fps() != int(self.output_fps_lineedit.text()):
+            self.media_engine.led_video_params.set_output_fps(int(self.output_fps_lineedit.text()))
+
     def video_params_changed(self):
         log.debug("video_params_changed")
         self.video_brightness_lineedit.setText(str(self.media_engine.led_video_params.get_led_brightness()))
         self.video_gamma_lineedit.setText(str(self.media_engine.led_video_params.get_led_gamma()))
         self.brightness_algo_combobox.setCurrentIndex(self.media_engine.led_video_params.get_frame_brightness_algo())
+
         self.sleep_mode_enable_combobox.setCurrentIndex(self.media_engine.led_video_params.get_sleep_mode_enable())
         self.target_city_combobox.setCurrentIndex(self.media_engine.led_video_params.get_target_city_index())
         self.day_mode_brightness_lineedit.setText(
@@ -958,6 +1069,16 @@ class MediaFilesPage(QWidget):
             str(self.media_engine.led_video_params.get_night_mode_frame_brightness()))
         self.sleep_mode_brightness_lineedit.setText(
             str(self.media_engine.led_video_params.get_sleep_mode_frame_brightness()))
+
+        self.icled_type_combobox.setCurrentIndex(int(self.media_engine.led_video_params.get_icled_type()))
+        self.led_r_gain_lineedit.setText(str(self.media_engine.led_video_params.get_led_red_gain()))
+        self.led_g_gain_lineedit.setText(str(self.media_engine.led_video_params.get_led_green_gain()))
+        self.led_b_gain_lineedit.setText(str(self.media_engine.led_video_params.get_led_blue_gain()))
+
+        self.output_frame_width_lineedit.setText(str(self.media_engine.led_video_params.get_output_frame_width()))
+        self.output_frame_height_lineedit.setText(str(self.media_engine.led_video_params.get_output_frame_height()))
+        self.output_fps_lineedit.setText(str(self.media_engine.led_video_params.get_output_fps()))
+
         self.video_crop_x_lineedit.setText(str(self.media_engine.led_video_params.get_media_file_start_x()))
         self.video_crop_y_lineedit.setText(str(self.media_engine.led_video_params.get_media_file_start_y()))
         self.video_crop_w_lineedit.setText(str(self.media_engine.led_video_params.get_media_file_crop_w()))
