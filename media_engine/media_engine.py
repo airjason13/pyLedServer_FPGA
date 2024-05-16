@@ -12,6 +12,13 @@ import numpy as np
 import psutil
 from PyQt5.QtCore import QObject, pyqtSignal, QMutex, QThread
 
+import gi
+import sys
+from gi.repository import Gst, GObject, GLib
+
+gi.require_version('Gst', '1.0')
+Gst.init(sys.argv)
+
 import utils.utils_file_access
 from ext_qt_widgets.playing_preview_widget import PlayingPreviewWindow
 from media_engine.media_engine_def import PlayStatus, RepeatOption
@@ -25,6 +32,7 @@ import socket
 from multiprocessing import shared_memory
 from ctypes import *
 from media_engine.linux_ipc_pyapi_sem import *
+from utils.utils_gst_pipeline import *
 
 
 class MediaEngine(QObject):
@@ -44,6 +52,8 @@ class MediaEngine(QObject):
         self.play_single_file_worker = None
         self.play_hdmi_in_thread = None
         self.play_hdmi_in_worker = None
+        self.gst_app_sink = None
+        self.gst_pipe_line = None
         log.debug("")
         self.sync_output_streaming_resolution()
         self.led_video_params = VideoParams(True, 50, 2.2,
@@ -181,10 +191,11 @@ class MediaEngine(QObject):
         if self.play_hdmi_in_worker is not None:
             self.resume_playing()
             self.play_hdmi_in_worker.stop()
-            for i in range(5):
-                if self.ff_process is not None:
+            if self.ff_process is not None:
+                for i in range(5):
                     try:
                         os.kill(self.ff_process.pid, signal.SIGTERM)
+                        time.sleep(1)
                     except ProcessLookupError:
                         log.debug("PID might have changed or process could have exited already")
                     except Exception as e:
@@ -192,7 +203,6 @@ class MediaEngine(QObject):
                     finally:
                         self.ff_process = None
                         break
-                time.sleep(1)
             try:
                 if self.play_hdmi_in_thread is not None:
                     self.play_hdmi_in_thread.quit()
@@ -238,6 +248,7 @@ class MediaEngine(QObject):
         self.play_hdmi_in_worker = Playing_HDMI_in_worker(self, video_src,
                                                           with_audio=audio_active,
                                                           with_preview=preview_visible,
+                                                          active_width=active_width, active_height=active_height,
                                                           c_width=c_width, c_height=c_height,
                                                           c_pos_x=c_pos_x, c_pos_y=c_pos_y,
                                                           )
@@ -254,6 +265,7 @@ class MediaEngine(QObject):
     def pause_playing(self):
         if self.playing_status != PlayStatus.Stop:
             log.debug("enter pause_play!\n")
+            self.playing_status = PlayStatus.Pausing
             try:
                 if self.ff_process is not None:
                     sub_ff_process = self.find_child("ffmpeg", self.ff_process.pid)
@@ -265,6 +277,7 @@ class MediaEngine(QObject):
                 if self.sound_device.audio_process is not None:
                     mute_audio_sinks(True)
                 if self.play_hdmi_in_worker is not None:
+                    self.play_hdmi_in_worker.gst_pipe_pause()
                     self.play_status_changed(self.playing_status, self.play_hdmi_in_worker.video_src)
                 if self.play_single_file_thread is not None:
                     self.play_status_changed(self.playing_status, self.play_single_file_worker.file_uri)
@@ -275,6 +288,7 @@ class MediaEngine(QObject):
     def resume_playing(self):
         if self.playing_status != PlayStatus.Stop:
             log.debug("enter resume_play!\n")
+            self.playing_status = PlayStatus.Playing
             try:
                 if self.ff_process is not None:
                     sub_ff_process = self.find_child("ffmpeg", self.ff_process.pid)
@@ -282,10 +296,10 @@ class MediaEngine(QObject):
                         sub_ff_process.resume()
                     else:
                         os.kill(self.ff_process.pid, signal.SIGCONT)
-                    self.playing_status = PlayStatus.Playing
                 if self.sound_device.audio_process is not None:
                     mute_audio_sinks(False)
                 if self.play_hdmi_in_worker is not None:
+                    self.play_hdmi_in_worker.gst_pipe_resume()
                     self.play_status_changed(self.playing_status, self.play_hdmi_in_worker.video_src)
                 if self.play_single_file_thread is not None:
                     self.play_status_changed(self.playing_status, self.play_single_file_worker.file_uri)
@@ -566,10 +580,15 @@ class Playing_HDMI_in_worker(QThread):
     pysignal_refresh_image_pixmap = pyqtSignal(np.ndarray)
 
     def __init__(self, media_engine: MediaEngine,
-                 video_src, c_width: int, c_height: int,
+                 video_src,
+                 active_width: int, active_height: int,
+                 c_width: int, c_height: int,
                  c_pos_x: int, c_pos_y: int, with_audio: bool,
                  with_preview: bool):
         super().__init__()
+        self.Glib_Main_loop = None
+        self.pipeline = None
+        self.gst_app_sink = None
         self.ffmpeg_cmd = None
         self.agent_cmd = None
         self.agent_process = None
@@ -583,6 +602,8 @@ class Playing_HDMI_in_worker(QThread):
         self.video_src = video_src
         self.play_with_audio = with_audio
         self.play_with_preview = with_preview
+        self.active_area_width = active_width
+        self.active_area_height = active_height
         self.crop_visible_area_width = c_width
         self.crop_visible_area_height = c_height
         self.crop_position_x = c_pos_x
@@ -593,6 +614,7 @@ class Playing_HDMI_in_worker(QThread):
         self.output_height = self.media_engine.output_streaming_height
         self.output_fps = self.media_engine.output_streaming_fps
         self.play_status_change(PlayStatus.Initial, self.video_src)
+        self.gst_pipe_description = None
         self.raw_image = None
         self.image_from_pipe = None
         self.force_stop = False
@@ -759,6 +781,11 @@ class Playing_HDMI_in_worker(QThread):
                 log.debug(f"An error occurred while stopping the ff_process: {e}")
             finally:
                 self.ff_process = None
+        if self.pipeline:
+            self.pipeline.set_state(Gst.State.NULL)
+        if self.Glib_Main_loop:
+            self.Glib_Main_loop.quit()
+        self.quit()
         self.play_status_change(PlayStatus.Stop, self.video_src)
         self.process_release_mutex.unlock()
 
@@ -778,15 +805,30 @@ class Playing_HDMI_in_worker(QThread):
 
         try:
             target_fps_str = f"{self.output_fps}/1"
-            self.ffmpeg_cmd = get_ffmpeg_cmd_for_media(self.video_src,
-                                                       width=self.output_width,
-                                                       height=self.output_height,
-                                                       target_fps=target_fps_str,
-                                                       c_width=self.crop_visible_area_width,
-                                                       c_height=self.crop_visible_area_height,
-                                                       c_pos_x=self.crop_position_x,
-                                                       c_pos_y=self.crop_position_y,
-                                                       )
+
+            if "pi5" in platform.node() or "x86_64" in platform.machine():
+                self.gst_pipe_description = get_gst_cmd_for_media(self.video_src,
+                                                                  active_width=self.active_area_width,
+                                                                  active_height=self.active_area_height,
+                                                                  output_width=self.output_width,
+                                                                  output_height=self.output_height,
+                                                                  target_fps=target_fps_str,
+                                                                  c_width=self.crop_visible_area_width,
+                                                                  c_height=self.crop_visible_area_height,
+                                                                  c_pos_x=self.crop_position_x,
+                                                                  c_pos_y=self.crop_position_y,
+                                                                  video_sink=self.play_with_preview
+                                                                  )
+            else:
+                self.ffmpeg_cmd = get_ffmpeg_cmd_for_media(self.video_src,
+                                                           width=self.output_width,
+                                                           height=self.output_height,
+                                                           target_fps=target_fps_str,
+                                                           c_width=self.crop_visible_area_width,
+                                                           c_height=self.crop_visible_area_height,
+                                                           c_pos_x=self.crop_position_x,
+                                                           c_pos_y=self.crop_position_y,
+                                                           )
             if self.play_with_audio is True:
                 if self.media_engine.pulse_audio_status is True:
                     if self.media_engine.hdmi_sound is not None and self.media_engine.headphone_sound is not None:
@@ -794,58 +836,85 @@ class Playing_HDMI_in_worker(QThread):
                         sink_card, sink_device = self.media_engine.headphone_sound
                         self.media_engine.sound_device.start_play(source_card, source_device, sink_card, sink_device)
 
-            while True:
+            if "pi5" in platform.node() or "x86_64" in platform.machine():
 
-                if self.ff_process and self.ff_process.poll() is None:
-                    self.ff_process.terminate()
-                    try:
-                        self.ff_process.wait(timeout=2)
-                    except subprocess.TimeoutExpired:
-                        log.debug("ff_process termination timeout.")
-                    self.ff_process = None
+                if self.pipeline:
+                    self.pipeline.set_state(Gst.State.NULL)
 
-                try:
-                    self.ff_process = subprocess.Popen(self.ffmpeg_cmd.split(), stdout=subprocess.PIPE, bufsize=10 ** 8)
-                    if self.ff_process.pid > 0:
-                        log.debug(f"ff_process started: {self.ff_process.pid}")
+                self.pipeline = Gst.parse_launch(self.gst_pipe_description)
+                self.pipeline.set_state(Gst.State.PLAYING)
+
+                self.gst_app_sink = self.pipeline.get_by_name("sink")
+                self.gst_app_sink.connect("new-sample", self.gst_process_frame)
+
+                if self.gst_app_sink:
+                    self.pipeline.set_state(Gst.State.PLAYING)
+                    self.worker_status = 1
+
+                    self.media_engine.gst_pipe_line = self.pipeline
+                    self.media_engine.gst_app_sink = self.gst_app_sink
+                    self.Glib_Main_loop = GLib.MainLoop()
+
+                    def play_status_change():
                         self.play_status_change(PlayStatus.Playing, self.video_src)
-                        self.worker_status = 1
-                except Exception as e:
-                    log.debug(f"ff_process Failed: {e}")
+                        return False
 
-                self.media_engine.ff_process = self.ff_process
+                    GObject.timeout_add(200, play_status_change)
+                    self.Glib_Main_loop.run()
+            else:
+                while True:
+                    if self.ff_process and self.ff_process.poll() is None:
+                        self.ff_process.terminate()
+                        try:
+                            self.ff_process.wait(timeout=2)
+                        except subprocess.TimeoutExpired:
+                            log.debug("ff_process termination timeout.")
+                        self.ff_process = None
 
-                while self.worker_status and self.force_stop is False:
+                    try:
+                        self.ff_process = subprocess.Popen(self.ffmpeg_cmd.split(), stdout=subprocess.PIPE,
+                                                           bufsize=10 ** 8)
+                        if self.ff_process.pid > 0:
+                            log.debug(f"ff_process started: {self.ff_process.pid}")
+                            self.play_status_change(PlayStatus.Playing, self.video_src)
+                            self.worker_status = 1
+                    except Exception as e:
+                        log.debug(f"ff_process Failed: {e}")
 
-                    data_ready, _, _ = select.select([self.ff_process.stdout], [], [], 3000)
+                    self.media_engine.ff_process = self.ff_process
 
-                    if data_ready:
-                        self.image_from_pipe = self.ff_process.stdout.read(self.output_width * self.output_height * 3)
-                        if not self.image_from_pipe:
-                            if self.agent_process is not None:
-                                self.agent_process.kill()
-                            log.debug("Pipe read attempt returned no data.")
+                    while self.worker_status and self.force_stop is False:
+
+                        data_ready, _, _ = select.select([self.ff_process.stdout], [], [], 3000)
+
+                        if data_ready:
+                            self.image_from_pipe = self.ff_process.stdout.read(
+                                self.output_width * self.output_height * 3)
+                            if not self.image_from_pipe:
+                                if self.agent_process is not None:
+                                    self.agent_process.kill()
+                                log.debug("Pipe read attempt returned no data.")
+                                break
+                        else:
+                            log.debug("No data available from pipe.")
                             break
-                    else:
-                        log.debug("No data available from pipe.")
+
+                        self.raw_image = np.frombuffer(self.image_from_pipe, dtype='uint8')
+                        self.raw_image = self.raw_image.reshape((self.output_height, self.output_width, 3))
+
+                        if self.ff_process is not None:
+                            self.ff_process.stdout.flush()
+
+                        if self.image_from_pipe:
+                            raw_image_array = np.array(self.raw_image)
+                            self.write_to_shm(raw_image_array.tobytes())
+
+                        if self.play_with_preview is True:
+                            self.pysignal_refresh_image_pixmap.emit(self.raw_image)
+
+                    if self.force_stop is True:
+                        log.debug("self.force_stop is True")
                         break
-
-                    self.raw_image = np.frombuffer(self.image_from_pipe, dtype='uint8')
-                    self.raw_image = self.raw_image.reshape((self.output_height, self.output_width, 3))
-
-                    if self.ff_process is not None:
-                        self.ff_process.stdout.flush()
-
-                    if self.image_from_pipe:
-                        raw_image_array = np.array(self.raw_image)
-                        self.write_to_shm(raw_image_array.tobytes())
-
-                    if self.play_with_preview is True:
-                        self.pysignal_refresh_image_pixmap.emit(self.raw_image)
-
-                if self.force_stop is True:
-                    log.debug("self.force_stop is True")
-                    break
 
             self.cleanup_resources()
             self.pysignal_hdmi_play_finished.emit()
@@ -856,9 +925,35 @@ class Playing_HDMI_in_worker(QThread):
             self.stop()
 
     def stop(self):
-        log.debug("FFmpeg process and pipe closed.")
         self.force_stop = True
         self.cleanup_resources()
+
+    def gst_process_frame(self, gst_app_sink):
+        if self.force_stop:
+            return Gst.FlowReturn.EOS
+        pipeline = gst_app_sink.emit("pull-sample")
+        if pipeline:
+            pipeBuffer = pipeline.get_buffer()
+            gst_capabilities = pipeline.get_caps().get_structure(0)
+            width = gst_capabilities.get_value('width')
+            height = gst_capabilities.get_value('height')
+            result, mapinfo = pipeBuffer.map(Gst.MapFlags.READ)
+            if result:
+                self.raw_image = np.ndarray((height, width, 3), buffer=mapinfo.data, dtype=np.uint8)
+                pipeBuffer.unmap(mapinfo)
+                if self.raw_image is not None:
+                    raw_image_array = np.array(self.raw_image)
+                    self.write_to_shm(raw_image_array.tobytes())
+                    return Gst.FlowReturn.OK
+        return Gst.FlowReturn.ERROR
+
+    def gst_pipe_pause(self):
+        if self.pipeline:
+            self.pipeline.set_state(Gst.State.PAUSED)
+
+    def gst_pipe_resume(self):
+        if self.pipeline:
+            self.pipeline.set_state(Gst.State.PLAYING)
 
 
 def test(self):

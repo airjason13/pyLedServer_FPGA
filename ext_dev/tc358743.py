@@ -1,3 +1,6 @@
+import re
+import time
+
 from PyQt5.QtCore import QThread, pyqtSignal, QDateTime, QObject, QTimer, QMutex
 import utils.log_utils
 # import utils.net_utils
@@ -19,7 +22,8 @@ class TC358743(QObject):
         self.hdmi_height = None
         self.hdmi_fps = None
         self.res_set_dv_bt_timing = False
-        self.video_device = self.get_video_device(self)
+        self.video_device, self.sub_device, self.media_device = self.get_video_device()
+
         if platform.machine() in ('arm', 'arm64', 'aarch64'):
             self.check_hdmi_status_mutex = QMutex()
         else:
@@ -41,7 +45,7 @@ class TC358743(QObject):
             self.check_hdmi_status_mutex.unlock()
 
     def x86_get_video_timing(self):
-        video_device = self.get_video_device(self)
+        video_device = self.video_device
         connected = False
         width = 0
         height = 0
@@ -98,8 +102,16 @@ class TC358743(QObject):
         else:
             connected, width, height, fps = self.x86_get_video_timing()
             return connected, width, height, fps
+        if "pi5" in platform.node():
+            v4l2_query_timing = (
+                f"v4l2-ctl -d {self.sub_device} --query-dv-timings"
+            )
+        else:
+            v4l2_query_timing = (
+                f"v4l2-ctl --query-dv-timings"
+            )
         self.check_hdmi_status_lock()
-        dv_timings = os.popen("v4l2-ctl --query-dv-timings").read()
+        dv_timings = os.popen(v4l2_query_timing).read()
         self.check_hdmi_status_unlock()
         list_dv_timings = dv_timings.split("\n")
 
@@ -131,8 +143,16 @@ class TC358743(QObject):
             pass
         else:
             return True
+        if "pi5" in platform.node():
+            v4l2_bt_timing_set = (
+                f"v4l2-ctl -d {self.sub_device} --set-dv-bt-timings query"
+            )
+        else:
+            v4l2_bt_timing_set = (
+                f"v4l2-ctl --set-dv-bt-timings query"
+            )
         self.check_hdmi_status_lock()
-        res_set_dv_bt_timing = os.popen("v4l2-ctl --set-dv-bt-timings query").read()
+        res_set_dv_bt_timing = os.popen(v4l2_bt_timing_set).read()
         self.check_hdmi_status_unlock()
         # log.debug("res_set_dv_bt_timing = %s", res_set_dv_bt_timing)
         if 'BT timings set' in res_set_dv_bt_timing:
@@ -161,9 +181,59 @@ class TC358743(QObject):
         return connected, width, height, fps
 
     @staticmethod
-    def get_video_device(cls):
-        preferred_video = "/dev/video0" if platform.machine() in ('arm', 'arm64', 'aarch64') else "/dev/video2"
-        if os.path.exists(preferred_video):
-            return preferred_video
+    def set_media_controller(video_device, media_device, width, height):
+        try:
+
+            media_ctl_csi_dev = [
+                f"media-ctl -d {media_device} -r",
+                f"media-ctl -d {media_device} -l \"'csi2':4 -> 'rp1-cfe-csi2_ch0':0 [1]\"",
+                f"media-ctl -d {media_device} -V \"'csi2':0 [fmt:UYVY8_1X16/{width}x{height} field:none colorspace:srgb]\"",
+                f"media-ctl -d {media_device} -V \"'csi2':4 [fmt:UYVY8_1X16/{width}x{height} field:none colorspace:srgb]\"",
+                f"media-ctl -d {media_device} -V \"'tc358743 4-000f':0 [fmt:UYVY8_1X16/{width}x{height} field:none colorspace:srgb]\""
+            ]
+
+            for cmd in media_ctl_csi_dev:
+                try:
+                    log.debug(f"Executing command: {cmd}")
+                    result = subprocess.run(cmd, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                            text=True)
+                    if result.stderr:
+                        log.debug("media error:", result.stderr)
+                except subprocess.CalledProcessError as e:
+                    log.debug(f"Command failed with error: {e}")
+
+            video_capture_fmt = f"v4l2-ctl -d {video_device} -v width={width},height={height},pixelformat=UYVY"
+            subprocess.run(video_capture_fmt, shell=True, check=True)
+
+            return True
+        except subprocess.CalledProcessError as e:
+            log.debug(f"Failed to execute command: {e.cmd} with exit status {e.returncode}")
+            return False
+
+    @staticmethod
+    def get_video_device():
+        if "pi5" in platform.node():
+            preferred_video = "/dev/video0"
+            alternative_video = "/dev/v4l-subdev2"
+
+            output = subprocess.check_output(["v4l2-ctl", "--list-devices"], universal_newlines=True)
+            device_sections = re.findall(r'rp1-cfe \(platform:\w+\.csi\):\n((?:.|\n)+?)(?=\n\n|\Z)', output)
+            csi_devices = []
+            for section in device_sections:
+                lines = section.strip().split('\n')
+                for line in lines:
+                    if '/dev/media' in line:
+                        csi_devices.append(line.strip())
+            media_video = csi_devices[0] if csi_devices else None
+
+            if os.path.exists(alternative_video):
+                return preferred_video, alternative_video, media_video
         else:
-            return None
+            preferred_video = "/dev/video0" if platform.machine() in ('arm', 'arm64', 'aarch64') else "/dev/video2"
+            alternative_video = None
+            media_video = None
+
+            if os.path.exists(preferred_video):
+                return preferred_video, alternative_video, media_video
+
+        return None, None, None

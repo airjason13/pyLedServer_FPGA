@@ -2,6 +2,7 @@ import hashlib
 import os
 import platform
 import shutil
+import time
 
 import qdarkstyle
 from PyQt5.QtCore import Qt, QRect, QSize
@@ -703,6 +704,7 @@ class MediaFilesPage(QWidget):
 
     def sound_btn_clicked(self):
         log.debug("")
+        self.sound_control_btn.setEnabled(False)
         if self.sound_control_btn.isChecked():
             self.audioActiveToggle = False
             self.sound_control_btn.setIcon(QIcon('materials/soundOffIcon.png'))
@@ -719,9 +721,12 @@ class MediaFilesPage(QWidget):
                                                   active_height=self.media_active_height,
                                                   audio_active=self.audioActiveToggle,
                                                   preview_visible=self.previewVisibleToggle)
+        time.sleep(2)
+        self.sound_control_btn.setEnabled(True)
 
     def preview_btn_clicked(self):
         log.debug("")
+        self.preview_control_btn.setEnabled(False)
         if self.preview_control_btn.isChecked():
             self.previewVisibleToggle = False
             self.preview_control_btn.setIcon(QIcon('materials/eyeCloseIcon.png'))
@@ -738,6 +743,8 @@ class MediaFilesPage(QWidget):
                                                   active_height=self.media_active_height,
                                                   audio_active=self.audioActiveToggle,
                                                   preview_visible=self.previewVisibleToggle)
+        time.sleep(2)
+        self.preview_control_btn.setEnabled(True)
 
     def adj_media_ctrl_param(self):
         self.media_engine.led_video_params.set_media_file_crop_w(int(self.media_crop_w_lineedit.text()))

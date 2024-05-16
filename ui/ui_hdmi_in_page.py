@@ -67,7 +67,6 @@ class HDMIInPage(QWidget):
         self.main_windows = _main_window
         self.frame = _frame
         self.media_engine = media_engine
-        self.video_device = TC358743.get_video_device(self)
         self.widget = QWidget(self.frame)
         self.name = _name
         self.prev_hdmi_info = None
@@ -78,25 +77,28 @@ class HDMIInPage(QWidget):
         self.audioActiveToggle = True
         self.previewVisibleToggle = True
         self.streamStateMutex = QMutex()
+        self.tc358743 = TC358743()
 
         log.debug("start hdmi-in page")
 
         self.init_ui()
         self.media_engine.install_hdmi_play_status_changed_slot(self.media_play_status_changed)
 
+        self.video_device = self.tc358743.video_device
+        self.sub_device = self.tc358743.sub_device
+        self.media_device = self.tc358743.media_device
         self.measurement_tc358743 = True
         self.check_tc358743_interval = 1000
         self.check_tc358743_timer = QTimer(self)
         self.check_tc358743_timer.timeout.connect(self.check_tc358743_timer_event)
         if platform.machine() in ('arm', 'arm64', 'aarch64'):  # Venom add for script not found
-            ensure_edid_validity(self)
-
+            self.edid_validator = EDIDValidator(self.sub_device)
+            self.edid_validator.validate()
         try:
             self.check_tc358743_timer.start(self.check_tc358743_interval)
         except Exception as e:
             log.debug(e)
 
-        self.tc358743 = TC358743()
         self.tc358743.signal_refresh_tc358743_param.connect(self.refresh_tc358743_param)
         self.tc358743.get_tc358743_dv_timing()
         subprocess.Popen("pkill -9 -f ffmpeg", shell=True)
@@ -458,6 +460,10 @@ class HDMIInPage(QWidget):
 
         if self.tc358743.set_tc358743_dv_bt_timing() is True:
             self.tc358743.reinit_tc358743_dv_timing()
+            if "pi5" in platform.node():
+                self.tc358743.set_media_controller(self.video_device,self.media_device,
+                                                   int(self.tc358743.hdmi_width),
+                                                   int(self.tc358743.hdmi_height))
             self.media_engine.hdmi_in_play(self.video_device,
                                            active_width=int(self.tc358743.hdmi_width),
                                            active_height=int(self.tc358743.hdmi_height),
@@ -466,7 +472,7 @@ class HDMIInPage(QWidget):
         self.streamStateMutex.unlock()
 
     def sound_btn_clicked(self):
-
+        self.sound_control_btn.setEnabled(False)
         if self.sound_control_btn.isChecked():
             self.audioActiveToggle = False
             self.sound_control_btn.setIcon(QIcon('materials/soundOffIcon.png'))
@@ -477,9 +483,11 @@ class HDMIInPage(QWidget):
         if self.streamingStatus is True:
             self.stop_streaming(False)
             self.start_streaming()
+        time.sleep(2)
+        self.sound_control_btn.setEnabled(True)
 
     def preview_btn_clicked(self):
-
+        self.preview_control_btn.setEnabled(False)
         if self.preview_control_btn.isChecked():
             self.previewVisibleToggle = False
             self.preview_control_btn.setIcon(QIcon('materials/eyeCloseIcon.png'))
@@ -490,6 +498,8 @@ class HDMIInPage(QWidget):
         if self.streamingStatus is True:
             self.stop_streaming(False)
             self.start_streaming()
+        time.sleep(2)
+        self.preview_control_btn.setEnabled(True)
 
     def update_process_info(self):
         try:
@@ -530,16 +540,37 @@ class HDMIInPage(QWidget):
             self.start_streaming()
 
 
-def ensure_edid_validity(self):
-    p = os.popen("v4l2-ctl --get-edid")
-    preproc = p.read()
-    if "failed" in preproc:
-        p = os.popen("write_tc358743_edid.sh")
-        time.sleep(5)
-        p.close()
-    p.close()
-
-
 def parse_pid(line):
     parts = line.split()
     return parts[3] if len(parts) > 3 else None
+
+
+class EDIDValidator:
+    def __init__(self, sub_device):
+        self.sub_device = sub_device
+        self.get_edid = None
+
+        if "pi5" in platform.node():
+            self.get_edid = (
+                f"v4l2-ctl -d {self.sub_device} --get-edid"
+            )
+            self.set_edid = (
+                f"v4l2-ctl -d {self.sub_device} --set-edid=file=/home/root/tc358743_edid.txt --fix-edid-checksums"
+            )
+        else:
+            self.get_edid = (
+                "v4l2-ctl --get-edid"
+            )
+            self.set_edid = (
+                "write_tc358743_edid.sh"
+            )
+
+    def validate(self):
+        p = os.popen(self.get_edid)
+        edid_output = p.read()
+        p.close()
+
+        if "failed" in edid_output:
+            p = os.popen(self.set_edid)
+            time.sleep(5)
+            p.close()
