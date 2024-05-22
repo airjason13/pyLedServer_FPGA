@@ -1,40 +1,49 @@
+import glob
 import os
 import sys
 
 from astral_hashmap import City_Map
-from global_def import log
+from global_def import log, internal_media_folder, PlaylistFolder, play_type
 
 led_params_config_folder_name = "led_config"
 led_params_config_file_name = "led_parameters"
 led_reboot_config_file_name = "reboot_config"
 
 
+mp4_extends = internal_media_folder + "/*.mp4"
+jpeg_extends = internal_media_folder + "/*.jpeg"
+jpg_extends = internal_media_folder + "/*.jpg"
+png_extends = internal_media_folder + "/*.png"
+webp_extends = internal_media_folder + '/*.webp'
+playlist_extends = internal_media_folder + PlaylistFolder + "*.playlist"
+
+
 def init_video_params():
     content_lines = [
         "led_brightness=50\n",
-            "icled_type=0\n"
-            "led_gamma=2.2\n",
-            "led_r_gain=1\n",
-            "led_b_gain=1\n",
-            "led_g_gain=1\n",
-            "sleep_mode_enable=1\n",
-            "target_city_index=0\n",
-            "frame_brightness_algorithm=0\n",
-            "day_mode_frame_brightness=50\n",
-            "night_mode_frame_brightness=30\n",
-            "sleep_mode_frame_brightness=0\n",
-            "image_period=6000\n",
-            "hdmi_in_start_x=0\n",
-            "hdmi_in_start_y=0\n",
-            "hdmi_in_crop_w=0\n",
-            "hdmi_in_crop_h=0\n",
-            "media_file_start_x=0\n",
-            "media_file_start_y=0\n",
-            "media_file_crop_w=0\n",
-            "media_file_crop_h=0\n",
-            "output_frame_width=640\n",
-            "output_frame_height=480\n",
-            "output_fps=24\n",
+        "icled_type=0\n"
+        "led_gamma=2.2\n",
+        "led_r_gain=1\n",
+        "led_b_gain=1\n",
+        "led_g_gain=1\n",
+        "sleep_mode_enable=1\n",
+        "target_city_index=0\n",
+        "frame_brightness_algorithm=0\n",
+        "day_mode_frame_brightness=50\n",
+        "night_mode_frame_brightness=30\n",
+        "sleep_mode_frame_brightness=0\n",
+        "image_period=6000\n",
+        "hdmi_in_start_x=0\n",
+        "hdmi_in_start_y=0\n",
+        "hdmi_in_crop_w=0\n",
+        "hdmi_in_crop_h=0\n",
+        "media_file_start_x=0\n",
+        "media_file_start_y=0\n",
+        "media_file_crop_w=0\n",
+        "media_file_crop_h=0\n",
+        "output_frame_width=640\n",
+        "output_frame_height=480\n",
+        "output_fps=24\n",
     ]
     root_dir = os.path.dirname(sys.modules['__main__'].__file__)
     led_config_dir = os.path.join(root_dir, led_params_config_folder_name)
@@ -158,6 +167,34 @@ def get_brightness_mode_default() -> str:
     return str_ret
 
 
+def get_frame_rate_res_default():
+    root_dir = os.path.dirname(sys.modules['__main__'].__file__)
+    led_config_dir = os.path.join(root_dir, led_params_config_folder_name)
+    frame_rate_res_maps = {}
+
+    if os.path.exists(os.path.join(led_config_dir, led_params_config_file_name)) is False:
+        init_video_params()
+
+    with open(os.path.join(led_config_dir, led_params_config_file_name), "r+") as f:
+        lines = f.readlines()
+
+    for line in lines:
+        tag = line.split("=")[0]
+        if "output_frame_width" == tag:
+            str_fr_w = line.strip("\n").split("=")[1]
+            frame_rate_res_maps["output_frame_width"] = str_fr_w
+        elif "output_frame_height" == tag:
+            str_fr_h = line.strip("\n").split("=")[1]
+            frame_rate_res_maps["output_frame_height"] = str_fr_h
+        elif "output_fps" == tag:
+            str_fr_rate = line.strip("\n").split("=")[1]
+            frame_rate_res_maps["output_fps"] = str_fr_rate
+
+    f.close()
+
+    return frame_rate_res_maps
+
+
 def get_brightness_value_default():
     root_dir = os.path.dirname(sys.modules['__main__'].__file__)
     led_config_dir = os.path.join(root_dir, led_params_config_folder_name)
@@ -191,3 +228,129 @@ def get_brightness_value_default():
     f.close()
 
     return brightness_values_maps
+
+
+def get_default_play_mode_default():
+    try:
+        str_ret = ""
+        with open(os.getcwd() + "/static/default_launch_type.dat", "r") as launch_type_config_file:
+            tmp = launch_type_config_file.readline()
+            log.debug("launch_type_config : %s", tmp)
+            default_launch_type_int = int(tmp.split(":")[0])
+            default_launch_params_str = tmp.split(":")[1]
+            if default_launch_type_int == 0:
+                str_ret = "none_mode"
+            elif default_launch_type_int == 1:
+                str_ret = "single_file_mode"
+            elif default_launch_type_int == 2:
+                str_ret = "playlist_mode"
+            elif default_launch_type_int == 3:
+                str_ret = "hdmi_in_mode"
+            elif default_launch_type_int == 4:
+                str_ret = "cms_mode"
+            # log.debug("str_ret :%s", str_ret)
+            return str_ret
+    except Exception as e:
+        log.debug(e)
+    return "none_mode"
+
+
+def get_playlist_list():
+    playlist_list = []
+    for playlist_tmp in sorted(glob.glob(playlist_extends)):
+        # log.debug("playlist_tmp = %s", playlist_tmp)
+        if os.path.isfile(playlist_tmp):
+            fname_url = playlist_tmp.split("/")
+            fname = fname_url[len(fname_url) - 1]
+            # log.debug("fname : %s", fname)
+            playlist_list.append(fname)
+    if len(playlist_list) == 0:
+        playlist_list.append("")
+    return playlist_list
+
+def get_playlist_default():
+    try:
+        with open(os.getcwd() + "/static/default_launch_type.dat", "r") as launch_type_config_file:
+            tmp = launch_type_config_file.read()
+            default_launch_type_int = int(tmp.split(":")[0])
+            default_launch_type_params_str = tmp.split(":")[1]
+            if default_launch_type_int == play_type.play_playlist:
+                return default_launch_type_params_str
+            else:
+                return get_playlist_list()[0]
+    except Exception as e:
+        log.debug(e)
+
+    return get_playlist_list()[0]
+
+
+def get_icled_type_default():
+
+    i_icled_type = 0
+    s_icled_type = 'anapex'
+    root_dir = os.path.dirname(sys.modules['__main__'].__file__)
+    led_config_dir = os.path.join(root_dir, led_params_config_folder_name)
+    if os.path.exists(os.path.join(led_config_dir, led_params_config_file_name)) is False:
+        init_video_params()
+
+    with open(os.path.join(led_config_dir, led_params_config_file_name), "r+") as f:
+        lines = f.readlines()
+
+    for line in lines:
+        if 'icled_type' in line:
+            i_icled_type = int(line.strip("\n").split("=")[1])
+    if i_icled_type == 1:
+        s_icled_type = 'aos'
+    else:
+        s_icled_type = 'anapex'
+    log.debug("icled_type : %s", s_icled_type)
+    f.close()
+    return s_icled_type
+
+
+def get_still_image_period_default():
+    s_image_period = 0
+    root_dir = os.path.dirname(sys.modules['__main__'].__file__)
+    led_config_dir = os.path.join(root_dir, led_params_config_folder_name)
+    if os.path.exists(os.path.join(led_config_dir, led_params_config_file_name)) is False:
+        init_video_params()
+
+    with open(os.path.join(led_config_dir, led_params_config_file_name), "r+") as f:
+        lines = f.readlines()
+
+    for line in lines:
+        if 'image_period' in line:
+            i_icled_type = int(line.strip("\n").split("=")[1])
+            i_icled_type = i_icled_type/1000
+            s_image_period = str(i_icled_type)
+
+    f.close()
+    return s_image_period
+
+
+def get_icled_current_gain_values_default():
+    root_dir = os.path.dirname(sys.modules['__main__'].__file__)
+    led_config_dir = os.path.join(root_dir, led_params_config_folder_name)
+    current_gain_values_maps = {}
+
+    if os.path.exists(os.path.join(led_config_dir, led_params_config_file_name)) is False:
+        init_video_params()
+
+    with open(os.path.join(led_config_dir, led_params_config_file_name), "r+") as f:
+        lines = f.readlines()
+
+    for line in lines:
+        tag = line.split("=")[0]
+        if "led_r_gain" == tag:
+            str_led_r_gain = line.strip("\n").split("=")[1]
+            current_gain_values_maps["led_r_gain"] = str_led_r_gain
+        elif "led_g_gain" == tag:
+            str_led_g_gain = line.strip("\n").split("=")[1]
+            current_gain_values_maps["led_g_gain"] = str_led_g_gain
+        elif "led_b_gain" == tag:
+            str_led_b_gain = line.strip("\n").split("=")[1]
+            current_gain_values_maps["led_b_gain"] = str_led_b_gain
+
+    f.close()
+
+    return current_gain_values_maps

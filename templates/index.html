@@ -40,8 +40,8 @@
         }
 
         #carouselCaptions{
-            width: 70vw;
-            margin: auto;;
+            width: 40vw;
+            margin: auto;
         }
 
         .context{
@@ -145,26 +145,101 @@
 
     <table style="width:100vw" class="table">
         <tr>
-          <td>
-            <button data-bs-toggle="modal" data-bs-target="#playList" class="item" onclick="">
-                <!-- <img src="svg/music-note-list.svg" class="svgImg"> -->
-              Playlist
-            </button>
-          </td>
-          <td>
+            <td>
 
-            <button data-bs-toggle="modal" data-bs-target="#brightnessMode" class="item">
-              Brightness Mode
-            </button>
+                <button value="btn_hdmi_in_start" class="item" style="background-color: #ECECFF;" onclick="submit_hdmi_in(value)">
+                  HDMI-In Start
+                </button>
 
-          </td>
-            <!-- <button data-bs-toggle="modal" data-bs-target="#brightnessValue" class="item">
-              Brightness Value
-            </button> -->
+            </td>
+            <td>
+                <button data-bs-toggle="modal" data-bs-target="#playList" class="item" onclick="">
+                    <!-- <img src="svg/music-note-list.svg" class="svgImg"> -->
+                  Playlist
+                </button>
+            </td>
+        </tr>
+        <tr>
+            <td>
+
+                <button data-bs-toggle="modal" data-bs-target="#brightnessMode" class="item">
+                  Brightness Mode
+                </button>
+
+            </td>
+            <td>
+                <button data-bs-toggle="modal" data-bs-target="#defaultPlayMode" class="item">
+                  Default Mode Setting
+                </button>
+            </td>
+
+        </tr>
+        <tr>
+            <td>
+                <button data-bs-toggle="modal" data-bs-target="#mediaFileUpload" class="item">
+                    Media File Upload
+                </button>
+            </td>
+            <td>
+                <button data-bs-toggle="modal" data-bs-target="#id_frame_res_fps" class="item">
+                    Set RES/FPS
+                </button>
+            </td>
+
+        </tr>
+        <tr>
+            <td>
+                <button data-bs-toggle="modal" data-bs-target="#id_image_period" class="item">
+                    Still Image Period
+                </button>
+            </td>
+            <td>
+                <button data-bs-toggle="modal" data-bs-target="#id_icled_type_gain" class="item">
+                    ICLed Type/Gain
+                </button>
+            </td>
         </tr>
     </table>
 
-        <!-- 調亮度Modal -->
+    <!-- Playlist Modal -->
+    <div class="modal fade" id="playList" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticPlayList" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable ">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="staticPlayList">View Playlist</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-floating">
+                    <select class="form-select" id="floatingPlaylistName" onchange="onchangePlaylist()">
+                      <option selected disabled>Choose a playlist</option>
+	                  {% for k,v in playlist_nest_dict.items() %}
+                      <option value="{{v}}">{{k}}</option>
+	                  {% endfor %}
+                    </select>
+                    <label for="floatingPlaylistName">Playlist Name</label>
+                </div>
+                </br>
+                <div id="modalImgDiv">
+                    <!-- 插入playlist -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <div class="d-grid gap-2 d-md-block">
+                    <!-- delete playlist -->
+                    <button type="button" id="removePlaylist" data-bs-dismiss="modal"  class="btn btn-danger" onclick="remove_playlist()">Remove playlist</button>
+                    <!-- play this playlist -->
+                    <button type="button" id="playPlaylist" class="btn btn-primary" data-bs-dismiss="modal" onclick="play_playlist()">Play</button>
+                    <!-- <button type="submit" id="newPlaylist" class="btn btn-primary" data-bs-dismiss="modal" onclick="createPlaylist()">New a playlist</button> -->
+                    <!-- add to playlist -->
+                    <!-- <button type="submit" id="addToPlaylist" class="btn btn-primary" data-bs-dismiss="modal" onclick="add_to_playlist(name, playlist)">Add To Playlist</button> -->
+                </div>
+            </div>
+        </div>
+        </div>
+    </div>
+
+    <!-- 調亮度Modal -->
     <div class="modal fade" id="brightnessValue" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBrightnessValue" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -191,11 +266,7 @@
                 </div>
             </div>
             <div class="modal-footer">
-            {% if ledrole == "Server" %}
                 <button type="submit" class="btn btn-primary" onclick="submit_frame_brightness_values_option()">Submit</button>
-	 {% else %}
-	 <button type="submit" class="btn btn-primary" onclick="submit_aio_frame_brightness_values_option()">Submit</button>
-            {% endif %}
             </div>
         </div>
         </div>
@@ -217,11 +288,7 @@
 						{% for i in range(form.city_selectfiled.choices|length) %}
 						<option value={{form.city_selectfiled.choices[i]}}>{{form.city_selectfiled.choices[i]}}</option>
 						{% endfor %}
-                        <!-- <option selected disabled>Where are you?</option>
-                        <option value="Taipei">Taipei</option>
-                        <option value="Taichung">Taichung</option>
-                        <option value="kaohsiung">Kaohsiung</option>
-                        <option value="Taoyuan">Taoyuan</option> -->
+
                         </select>
                         <label for="floatingCity">City</label>
                     </div>
@@ -267,6 +334,180 @@
         </div>
         </div>
     </div>
+
+    <!-- 預設播放模式Modal -->
+    <div class="modal fade" id="defaultPlayMode" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticDefaultPlayMode" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="text-align:left">
+            <div class="modal-header">
+                <h5 class="modal-title" id="staticDefaultPlayMode">Default Setting</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-floating mb-2">
+                    <select class="form-select" id="floatingPlayMode" onchange="onchangeDefaultPlayMode()">
+	                <option value={{default_play_form.launch_type_switcher.data}} selected disabled>{{default_play_form.launch_type_switcher.data}}</option>
+                    {% for k,v in default_play_form.launch_type_switcher.choices %}
+                        <option value="{{k}}">{{v}}</option>
+	                {% endfor %}
+
+                    </select>
+                    <label for="floatingPlayMode">Play Mode</label>
+                </div>
+
+                <div class="form-floating mb-2" id="floatingPlayFileNameDiv">
+                    <select class="form-select" id="floatingPlayFileName" onchange="">
+                    <!-- <option selected disabled>Open this select menu</option> -->
+	                <!-- value={{default_play_form.single_file_selectfiled.data}}不符合.webp格式 -->
+	                <option selected disabled>{{default_play_form.single_file_selectfiled.data}}</option>
+	                {% for k,v in files.items() %}
+                      <option value="{{v}}">{{k}}</option>
+	                {% endfor %}
+                    </select>
+                    <label for="floatingPlayFileName">Play File Name</label>
+                </div>
+
+                <div class="form-floating" id="floatingDefaultPlaylistNameDiv">
+                    <select class="form-select" id="floatingDefaultPlaylistName" onchange="">
+                    <!-- <option selected disabled>Open this select menu</option> -->
+					<option selected disabled>{{default_play_form.playlist_selectfield.data}}</option>
+	                {% for k,v in playlist_nest_dict.items() %}
+                      <option value="{{v}}">{{k}}</option>
+	                {% endfor %}
+                    </select>
+                    <label for="floatingDefaultPlaylistName">Playlist Name</label>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="submit" class="btn btn-primary" onclick="submit_default_play_mode()">Submit</button>
+            </div>
+        </div>
+        </div>
+    </div>
+
+    <!-- 上傳檔案Modal -->
+    <div class="modal fade" id="mediaFileUpload" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticMediaFileUpload" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="staticMediaFileUpload">Choose a file</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form enctype="multipart/form-data" action="uploads" method="POST">
+              <div class="modal-body input-group">
+                <!-- <div class=""> -->
+                <input id="inputFile" type="file" name="file" class="form-control" accept=".jpeg,.jpg,.png,.mp4" onchange="checkFile()">  <!-- multiple -->
+                <!-- </div> -->
+              </div>
+              <div class="modal-footer">
+                <button id="uploadButton" type="submit" class="btn btn-primary" onclick="location.reload()">Submit</button>
+              </div>
+            </form>
+        </div>
+        </div>
+    </div>
+
+    <!-- Still Image Period Modal -->
+    <div class="modal fade" id="id_image_period" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="image_period" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable ">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="image_period">Still Image Period</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-floating mb-2">
+                    <input type="number" class="form-control" id="floatingImagePeriod" onchange="checkValue0_6000(this.id)" value= {{ still_image_period }}>
+                    <label for="floatingImagePeriod">Still Image Period90(Secs)</label>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <div class="d-grid gap-2 d-md-block">
+                    <button type="button" id="SetStillImagePeriod" data-bs-dismiss="modal"  class="btn btn-danger" onclick="submit_period_option()">Set</button>
+                </div>
+            </div>
+        </div>
+        </div>
+    </div>
+
+    <!-- ICLed Type Gain Modal -->
+    <div class="modal fade" id="id_icled_type_gain" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="icled_type_gain" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable ">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="icled_type_gain">ICLed Type/Gain</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-floating mb-2">
+                    <select class="form-select" id="floatingICLedType" onchange="onchangeDefaultPlayMode()">
+	                <option value={{default_play_form.icled_type_switcher.data}} selected disabled>{{default_play_form.icled_type_switcher.data}}</option>
+                    {% for k,v in default_play_form.icled_type_switcher.choices %}
+                        <option value="{{k}}">{{v}}</option>
+	                {% endfor %}
+
+                    </select>
+                    <label for="floatingICLedType">ICLed Type</label>
+                </div>
+                <div class="form-floating mb-2">
+                    <input type="number" class="form-control" id="floatingRedGain" onchange="checkValue0_15(this.id)" value={{ icled_current_gain_values.led_r_gain }}>
+                    <label for="floatingRedGain">Red Gain</label>
+                </div>
+                <div class="form-floating mb-2">
+                    <input type="number" class="form-control" id="floatingGreenGain" onchange="checkValue0_15(this.id)" value={{ icled_current_gain_values.led_g_gain }}>
+                    <label for="floatingGreenGain">Green Gain</label>
+                </div>
+                <div class="form-floating mb-2">
+                    <input type="number" class="form-control" id="floatingBlueGain" onchange="checkValue0_15(this.id)" value={{ icled_current_gain_values.led_b_gain }}>
+                    <label for="floatingBlueGain">Blue Gain</label>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <div class="d-grid gap-2 d-md-block">
+                    <button type="button" id="SetICLedTypeGain" data-bs-dismiss="modal"  class="btn btn-danger" onclick="submit_icled_type_gain_option()">Set</button>
+                </div>
+            </div>
+        </div>
+        </div>
+    </div>
+
+    <!-- Set Frame res/fps Modal -->
+    <div class="modal fade" id="id_frame_res_fps" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="frame_res_fps" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable ">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="frame_res_fps">LED FrameRate/Res</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-floating mb-2">
+                    <input type="number" class="form-control" id="floatingFrameWidth" onchange="checkValue0_1280(this.id)" value={{ frame_res_rate_values.output_frame_width }}>
+                    <label for="floatingFrameWidth">Frame Width</label>
+                </div>
+                <div class="form-floating mb-2">
+                    <input type="number" class="form-control" id="floatingFrameHeight" onchange="checkValue0_720(this.id)" value={{ frame_res_rate_values.output_frame_height }}>
+                    <label for="floatingFrameHeight">Frame Height</label>
+                </div>
+                <div class="form-floating mb-2">
+                    <input type="number" class="form-control" id="floatingFrameFPS" placeholder="25" onchange="checkValue0_30(this.id)" value={{ frame_res_rate_values.output_fps }}>
+                    <label for="floatingFrameFPS">Frame Rate</label>
+                </div>
+            <div class="modal-footer">
+                <div class="d-grid gap-2 d-md-block">
+
+                    <button type="button" id="SetResFPS" data-bs-dismiss="modal"  class="btn btn-danger" onclick="submit_framerate_res_option()">Set</button>
+
+
+                </div>
+            </div>
+        </div>
+        </div>
+    </div>
+
+
 
     <script>
         $(function(){
@@ -808,6 +1049,121 @@
                 /*alert("data : " + data)*/
                 console.log('Brightness Value : ' + data);
                 var url = "/set_brightness_values/" + data;
+                $.post(url, {
+                    /*javascript_data: data*/
+                    });
+            }
+        }
+
+        //submit_icled_type_gain_option
+        //Set ICLed Type & Gain
+        function submit_icled_type_gain_option(){
+            var icled_type = document.getElementById("floatingICLedType").value;
+            var r_gain = document.getElementById("floatingRedGain").value;
+            var g_gain = document.getElementById("floatingGreenGain").value;
+            var b_gain = document.getElementById("floatingBlueGain").value;
+
+            if(!icled_type ){
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Input cannot be empty',
+					showConfirmButton: false,
+                    timer: 2000
+                })
+            }else if(r_gain > 15 || r_gain < 0 || g_gain > 15 || g_gain < 0 || b_gain > 15 || b_gain < 0){
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Illegal Value',
+					showConfirmButton: false,
+                    timer: 2000
+                })
+            }else{
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Set Data',
+					showConfirmButton: false,
+                    timer: 2000
+                })
+                $('#id_icled_type_gain').modal('hide');
+                var data = "icled_type:" + icled_type + ";r_gain:" + r_gain + ";g_gain:" + g_gain + ";b_gain:" + b_gain;
+                /*alert("data : " + data)*/
+                console.log('icled_type_gain : ' + data);
+                var url = "/set_icled_type_gain/" + data;
+                $.post(url, {
+                    /*javascript_data: data*/
+                    });
+            }
+        }
+
+        // Image Period Value
+        function submit_period_option(){
+            var period = document.getElementById("floatingImagePeriod").value;
+
+            if(!period ){
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Input cannot be empty',
+					showConfirmButton: false,
+                    timer: 2000
+                })
+            }else if(period > 60000 || period<0 ){
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Illegal Value',
+					showConfirmButton: false,
+                    timer: 2000
+                })
+            }else{
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Set Data',
+					showConfirmButton: false,
+                    timer: 2000
+                })
+                $('#id_frame_res_fps').modal('hide');
+                var data = "period:" + period;
+                /*alert("data : " + data)*/
+                console.log('image period : ' + data);
+                var url = "/set_image_period_values/" + data;
+                $.post(url, {
+                    /*javascript_data: data*/
+                    });
+            }
+        }
+
+        // Framerate/FPS Value
+        function submit_framerate_res_option(){
+            var fr_w = document.getElementById("floatingFrameWidth").value;
+            var fr_h = document.getElementById("floatingFrameHeight").value;
+            var fr_fps = document.getElementById("floatingFrameFPS").value;
+
+            if(!fr_w || !fr_h || !fr_fps ){
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Input cannot be empty',
+					showConfirmButton: false,
+                    timer: 2000
+                })
+            }else if(fr_w>1280 || fr_w<16 || fr_h>720 || fr_h<0
+            || fr_fps>30 || fr_fps<0 ){
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Illegal Value',
+					showConfirmButton: false,
+                    timer: 2000
+                })
+            }else{
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Set Data',
+					showConfirmButton: false,
+                    timer: 2000
+                })
+                $('#id_frame_res_fps').modal('hide');
+                var data = "fr_w:" + fr_w + ";fr_h:" + fr_h +";fr_fps:" + fr_fps;
+                /*alert("data : " + data)*/
+                console.log('Frame data : ' + data);
+                var url = "/set_frame_rate_res_values/" + data;
                 $.post(url, {
                     /*javascript_data: data*/
                     });

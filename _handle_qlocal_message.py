@@ -64,10 +64,11 @@ def adjust_frame_brightness(self, data: str):
 
 
 def adjust_icled_type(self, type: str):
+    log.debug("type : ", type)
     if 'anapex' in type:
-        self.media_engine.led_video_params.set_icled_type(icled_type.anapex)
+        self.media_engine.led_video_params.set_icled_type(0)
     elif 'aos' in type:
-        self.media_engine.led_video_params.set_icled_type(icled_type.aos)
+        self.media_engine.led_video_params.set_icled_type(1)
 
 
 def adjust_led_r_gain(self, red_gain: str):
@@ -89,15 +90,61 @@ def adjust_led_b_gain(self, red_gain: str):
 
 
 def adjust_frame_width(self, w):
-    log.debug("")
+    log.debug("To be Implamented!")
 
 
-def adjust_frame_height(self, w):
-    log.debug("")
+def adjust_frame_height(self, h):
+    log.debug("To be Implamented!")
 
 
-def adjust_fps(self, w):
-    log.debug("")
+def adjust_icled_type_gain(self, data):
+    tmp = data.split(";")
+    for s in tmp:
+        if "icled_type" in s:
+            s_icled_type = s.split(":")[1]
+            if 'anapex' in s_icled_type:
+                i_icled_type = 0
+            elif 'aos' in s_icled_type:
+                i_icled_type = 1
+            else:
+                i_icled_type = 0
+            self.media_engine.led_video_params.set_icled_type(i_icled_type)
+        elif "r_gain" in s:
+            i_r_gain = int(s.split(":")[1])
+            self.media_engine.led_video_params.set_led_red_gain(i_r_gain)
+        elif "g_gain" in s:
+            i_g_gain = int(s.split(":")[1])
+            self.media_engine.led_video_params.set_led_red_gain(i_g_gain)
+        elif "b_gain" in s:
+            i_b_gain = int(s.split(":")[1])
+            self.media_engine.led_video_params.set_led_red_gain(i_b_gain)
+
+
+def adjust_still_image_period(self, data):
+    period = data.split(":")[1]
+    i_period = int(period) * 1000
+    self.media_engine.led_video_params.set_still_image_period(i_period)
+
+
+def adjust_res_fps(self, data):
+    log.debug("data : %s", data)
+    s_data = data.split(";")
+    for s in s_data:
+        if 'fr_w' in s:
+            frame_width = s.split(":")[1]
+            if int(frame_width) != self.media_engine.led_video_params.get_output_frame_width():
+                log.debug("set_output_frame_width : %s", frame_width)
+                self.media_engine.led_video_params.set_output_frame_width(int(frame_width))
+        elif 'fr_h' in s:
+            frame_height = s.split(":")[1]
+            if int(frame_height) != self.media_engine.led_video_params.get_output_frame_height():
+                log.debug("set_output_frame_height : %s", frame_height)
+                self.media_engine.led_video_params.set_output_frame_height(int(frame_height))
+        elif 'fr_fps' in s:
+            frame_fps = s.split(":")[1]
+            if int(frame_fps) != self.media_engine.led_video_params.get_output_fps():
+                log.debug("set_output_fps %s", frame_fps)
+                self.media_engine.led_video_params.set_output_fps(int(frame_fps))
 
 
 cmd_function_map = {
@@ -113,7 +160,9 @@ cmd_function_map = {
     "set_led_b_gain": adjust_led_b_gain,
     "set_frame_width": adjust_frame_width,
     "set_frame_height": adjust_frame_height,
-    "set_fps": adjust_fps,
+    "set_frame_rate_res_values": adjust_res_fps,
+    "set_image_period_values": adjust_still_image_period,
+    "set_icled_type_gain": adjust_icled_type_gain,
 }
 
 """ handle the command from LocalServer"""
@@ -122,6 +171,9 @@ cmd_function_map = {
 def parser_cmd_from_qlocalserver(self, data: dict) -> None:
     log.debug("data : %s", data)
     log.debug("len(self.fpga_list) : %d", len(self.fpga_list))
-    for key in data:
-        log.debug("i : %s, v: %s", key, data[key])
-        self.cmd_function_map[key](self, data[key])
+    try:
+        for key in data:
+            log.debug("i : %s, v: %s", key, data[key])
+            self.cmd_function_map[key](self, data[key])
+    except Exception as e:
+        log.error(e)

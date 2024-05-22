@@ -172,7 +172,7 @@ class VideoParams(QObject):
     def sync_video_param(self):
         params_led_brightness = "led_brightness=" + str(self.led_brightness) + '\n'
         params_led_gamma = 'led_gamma=' + str(self.led_gamma) + '\n'
-        params_led_type = 'icled_type=' + str(self.icled_type) + '\n'
+        params_led_type = 'icled_type=' + str(int(self.icled_type)) + '\n'
         params_red_gain = 'led_r_gain=' + str(self.led_r_gain) + '\n'
         params_green_gain = "led_g_gain=" + str(self.led_g_gain) + '\n'
         params_blue_gain = 'led_b_gain=' + str(self.led_b_gain) + '\n'
@@ -420,4 +420,14 @@ class VideoParams(QObject):
 
     def get_output_fps(self):
         return self.output_fps
+
+    def set_still_image_period(self, period):
+        if self.image_period != period:
+            self.image_period = period
+            self.sync_video_param()
+
+    def get_still_image_period(self):
+        return self.image_period
+
+
 

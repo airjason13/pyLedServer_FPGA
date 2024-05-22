@@ -46,6 +46,14 @@ class play_type(enum.IntEnum):
     play_cms = 4
 
 
+class play_type(enum.IntEnum):
+    play_none = 0
+    play_single = 1
+    play_playlist = 2
+    play_hdmi_in = 3
+    play_cms = 4
+
+
 class frame_brightness_alog(enum.IntEnum):
     fix_mode = 0
     auto_time_mode = 1
