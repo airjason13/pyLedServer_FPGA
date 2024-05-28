@@ -721,6 +721,7 @@
 			document.getElementById("modalImgDiv").innerHTML = '';
             var input = $("#floatingPlaylistName").val();
 			input = input.replaceAll("'", "\"");
+			console.log('input:' + input)
 			var obj = JSON.parse(input, function(key, value) {
 				if (value.toString().endsWith('webp')){
 					document.getElementById("modalImgDiv").innerHTML += '<img class="w-75 img-thumbnail playListContext" id="' + key + '" src="./get_thumbnail/' + value + '" />';

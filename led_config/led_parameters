@@ -1,7 +1,7 @@
 led_brightness=50
 led_gamma=2.2
-icled_type=1
-led_r_gain=2
+icled_type=0
+led_r_gain=1
 led_g_gain=1
 led_b_gain=1
 sleep_mode_enable=1
