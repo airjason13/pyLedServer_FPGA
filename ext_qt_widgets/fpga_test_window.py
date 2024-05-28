@@ -16,6 +16,8 @@ common_reg_list = [
                     "panelWay",
                     "ledArrangement",
                     "stringVersion",
+                    "otaUpdateCount",
+                    "ignoreLostFrame",
 ]
 
 gamma_reg_list = []

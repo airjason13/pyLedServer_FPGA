@@ -323,7 +323,10 @@ class MediaFilesPage(QWidget):
         self.brightness_algo_combobox = QComboBox(self.video_params_setting_widget)
         self.brightness_algo_combobox.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
         for i in frame_brightness_alog:
-            self.brightness_algo_combobox.addItem(str(i).split(".")[1])
+            if '.' in str(i):
+                self.brightness_algo_combobox.addItem(str(i).split(".")[1])
+            else:
+                self.brightness_algo_combobox.addItem(str(i))
         self.brightness_algo_combobox.setCurrentIndex(self.media_engine.led_video_params.get_frame_brightness_algo())
 
         self.sleep_mode_enable_label = QLabel(self.video_params_setting_widget)
@@ -332,7 +335,10 @@ class MediaFilesPage(QWidget):
         self.sleep_mode_enable_combobox = QComboBox(self.video_params_setting_widget)
         self.sleep_mode_enable_combobox.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
         for i in sleep_mode:
-            self.sleep_mode_enable_combobox.addItem(str(i).split(".")[1])
+            if '.' in str(i):
+                self.sleep_mode_enable_combobox.addItem(str(i).split(".")[1])
+            else:
+                self.sleep_mode_enable_combobox.addItem(str(i))
         self.sleep_mode_enable_combobox.setCurrentIndex(self.media_engine.led_video_params.get_sleep_mode_enable())
 
         self.target_city_label = QLabel(self.video_params_setting_widget)
@@ -398,7 +404,10 @@ class MediaFilesPage(QWidget):
         self.icled_type_combobox = QComboBox(self.video_params_setting_widget)
         self.icled_type_combobox.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
         for type in icled_type:
-            self.icled_type_combobox.addItem(str(type).split(".")[1])
+            if '.' in str(type):
+                self.icled_type_combobox.addItem(str(type).split(".")[1])
+            else:
+                self.icled_type_combobox.addItem(str(type))
         self.icled_type_combobox.setCurrentIndex(int(self.media_engine.led_video_params.get_icled_type()))
 
         self.output_frame_width_label = QLabel(self.video_params_setting_widget)
