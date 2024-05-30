@@ -50,6 +50,8 @@ class VideoParams(QObject):
             self.output_frame_width = 640
             self.output_frame_height = 480
             self.output_fps = 24
+            self.play_with_audio = 0
+            self.play_with_preview = 0
             self.sync_video_param()
 
     def install_video_params_changed_slot(self, slot):
@@ -87,6 +89,8 @@ class VideoParams(QObject):
             "output_frame_width=640\n",
             "output_frame_height=480\n",
             "output_fps=24\n",
+            "play_with_audio=0\n",
+            "play_with_preview=0\n",
         ]
         config_file = open(self.video_params_file_uri, 'w')
         config_file.writelines(content_lines)
@@ -158,10 +162,15 @@ class VideoParams(QObject):
                 self.output_frame_height = int(tmp[1])
             elif tmp[0] == "output_fps":
                 self.output_fps = int(tmp[1])
+            elif tmp[0] == "play_with_audio":
+                self.play_with_audio = int(tmp[1])
+            elif tmp[0] == "play_with_preview":
+                self.play_with_preview = int(tmp[1])
 
 
     def check_video_param_file_valid(self):
         ''' Not Implemented yet'''
+        log.debug("Need To be implemented")
         return True
 
     def sync_video_param_from_file_watcher(self):
@@ -194,6 +203,8 @@ class VideoParams(QObject):
         params_output_frame_width = 'output_frame_width=' + str(self.output_frame_width) + '\n'
         params_output_frame_height = 'output_frame_height=' + str(self.output_frame_height) + '\n'
         params_output_fps = 'output_fps=' + str(self.output_fps) + '\n'
+        params_play_with_audio = 'play_with_audio=' + str(self.play_with_audio) + '\n'
+        params_play_with_preview = 'play_with_preview=' + str(self.play_with_preview) + '\n'
         content_lines = [
             params_led_brightness,
             params_led_gamma,
@@ -219,6 +230,8 @@ class VideoParams(QObject):
             params_output_frame_width,
             params_output_frame_height,
             params_output_fps,
+            params_play_with_audio,
+            params_play_with_preview,
         ]
 
         log.debug("content_lines :%s", content_lines)
@@ -245,9 +258,9 @@ class VideoParams(QObject):
     def get_led_gamma(self):
         return self.led_gamma
 
-    def set_icled_type(self, type):
-        if self.icled_type != type:
-            self.icled_type = type
+    def set_icled_type(self, led_type):
+        if self.icled_type != led_type:
+            self.icled_type = led_type
             self.sync_video_param()
 
     def get_icled_type(self):
@@ -428,6 +441,22 @@ class VideoParams(QObject):
 
     def get_still_image_period(self):
         return self.image_period
+
+    def set_play_with_audio(self, play_with_audio):
+        if self.play_with_audio != play_with_audio:
+            self.play_with_audio = play_with_audio
+            self.sync_video_param()
+
+    def get_play_with_audio(self):
+        return self.play_with_audio
+
+    def set_play_with_preview(self, play_with_preview):
+        if self.play_with_preview != play_with_preview:
+            self.play_with_preview = play_with_preview
+            self.sync_video_param()
+
+    def get_play_with_preview(self):
+        return self.play_with_preview
 
 
 

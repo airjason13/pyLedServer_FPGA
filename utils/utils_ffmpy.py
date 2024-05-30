@@ -1,4 +1,7 @@
+import os
 import platform
+import subprocess
+
 import ffmpy
 from global_def import log
 
@@ -41,7 +44,19 @@ def get_ffmpeg_cmd_for_media(video_uri: str, **kwargs):
             pipe_sink: ["-filter_complex", filter_params, "-r", target_fps, "-pix_fmt", "rgb24", "-f", "rawvideo"]
         }
         if audio_on:
-            output_options[audio_sink] = ["-f", "alsa"]
+            # 檢查影片緣是否帶有音軌
+            got_audio = False
+            process = subprocess.Popen(['ffprobe', '-hide_banner', video_uri],
+                                       stdout=subprocess.PIPE,
+                                       stderr=subprocess.PIPE)
+            ffprobe_res = process.communicate()
+            for byte_res in ffprobe_res:
+                if "Audio" in byte_res.decode():
+                    got_audio = True
+
+            log.debug("got_audio : %d", got_audio)
+            if got_audio is True:
+                output_options[audio_sink] = ["-f", "alsa"]
 
         ff = ffmpy.FFmpeg(
             global_options=global_opts,
@@ -50,6 +65,11 @@ def get_ffmpeg_cmd_for_media(video_uri: str, **kwargs):
         )
     elif video_uri.endswith("jpeg") or video_uri.endswith("jpg") or video_uri.endswith("png"):
         log.debug("jpg to mp4")
+        if platform.machine() in ('arm', 'arm64', 'aarch64'):
+            pass
+        else:
+            # nvidia cuda does not support jeg decode
+            global_opts = '-hide_banner -loglevel error'
         ff = ffmpy.FFmpeg(
             global_options=global_opts,
             inputs={

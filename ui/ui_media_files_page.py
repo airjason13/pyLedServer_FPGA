@@ -156,7 +156,7 @@ class MediaFilesPage(QWidget):
         self.play_icon_pixmap = None
         self.pause_icon_pixmap = None
         self.stop_icon_pixmap = None
-        self.audioActiveToggle = True
+        # self.audioActiveToggle = True
         self.previewVisibleToggle = True
         self.select_current_file_uri = None
         self.init_ui()
@@ -251,18 +251,20 @@ class MediaFilesPage(QWidget):
         self.play_stop_btn.clicked.connect(self.stop_btn_clicked)
 
         self.sound_control_btn = QPushButton()
-        if self.audioActiveToggle is True:
+        # if self.audioActiveToggle is True:
+        if self.media_engine.led_video_params.get_play_with_audio() == 1:
             self.sound_control_btn.setIcon(QIcon('materials/soundOnIcon.png'))
         else:
             self.sound_control_btn.setIcon(QIcon('materials/soundOffIcon.png'))
 
         self.sound_control_btn.setIconSize(QSize(32, 32))
         self.sound_control_btn.setCheckable(True)
-        self.sound_control_btn.setChecked(not self.audioActiveToggle)
+        self.sound_control_btn.setChecked(not self.media_engine.led_video_params.get_play_with_audio())
         self.sound_control_btn.clicked.connect(self.sound_btn_clicked)
 
         self.preview_control_btn = QPushButton()
-        if self.previewVisibleToggle is True:
+        # if self.previewVisibleToggle is True:
+        if self.media_engine.led_video_params.get_play_with_preview() == 1:
             self.preview_control_btn.setIcon(QIcon('materials/eyeOpenIcon.png'))
         else:
             self.preview_control_btn.setIcon(QIcon('materials/eyeCloseIcon.png'))
@@ -764,7 +766,6 @@ class MediaFilesPage(QWidget):
         elif q.text() == self.TAG_Str_Popup_Menu_Remove_From_Playlist:
             self.remove_file_from_playlist()
         elif q.text() == self.TAG_Str_Popup_Menu_Play:
-            log.debug("Play not Implemented")
             selected_widget = self.media_files_tree_widget.itemAt(self.right_clicked_pos)
             # selected_file_name = selected_widget.text(0)
             select_file_uri = self.internal_media_folder[0] + "/" + selected_widget.text(0)
@@ -772,13 +773,14 @@ class MediaFilesPage(QWidget):
             self.media_active_width = 0
             self.media_active_height = 0
             resolution = self.media_engine.get_video_resolution(self.select_current_file_uri)
+            log.debug("resolution : %s", resolution)
             if resolution is not None:
                 self.media_active_width, self.media_active_height = resolution
 
             self.media_engine.single_play(self.select_current_file_uri,
                                           active_width=self.media_active_width,
                                           active_height=self.media_active_height,
-                                          audio_active=self.audioActiveToggle,
+                                          audio_active=self.media_engine.led_video_params.get_play_with_audio(),
                                           preview_visible=self.previewVisibleToggle)
             '''w, h = get_led_config_from_file_uri("led_wall_resolution",
                                                 "led_wall_width", "led_wall_height")
@@ -914,63 +916,68 @@ class MediaFilesPage(QWidget):
                         self.media_engine.single_play(self.select_current_file_uri,
                                                       active_width=self.media_active_width,
                                                       active_height=self.media_active_height,
-                                                      audio_active=self.audioActiveToggle,
+                                                      audio_active=self.media_engine.led_video_params.get_play_with_audio(),
                                                       preview_visible=self.previewVisibleToggle)
 
     def sound_btn_clicked(self):
         log.debug("")
         if self.sound_control_btn.isChecked():
-            self.audioActiveToggle = False
+            self.media_engine.led_video_params.set_play_with_audio(0)
             self.sound_control_btn.setIcon(QIcon('materials/soundOffIcon.png'))
         else:
-            self.audioActiveToggle = True
+            self.media_engine.led_video_params.set_play_with_audio(1)
             self.sound_control_btn.setIcon(QIcon('materials/soundOnIcon.png'))
 
-        if PlayStatus.Playing == self.media_engine.playing_status:
+        # move to media_engine
+        '''if PlayStatus.Playing == self.media_engine.playing_status:
             if self.media_engine.play_single_file_worker:
                 if os.path.exists(self.select_current_file_uri):
                     self.media_engine.stop_play()
                     self.media_engine.single_play(self.select_current_file_uri,
                                                   active_width=self.media_active_width,
                                                   active_height=self.media_active_height,
-                                                  audio_active=self.audioActiveToggle,
-                                                  preview_visible=self.previewVisibleToggle)
+                                                  audio_active=self.media_engine.led_video_params.get_play_with_audio(),
+                                                  preview_visible=self.previewVisibleToggle)'''
 
     def preview_btn_clicked(self):
         log.debug("")
         if self.preview_control_btn.isChecked():
-            self.previewVisibleToggle = False
+            # self.previewVisibleToggle = False
+            self.media_engine.led_video_params.set_play_with_preview(0)
             self.preview_control_btn.setIcon(QIcon('materials/eyeCloseIcon.png'))
         else:
-            self.previewVisibleToggle = True
+            # self.previewVisibleToggle = True
+            self.media_engine.led_video_params.set_play_with_preview(1)
             self.preview_control_btn.setIcon(QIcon('materials/eyeOpenIcon.png'))
 
-        if PlayStatus.Playing == self.media_engine.playing_status:
+        # move to media_engine
+        '''if PlayStatus.Playing == self.media_engine.playing_status:
             if self.media_engine.play_single_file_worker:
                 if os.path.exists(self.select_current_file_uri):
                     self.media_engine.stop_play()
                     self.media_engine.single_play(self.select_current_file_uri,
                                                   active_width=self.media_active_width,
                                                   active_height=self.media_active_height,
-                                                  audio_active=self.audioActiveToggle,
-                                                  preview_visible=self.previewVisibleToggle)
+                                                  audio_active=self.media_engine.led_video_params.get_play_with_audio(),
+                                                  preview_visible=self.previewVisibleToggle)'''
 
     def adj_media_ctrl_param(self):
         self.media_engine.led_video_params.set_media_file_crop_w(int(self.video_crop_w_lineedit.text()))
         self.media_engine.led_video_params.set_media_file_crop_h(int(self.video_crop_h_lineedit.text()))
         self.media_engine.led_video_params.set_media_file_start_x(int(self.video_crop_x_lineedit.text()))
         self.media_engine.led_video_params.set_media_file_start_y(int(self.video_crop_y_lineedit.text()))
-        self.media_engine.led_video_params.sync_video_param()
+        # self.media_engine.led_video_params.sync_video_param()
 
-        if PlayStatus.Playing == self.media_engine.playing_status:
+        # move to media_engine
+        '''if PlayStatus.Playing == self.media_engine.playing_status:
             if self.media_engine.play_single_file_worker:
                 if os.path.exists(self.select_current_file_uri):
                     self.media_engine.stop_play()
                     self.media_engine.single_play(self.select_current_file_uri,
                                                   active_width=self.media_active_width,
                                                   active_height=self.media_active_height,
-                                                  audio_active=self.audioActiveToggle,
-                                                  preview_visible=self.previewVisibleToggle)
+                                                  audio_active=self.media_engine.led_video_params.get_play_with_audio(),
+                                                  preview_visible=self.previewVisibleToggle)'''
 
     def adj_video_br_ga_param(self):
         if (int(self.video_brightness_lineedit.text()) < MIN_FRAME_BRIGHTNESS

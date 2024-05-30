@@ -1,5 +1,6 @@
 import json
 import random
+import subprocess
 import time
 
 import qdarkstyle
@@ -38,6 +39,7 @@ class MainUi(QMainWindow):
     def __init__(self):
         log.debug("Venom Main Window Init!")
         super().__init__()
+
 
         eth_if_promisc_cmd = os.popen("ifconfig {} promisc".format(ETH_DEV))
         eth_if_promisc_cmd.close()

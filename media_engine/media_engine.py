@@ -48,7 +48,7 @@ class MediaEngine(QObject):
 
         self.led_video_params = VideoParams(True, 50, 2.2,
                                             15, 15, 15)
-
+        self.led_video_params.install_video_params_changed_slot(self.video_params_changed)
         self.sync_output_streaming_resolution()
         self.playing_status = PlayStatus.Stop
         self.pre_playing_status = PlayStatus.Initial
@@ -63,12 +63,95 @@ class MediaEngine(QObject):
 
         os.system("pkill -9 -f show_ffmpeg_shared_memory")
 
+        self.image_period = self.led_video_params.get_still_image_period()
+        self.media_file_start_y = self.led_video_params.get_media_file_start_x()
+        self.media_file_start_x = self.led_video_params.get_media_file_start_y()
+        self.media_file_crop_h = self.led_video_params.get_media_file_crop_h()
+        self.media_file_crop_w = self.led_video_params.get_media_file_crop_w()
+        self.hdmi_in_start_y = self.led_video_params.get_hdmi_in_start_x()
+        self.hdmi_in_start_x = self.led_video_params.get_hdmi_in_start_y()
+        self.hdmi_in_crop_h = self.led_video_params.get_hdmi_in_crop_h()
+        self.hdmi_in_crop_w = self.led_video_params.get_hdmi_in_crop_w()
+        self.hdmi_active_width = 0
+        self.hdmi_active_height = 0
+
         self.sound_device = SoundDevices()
         self.pulse_audio_status = self.sound_device.pulse_audio_status()
         if not self.pulse_audio_status:
             self.pulse_audio_status = self.sound_device.start_pulse_audio()
         self.hdmi_sound = self.sound_device.capture_hdmi_rcv_devices()
         self.headphone_sound = self.sound_device.capture_Headphones_devices()
+
+    def video_params_changed(self):
+        need_restart_streaming = False
+        if self.output_streaming_fps != self.led_video_params.get_output_fps():
+            self.output_streaming_fps = self.led_video_params.get_output_fps()
+            need_restart_streaming = True
+        if self.output_streaming_width != self.led_video_params.get_output_frame_width():
+            self.output_streaming_width = self.led_video_params.get_output_frame_width()
+            need_restart_streaming = True
+        if self.output_streaming_height != self.led_video_params.get_output_frame_height():
+            self.output_streaming_height = self.led_video_params.get_output_frame_height()
+            need_restart_streaming = True
+
+        if self.image_period != self.led_video_params.get_still_image_period():
+            self.led_video_params = self.led_video_params.get_still_image_period()
+            need_restart_streaming = True
+
+        if self.media_file_crop_w != self.led_video_params.get_media_file_crop_w():
+            self.media_file_crop_w = self.led_video_params.get_media_file_crop_w()
+            need_restart_streaming = True
+
+        if self.media_file_crop_h != self.led_video_params.get_media_file_crop_h():
+            self.media_file_crop_h = self.led_video_params.get_media_file_crop_h()
+            need_restart_streaming = True
+
+        if self.media_file_start_x != self.led_video_params.get_media_file_start_x():
+            self.media_file_start_x = self.led_video_params.get_media_file_start_x()
+            need_restart_streaming = True
+
+        if self.media_file_start_y != self.led_video_params.get_media_file_start_y():
+            self.media_file_start_y = self.led_video_params.get_media_file_start_y()
+            need_restart_streaming = True
+
+        if self.hdmi_in_crop_w != self.led_video_params.get_hdmi_in_crop_w():
+            self.hdmi_in_crop_w = self.led_video_params.get_hdmi_in_crop_w()
+            need_restart_streaming = True
+
+        if self.hdmi_in_crop_h != self.led_video_params.get_hdmi_in_crop_h():
+            self.hdmi_in_crop_h = self.led_video_params.get_hdmi_in_crop_h()
+            need_restart_streaming = True
+
+        if self.hdmi_in_start_x != self.led_video_params.get_hdmi_in_start_x():
+            self.hdmi_in_start_x = self.led_video_params.get_hdmi_in_start_x()
+            need_restart_streaming = True
+
+        if self.hdmi_in_start_y != self.led_video_params.get_hdmi_in_start_y():
+            self.hdmi_in_start_y = self.led_video_params.get_hdmi_in_start_y()
+            need_restart_streaming = True
+
+        if need_restart_streaming is True:
+            # if play status == 1, restreaming.
+            if self.playing_status == 1:
+                if self.play_single_file_worker is not None:
+                    log.debug("re-play single play file uri: %s", self.play_single_file_worker.file_uri)
+                    file_uri = self.play_single_file_worker.file_uri
+                    self.stop_play()
+                    resolution = self.get_video_resolution(file_uri)
+                    if resolution is not None:
+                        media_active_width, media_active_height = resolution
+                    self.single_play(file_uri,
+                                     active_width=media_active_width,
+                                     active_height=media_active_width,
+                                     audio_active=self.led_video_params.get_play_with_audio(),
+                                     preview_visible=True
+                                     )
+                elif self.play_hdmi_in_worker is not None:
+                    log.debug("HDMI-In re-play need to be test")
+                    video_src = self.play_hdmi_in_worker.video_src
+
+                    # self.stop_play()
+                    # self.hdmi_in_play(video_src, )
 
     def install_signal_media_play_status_changed_slot(self, slot_func):
         self.signal_media_play_status_changed.connect(slot_func)
@@ -88,7 +171,6 @@ class MediaEngine(QObject):
         self.output_streaming_height = int(self.led_video_params.get_output_frame_height())
         self.output_streaming_fps = int(self.led_video_params.get_output_fps())
 
-
     def play_status_changed(self, status: int, playing_src: str):
         log.debug("play_status_changed : status=%d", status)
         self.play_change_mutex.lock()
@@ -102,6 +184,10 @@ class MediaEngine(QObject):
 
     def preview_pixmap_changed(self, raw_image_np_array):
         # log.debug("preview_pixmap_changed")
+        if self.led_video_params.get_play_with_preview() == 0:
+            if self.playing_preview_window.isVisible() is True:
+                self.playing_preview_window.setVisible(False)
+            return
         if raw_image_np_array is None:
             log.error("raw_image_np_array is None")
             return
@@ -122,6 +208,12 @@ class MediaEngine(QObject):
         c_height = 0
         c_pos_x = 0
         c_pos_y = 0
+
+        log.debug("active_width = %d", active_width)
+        log.debug("active_height = %d", active_height)
+        log.debug("self.led_video_params.get_media_file_crop_w() = %d", self.led_video_params.get_media_file_crop_w())
+        log.debug("self.led_video_params.get_media_file_crop_h() = %d", self.led_video_params.get_media_file_crop_h())
+
         if (self.led_video_params.get_media_file_crop_w() is not None
                 and self.led_video_params.get_media_file_crop_h() is not None
                 and active_width and active_height):
@@ -133,6 +225,10 @@ class MediaEngine(QObject):
         # stop play first
         self.stop_play()
         self.play_single_file_thread = QThread()
+        log.debug("c_width = %d", c_width)
+        log.debug("c_height = %d", c_height)
+        log.debug("c_pos_x = %d", c_pos_x)
+        log.debug("c_pos_y = %d", c_pos_y)
         self.play_single_file_worker = PlaySingleFileWorker(self, file_uri,
                                                             with_audio=audio_active,
                                                             with_preview=preview_visible,
@@ -227,18 +323,23 @@ class MediaEngine(QObject):
         self.hdmi_play_status_changed.connect(slot_func)
 
     def hdmi_in_play(self, video_src, **kwargs):
-        audio_active = kwargs.get('audio_active', True)
+        '''audio_active = kwargs.get('audio_active', True)
         preview_visible = kwargs.get('preview_visible', True)
         active_width = kwargs.get('active_width')
-        active_height = kwargs.get('active_height')
+        active_height = kwargs.get('active_height')'''
+        audio_active = self.led_video_params.get_play_with_audio()
+        log.debug("preview visible need to be implement")
+        preview_visible = self.led_video_params.get_play_with_audio()
+        self.hdmi_active_width = kwargs.get('active_width')
+        self.hdmi_active_height = kwargs.get('active_height')
         c_width = None
         c_height = None
         c_pos_x = 0
         c_pos_y = 0
         if (self.led_video_params.get_hdmi_in_crop_w() is not None
                 and self.led_video_params.get_hdmi_in_crop_h() is not None):
-            c_width = min(self.led_video_params.get_hdmi_in_crop_w(), active_width)
-            c_height = min(self.led_video_params.get_hdmi_in_crop_h(), active_height)
+            c_width = min(self.led_video_params.get_hdmi_in_crop_w(), self.hdmi_active_width)
+            c_height = min(self.led_video_params.get_hdmi_in_crop_h(), self.hdmi_active_height)
             c_pos_x = self.led_video_params.get_hdmi_in_start_x()
             c_pos_y = self.led_video_params.get_hdmi_in_start_y()
         self.play_hdmi_in_thread = QThread()
@@ -308,11 +409,16 @@ class MediaEngine(QObject):
 
     def get_video_resolution(self, file_uri):
         try:
-            ffmpeg_cmd = get_media_resolution_from_ffmpeg(file_uri)
-            self.ff_process = subprocess.Popen(ffmpeg_cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            # fix blank file name
+            # ffmpeg_cmd = get_media_resolution_from_ffmpeg(file_uri)
+            ffmpeg_cmd = ['ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=width,height',
+                          '-of', 'csv=s=x:p=0', file_uri]
+            self.ff_process = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                                text=True)
             output, error = self.ff_process.communicate()
-            match = re.search(r'(\d{2,5})x(\d{2,5})', error)
+            # log.debug("output : %s", output)
+            # log.debug("error : %s", error)
+            match = re.search(r'(\d{2,5})x(\d{2,5})', output)
             if match:
                 width, height = map(int, match.groups())
                 if (0 < width <= 4096 and

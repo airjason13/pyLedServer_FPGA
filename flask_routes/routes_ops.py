@@ -9,7 +9,6 @@ led_params_config_folder_name = "led_config"
 led_params_config_file_name = "led_parameters"
 led_reboot_config_file_name = "reboot_config"
 
-
 mp4_extends = internal_media_folder + "/*.mp4"
 jpeg_extends = internal_media_folder + "/*.jpeg"
 jpg_extends = internal_media_folder + "/*.jpg"
@@ -44,6 +43,8 @@ def init_video_params():
         "output_frame_width=640\n",
         "output_frame_height=480\n",
         "output_fps=24\n",
+        "play_with_audio=0\n",
+        "play_with_preview=0\n",
     ]
     root_dir = os.path.dirname(sys.modules['__main__'].__file__)
     led_config_dir = os.path.join(root_dir, led_params_config_folder_name)
@@ -268,6 +269,7 @@ def get_playlist_list():
         playlist_list.append("")
     return playlist_list
 
+
 def get_playlist_default():
     try:
         with open(os.getcwd() + "/static/default_launch_type.dat", "r") as launch_type_config_file:
@@ -285,7 +287,6 @@ def get_playlist_default():
 
 
 def get_icled_type_default():
-
     i_icled_type = 0
     s_icled_type = 'anapex'
     root_dir = os.path.dirname(sys.modules['__main__'].__file__)
@@ -321,7 +322,7 @@ def get_still_image_period_default():
     for line in lines:
         if 'image_period' in line:
             i_icled_type = int(line.strip("\n").split("=")[1])
-            i_icled_type = i_icled_type/1000
+            i_icled_type = i_icled_type / 1000
             s_image_period = str(i_icled_type)
 
     f.close()
