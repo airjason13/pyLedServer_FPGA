@@ -3,7 +3,8 @@ import os
 from flask_routes.routes_ops import get_sleep_mode_default, get_brightness_mode_default, get_target_city_default, \
     get_city_list, get_reboot_mode_default, get_brightness_value_default, mp4_extends, jpg_extends, jpeg_extends, \
     png_extends, playlist_extends, get_default_play_mode_default, get_playlist_default, get_frame_rate_res_default, \
-    get_icled_type_default, get_still_image_period_default, get_icled_current_gain_values_default
+    get_icled_type_default, get_still_image_period_default, get_icled_current_gain_values_default, \
+    get_audio_enable_default, get_preview_enable_default
 from global_def import log, internal_media_folder, PlaylistFolder, play_type, ThumbnailFileFolder
 from flask import render_template, send_from_directory, Response, request, redirect, url_for
 import hashlib
@@ -218,6 +219,14 @@ def set_sleep_mode(data):
     return status_code
 
 
+@app.route('/set_audio_preview_res_values/<data>', methods=['POST'])
+def set_audio_preview_res_values(data):
+    log.debug("set_audio_preview_mode, data = %s", data)
+    send_message(set_audio_preview_mode=data)
+    status_code = Response(status=200)
+    return status_code
+
+
 @app.route('/set_brightness_values/<data>', methods=['POST'])
 def set_brightness_values(data):
     log.debug("set_brightness_values data :" + data)
@@ -398,12 +407,14 @@ def refresh_template():
     icled_current_gain_values = get_icled_current_gain_values_default()
     frame_res_rate_values = get_frame_rate_res_default()
     still_image_period = get_still_image_period_default()
-
+    audio_enable = get_audio_enable_default()
+    preview_enable = get_preview_enable_default()
     return render_template("index.html", title="GIS TLED", files=maps, sw_version=Version,
                            form=brightness_algo_form, brightnessvalues=brightnessvalues,
                            playlist_nest_dict=playlist_nest_dict, default_play_form=default_play_form,
                            frame_res_rate_values=frame_res_rate_values, still_image_period=still_image_period,
-                           icled_current_gain_values=icled_current_gain_values)
+                           icled_current_gain_values=icled_current_gain_values,audio_enable=audio_enable,
+                           preview_enable=preview_enable)
 
 
 @app.route("/")

@@ -147,6 +147,22 @@ def adjust_res_fps(self, data):
                 self.media_engine.led_video_params.set_output_fps(int(frame_fps))
 
 
+def adjust_audio_preview(self, data):
+    log.debug("data : %s", data)
+    s_data = data.split(";")
+    for s in s_data:
+        if 'audio_enable' in s:
+            audio_enable = s.split(":")[1]
+            if int(audio_enable) != self.media_engine.led_video_params.get_play_with_audio():
+                log.debug("set audio_enable : %s", audio_enable)
+                self.media_engine.led_video_params.set_play_with_audio(int(audio_enable))
+        elif 'preview_enable' in s:
+            preview_enable = s.split(":")[1]
+            if int(preview_enable) != self.media_engine.led_video_params.get_play_with_preview():
+                log.debug("set preview_enable : %s", preview_enable)
+                self.media_engine.led_video_params.set_play_with_preview(int(preview_enable))
+
+
 cmd_function_map = {
     "set_brightness": adjust_brightness_value,
     "set_gamma": adjust_gamma_value,
@@ -163,6 +179,7 @@ cmd_function_map = {
     "set_frame_rate_res_values": adjust_res_fps,
     "set_image_period_values": adjust_still_image_period,
     "set_icled_type_gain": adjust_icled_type_gain,
+    "set_audio_preview_mode": adjust_audio_preview,
 }
 
 """ handle the command from LocalServer"""

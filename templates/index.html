@@ -187,6 +187,7 @@
             </td>
 
         </tr>
+
         <tr>
             <td>
                 <button data-bs-toggle="modal" data-bs-target="#id_image_period" class="item">
@@ -198,6 +199,14 @@
                     ICLed Type/Gain
                 </button>
             </td>
+        </tr>
+        <tr>
+            <td>
+                <button data-bs-toggle="modal" data-bs-target="#id_audio_preview" class="item">
+                    Audio/Preview
+                </button>
+            </td>
+
         </tr>
     </table>
 
@@ -419,7 +428,7 @@
             <div class="modal-body">
                 <div class="form-floating mb-2">
                     <input type="number" class="form-control" id="floatingImagePeriod" onchange="checkValue0_6000(this.id)" value= {{ still_image_period }}>
-                    <label for="floatingImagePeriod">Still Image Period90(Secs)</label>
+                    <label for="floatingImagePeriod">Still Image Period(Secs)</label>
                 </div>
             </div>
 
@@ -474,6 +483,8 @@
         </div>
     </div>
 
+
+
     <!-- Set Frame res/fps Modal -->
     <div class="modal fade" id="id_frame_res_fps" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="frame_res_fps" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable ">
@@ -495,6 +506,7 @@
                     <input type="number" class="form-control" id="floatingFrameFPS" placeholder="25" onchange="checkValue0_30(this.id)" value={{ frame_res_rate_values.output_fps }}>
                     <label for="floatingFrameFPS">Frame Rate</label>
                 </div>
+            </div>
             <div class="modal-footer">
                 <div class="d-grid gap-2 d-md-block">
 
@@ -507,6 +519,33 @@
         </div>
     </div>
 
+
+    <!-- Audio/Preview Modal -->
+    <div class="modal fade" id="id_audio_preview" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="audio_preview" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable ">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="audio_preview">Set Audio/Preview</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-floating mb-2">
+                    <input type="number" class="form-control" id="floatingAudio" onchange="checkValue0_1(this.id)" value={{ audio_enable }}>
+                    <label for="floatingAudio">Audio Enable</label>
+                </div>
+                <div class="form-floating mb-2">
+                    <input type="number" class="form-control" id="floatingPreview" onchange="checkValue0_1(this.id)" value={{ preview_enable }}>
+                    <label for="floatingPreview">Preview Enable</label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <div class="d-grid gap-2 d-md-block">
+                    <button type="button" id="SetAudioPreview" data-bs-dismiss="modal"  class="btn btn-danger" onclick="submit_audio_preview_option()">Set</button>
+                </div>
+            </div>
+        </div>
+        </div>
+    </div>
 
 
     <script>
@@ -1165,6 +1204,43 @@
                 /*alert("data : " + data)*/
                 console.log('Frame data : ' + data);
                 var url = "/set_frame_rate_res_values/" + data;
+                $.post(url, {
+                    /*javascript_data: data*/
+                    });
+            }
+        }
+
+        // Framerate/FPS Value
+        function submit_audio_preview_option(){
+            var audio_enable = document.getElementById("floatingAudio").value;
+            var preview_enable = document.getElementById("floatingPreview").value;
+
+            if(!audio_enable || !preview_enable ){
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Input cannot be empty',
+					showConfirmButton: false,
+                    timer: 2000
+                })
+            }else if(audio_enable >1 || audio_enable < 0 || preview_enable > 1  || preview_enable < 0){
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Illegal Value',
+					showConfirmButton: false,
+                    timer: 2000
+                })
+            }else{
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Set Data',
+					showConfirmButton: false,
+                    timer: 2000
+                })
+                $('#id_audio_preview').modal('hide');
+                var data = "audio_enable:" + audio_enable + ";preview_enable:" + preview_enable;
+                /*alert("data : " + data)*/
+                console.log('Audio/Preview data : ' + data);
+                var url = "/set_audio_preview_res_values/" + data;
                 $.post(url, {
                     /*javascript_data: data*/
                     });

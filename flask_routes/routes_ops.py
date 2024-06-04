@@ -329,6 +329,44 @@ def get_still_image_period_default():
     return s_image_period
 
 
+def get_audio_enable_default():
+    s_audio_enable = '0'
+    root_dir = os.path.dirname(sys.modules['__main__'].__file__)
+    led_config_dir = os.path.join(root_dir, led_params_config_folder_name)
+    if os.path.exists(os.path.join(led_config_dir, led_params_config_file_name)) is False:
+        init_video_params()
+
+    with open(os.path.join(led_config_dir, led_params_config_file_name), "r+") as f:
+        lines = f.readlines()
+
+    for line in lines:
+        if 'play_with_audio' in line:
+            i_audio_enable = int(line.strip("\n").split("=")[1])
+            s_audio_enable = str(i_audio_enable)
+
+    f.close()
+    return s_audio_enable
+
+
+def get_preview_enable_default():
+    s_preview_enable = '0'
+    root_dir = os.path.dirname(sys.modules['__main__'].__file__)
+    led_config_dir = os.path.join(root_dir, led_params_config_folder_name)
+    if os.path.exists(os.path.join(led_config_dir, led_params_config_file_name)) is False:
+        init_video_params()
+
+    with open(os.path.join(led_config_dir, led_params_config_file_name), "r+") as f:
+        lines = f.readlines()
+
+    for line in lines:
+        if 'play_with_audio' in line:
+            i_preview_enable = int(line.strip("\n").split("=")[1])
+            s_preview_enable = str(s_preview_enable)
+
+    f.close()
+    return s_preview_enable
+
+
 def get_icled_current_gain_values_default():
     root_dir = os.path.dirname(sys.modules['__main__'].__file__)
     led_config_dir = os.path.join(root_dir, led_params_config_folder_name)
