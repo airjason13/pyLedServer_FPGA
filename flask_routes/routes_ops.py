@@ -393,3 +393,65 @@ def get_icled_current_gain_values_default():
     f.close()
 
     return current_gain_values_maps
+
+
+def get_media_crop_values_default():
+    root_dir = os.path.dirname(sys.modules['__main__'].__file__)
+    led_config_dir = os.path.join(root_dir, led_params_config_folder_name)
+    media_crop_values_maps = {}
+
+    if os.path.exists(os.path.join(led_config_dir, led_params_config_file_name)) is False:
+        init_video_params()
+
+    with open(os.path.join(led_config_dir, led_params_config_file_name), "r+") as f:
+        lines = f.readlines()
+
+    for line in lines:
+        tag = line.split("=")[0]
+        if "media_file_start_x" == tag:
+            str_media_file_start_x = line.strip("\n").split("=")[1]
+            media_crop_values_maps["media_file_start_x"] = str_media_file_start_x
+        elif "media_file_start_y" == tag:
+            str_media_file_start_y = line.strip("\n").split("=")[1]
+            media_crop_values_maps["media_file_start_y"] = str_media_file_start_y
+        elif "media_file_crop_w" == tag:
+            str_media_file_crop_w = line.strip("\n").split("=")[1]
+            media_crop_values_maps["media_file_crop_w"] = str_media_file_crop_w
+        elif "media_file_crop_h" == tag:
+            str_media_file_crop_h = line.strip("\n").split("=")[1]
+            media_crop_values_maps["media_file_crop_h"] = str_media_file_crop_h
+
+    f.close()
+
+    return media_crop_values_maps
+
+
+def get_hdmi_crop_values_default():
+    root_dir = os.path.dirname(sys.modules['__main__'].__file__)
+    led_config_dir = os.path.join(root_dir, led_params_config_folder_name)
+    hdmi_crop_values_maps = {}
+
+    if os.path.exists(os.path.join(led_config_dir, led_params_config_file_name)) is False:
+        init_video_params()
+
+    with open(os.path.join(led_config_dir, led_params_config_file_name), "r+") as f:
+        lines = f.readlines()
+
+    for line in lines:
+        tag = line.split("=")[0]
+        if "hdmi_in_start_x" == tag:
+            str_hdmi_file_start_x = line.strip("\n").split("=")[1]
+            hdmi_crop_values_maps["hdmi_in_start_x"] = str_hdmi_file_start_x
+        elif "hdmi_in_start_y" == tag:
+            str_media_file_start_y = line.strip("\n").split("=")[1]
+            hdmi_crop_values_maps["hdmi_in_start_y"] = str_media_file_start_y
+        elif "hdmi_in_crop_w" == tag:
+            str_hdmi_in_crop_w = line.strip("\n").split("=")[1]
+            hdmi_crop_values_maps["hdmi_in_crop_w"] = str_hdmi_in_crop_w
+        elif "hdmi_in_crop_h" == tag:
+            str_hdmi_in_crop_h = line.strip("\n").split("=")[1]
+            hdmi_crop_values_maps["hdmi_in_crop_h"] = str_hdmi_in_crop_h
+
+    f.close()
+
+    return hdmi_crop_values_maps
