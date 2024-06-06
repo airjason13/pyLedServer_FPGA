@@ -403,11 +403,11 @@ class MediaFilesPage(QWidget):
         self.icled_type_label.setText("ICLed Type:")
         self.icled_type_combobox = QComboBox(self.video_params_setting_widget)
         self.icled_type_combobox.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
-        for type in icled_type:
-            if '.' in str(type):
-                self.icled_type_combobox.addItem(str(type).split(".")[1])
+        for type_val in icled_type:
+            if '.' in str(type_val):
+                self.icled_type_combobox.addItem(str(type_val).split(".")[1])
             else:
-                self.icled_type_combobox.addItem(str(type))
+                self.icled_type_combobox.addItem(str(type_val))
         self.icled_type_combobox.setCurrentIndex(int(self.media_engine.led_video_params.get_icled_type()))
 
         self.output_frame_width_label = QLabel(self.video_params_setting_widget)
