@@ -147,6 +147,74 @@ def adjust_res_fps(self, data):
                 self.media_engine.led_video_params.set_output_fps(int(frame_fps))
 
 
+def adjust_audio_preview(self, data):
+    log.debug("data : %s", data)
+    s_data = data.split(";")
+    for s in s_data:
+        if 'audio_enable' in s:
+            audio_enable = s.split(":")[1]
+            if int(audio_enable) != self.media_engine.led_video_params.get_play_with_audio():
+                log.debug("set audio_enable : %s", audio_enable)
+                self.media_engine.led_video_params.set_play_with_audio(int(audio_enable))
+        elif 'preview_enable' in s:
+            preview_enable = s.split(":")[1]
+            if int(preview_enable) != self.media_engine.led_video_params.get_play_with_preview():
+                log.debug("set preview_enable : %s", preview_enable)
+                self.media_engine.led_video_params.set_play_with_preview(int(preview_enable))
+
+
+def adjust_media_crop(self, data):
+    log.debug("data : %s", data)
+    s_data = data.split(";")
+    for s in s_data:
+        if 'media_crop_start_x' in s:
+            media_file_start_x = s.split(":")[1]
+            if int(media_file_start_x) != self.media_engine.led_video_params.get_media_file_start_x():
+                log.debug("set media_file_start_x : %s", media_file_start_x)
+                self.media_engine.led_video_params.set_media_file_start_x(int(media_file_start_x))
+        elif 'media_crop_start_y' in s:
+            media_file_start_y = s.split(":")[1]
+            if int(media_file_start_y) != self.media_engine.led_video_params.get_media_file_start_y():
+                log.debug("set media_file_start_y : %s", media_file_start_y)
+                self.media_engine.led_video_params.set_media_file_start_y(int(media_file_start_y))
+        elif 'media_crop_w' in s:
+            media_file_crop_w = s.split(":")[1]
+            if int(media_file_crop_w) != self.media_engine.led_video_params.get_media_file_crop_w():
+                log.debug("set media_file_crop_w : %s", media_file_crop_w)
+                self.media_engine.led_video_params.set_media_file_crop_w(int(media_file_crop_w))
+        elif 'media_crop_h' in s:
+            media_file_crop_h = s.split(":")[1]
+            if int(media_file_crop_h) != self.media_engine.led_video_params.get_media_file_crop_h():
+                log.debug("set media_file_crop_h : %s", media_file_crop_h)
+                self.media_engine.led_video_params.set_media_file_crop_h(int(media_file_crop_h))
+
+
+def adjust_hdmi_crop(self, data):
+    log.debug("data : %s", data)
+    s_data = data.split(";")
+    for s in s_data:
+        if 'hdmi_in_crop_start_x' in s:
+            hdmi_in_start_x = s.split(":")[1]
+            if int(hdmi_in_start_x) != self.media_engine.led_video_params.get_hdmi_in_start_x():
+                log.debug("set hdmi_in_start_x : %s", hdmi_in_start_x)
+                self.media_engine.led_video_params.set_hdmi_in_start_x(int(hdmi_in_start_x))
+        elif 'hdmi_in_crop_start_y' in s:
+            hdmi_in_start_y = s.split(":")[1]
+            if int(hdmi_in_start_y) != self.media_engine.led_video_params.get_hdmi_in_start_y():
+                log.debug("set hdmi_in_start_y : %s", hdmi_in_start_y)
+                self.media_engine.led_video_params.set_hdmi_in_start_y(int(hdmi_in_start_y))
+        elif 'hdmi_in_crop_w' in s:
+            hdmi_in_crop_w = s.split(":")[1]
+            if int(hdmi_in_crop_w) != self.media_engine.led_video_params.get_hdmi_in_crop_w():
+                log.debug("set hdmi_in_crop_w : %s", hdmi_in_crop_w)
+                self.media_engine.led_video_params.set_hdmi_in_crop_w(int(hdmi_in_crop_w))
+        elif 'hdmi_in_crop_h' in s:
+            hdmi_in_crop_h = s.split(":")[1]
+            if int(hdmi_in_crop_h) != self.media_engine.led_video_params.get_hdmi_in_crop_h():
+                log.debug("set hdmi_in_crop_h : %s", hdmi_in_crop_h)
+                self.media_engine.led_video_params.set_hdmi_in_crop_h(int(hdmi_in_crop_h))
+
+
 cmd_function_map = {
     "set_brightness": adjust_brightness_value,
     "set_gamma": adjust_gamma_value,
@@ -163,6 +231,9 @@ cmd_function_map = {
     "set_frame_rate_res_values": adjust_res_fps,
     "set_image_period_values": adjust_still_image_period,
     "set_icled_type_gain": adjust_icled_type_gain,
+    "set_audio_preview_mode": adjust_audio_preview,
+    "set_media_crop_values": adjust_media_crop,
+    "set_hdmi_crop_values": adjust_hdmi_crop,
 }
 
 """ handle the command from LocalServer"""

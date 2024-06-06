@@ -240,11 +240,11 @@ class FpgaListPage(QWidget):
     def func_set_btn(self):
         log.debug("func test btn clicked")
         if self.media_engine.led_video_params.get_led_red_gain() != int(self.red_gain_lineedit.text()):
-            self.media_engine.led_video_params.set_led_red_gain()
+            self.media_engine.led_video_params.set_led_red_gain(int(self.red_gain_lineedit.text()))
         if self.media_engine.led_video_params.get_led_green_gain() != int(self.green_gain_lineedit.text()):
-            self.media_engine.led_video_params.set_led_green_gain()
+            self.media_engine.led_video_params.set_led_green_gain(int(self.green_gain_lineedit.text()))
         if self.media_engine.led_video_params.get_led_blue_gain() != int(self.blue_gain_lineedit.text()):
-            self.media_engine.led_video_params.set_led_blue_gain()
+            self.media_engine.led_video_params.set_led_blue_gain(int(self.blue_gain_lineedit.text()))
 
         if self.media_engine.led_video_params.get_led_gamma() != float(self.rgb_gamma_lineedit.text()):
             self.media_engine.led_video_params.set_led_gamma(float(self.rgb_gamma_lineedit.text()))
