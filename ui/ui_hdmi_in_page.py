@@ -75,8 +75,6 @@ class HDMIInPage(QWidget):
         self.layout = None
         self.measurement_tc358743 = None
         self.streamingStatus = False
-        self.audioActiveToggle = True
-        self.previewVisibleToggle = True
         self.streamStateMutex = QMutex()
 
         log.debug("start hdmi-in page")
@@ -100,6 +98,8 @@ class HDMIInPage(QWidget):
         self.tc358743.signal_refresh_tc358743_param.connect(self.refresh_tc358743_param)
         self.tc358743.get_tc358743_dv_timing()
         subprocess.Popen("pkill -9 -f ffmpeg", shell=True)
+        # install media_engine.video_params video_params_changed slot
+        self.media_engine.led_video_params.install_video_params_changed_slot(self.hdmi_video_params_changed)
 
     def init_ui(self):
         # Initialize the main HDMI input widget and layout
@@ -132,20 +132,26 @@ class HDMIInPage(QWidget):
 
         # Setup Sound action button
         self.sound_control_btn = QPushButton("Sound", self.hdmi_ctrl_frame)
-        self.sound_control_btn.setIcon(
-            QIcon('materials/soundOnIcon.png') if self.audioActiveToggle else QIcon('materials/soundOffIcon.png'))
+        if self.media_engine.led_video_params.get_play_with_audio() == 1:
+            self.sound_control_btn.setIcon(QIcon('materials/soundOnIcon.png'))
+        else:
+            self.sound_control_btn.setIcon(QIcon('materials/soundOffIcon.png'))
         self.sound_control_btn.setIconSize(QSize(32, 32))
         self.sound_control_btn.setCheckable(True)
-        self.sound_control_btn.setChecked(not self.audioActiveToggle)
+        self.sound_control_btn.setChecked(not self.media_engine.led_video_params.get_play_with_audio())
         self.sound_control_btn.clicked.connect(self.sound_btn_clicked)
 
         # Setup Preview action button
         self.preview_control_btn = QPushButton("Preview", self.hdmi_ctrl_frame)
-        self.preview_control_btn.setIcon(
-            QIcon('materials/eyeOpenIcon.png') if self.previewVisibleToggle else QIcon('materials/eyeCloseIcon.png'))
+
+        if self.media_engine.led_video_params.get_play_with_preview() == 1:
+            self.preview_control_btn.setIcon(QIcon('materials/eyeOpenIcon.png'))
+        else:
+            self.preview_control_btn.setIcon(QIcon('materials/eyeCloseIcon.png'))
+
         self.preview_control_btn.setIconSize(QSize(32, 32))
         self.preview_control_btn.setCheckable(True)
-        self.preview_control_btn.setChecked(not self.previewVisibleToggle)
+        self.preview_control_btn.setChecked(not self.media_engine.led_video_params.get_play_with_preview())
         self.preview_control_btn.clicked.connect(self.preview_btn_clicked)
 
         # Add control buttons to the layout
@@ -324,8 +330,7 @@ class HDMIInPage(QWidget):
                 self.media_engine.hdmi_in_play(self.video_device,
                                                active_width=int(self.tc358743.hdmi_width),
                                                active_height=int(self.tc358743.hdmi_height),
-                                               audio_active=self.audioActiveToggle,
-                                               preview_visible=self.previewVisibleToggle)
+                                               )
                 self.streamingStatus = True
             self.measurement_tc358743 = True
         self.streamStateMutex.unlock()
@@ -461,35 +466,26 @@ class HDMIInPage(QWidget):
             self.media_engine.hdmi_in_play(self.video_device,
                                            active_width=int(self.tc358743.hdmi_width),
                                            active_height=int(self.tc358743.hdmi_height),
-                                           audio_active=self.audioActiveToggle,
-                                           preview_visible=self.previewVisibleToggle)
+                                           )
         self.streamStateMutex.unlock()
 
     def sound_btn_clicked(self):
-
+        log.debug("")
         if self.sound_control_btn.isChecked():
-            self.audioActiveToggle = False
+            self.media_engine.led_video_params.set_play_with_audio(0)
             self.sound_control_btn.setIcon(QIcon('materials/soundOffIcon.png'))
         else:
-            self.audioActiveToggle = True
+            self.media_engine.led_video_params.set_play_with_audio(1)
             self.sound_control_btn.setIcon(QIcon('materials/soundOnIcon.png'))
 
-        if self.streamingStatus is True:
-            self.stop_streaming(False)
-            self.start_streaming()
-
     def preview_btn_clicked(self):
-
+        log.debug("")
         if self.preview_control_btn.isChecked():
-            self.previewVisibleToggle = False
+            self.media_engine.led_video_params.set_play_with_preview(0)
             self.preview_control_btn.setIcon(QIcon('materials/eyeCloseIcon.png'))
         else:
-            self.previewVisibleToggle = True
+            self.media_engine.led_video_params.set_play_with_preview(1)
             self.preview_control_btn.setIcon(QIcon('materials/eyeOpenIcon.png'))
-
-        if self.streamingStatus is True:
-            self.stop_streaming(False)
-            self.start_streaming()
 
     def update_process_info(self):
         try:
@@ -528,6 +524,17 @@ class HDMIInPage(QWidget):
         if self.streamingStatus is True:
             self.stop_streaming(False)
             self.start_streaming()
+
+    def hdmi_video_params_changed(self):
+        log.debug("hdmi_video_params_changed")
+
+        self.preview_control_btn.setIcon(QIcon(
+            'materials/eyeOpenIcon.png' if self.media_engine.led_video_params.get_play_with_preview() == 1
+            else 'materials/eyeCloseIcon.png'))
+        self.sound_control_btn.setIcon(QIcon(
+            'materials/soundOnIcon.png' if self.media_engine.led_video_params.get_play_with_audio() == 1
+            else 'materials/soundOffIcon.png'))
+
 
 
 def ensure_edid_validity(self):

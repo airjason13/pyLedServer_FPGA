@@ -167,3 +167,6 @@ class TC358743(QObject):
             return preferred_video
         else:
             return None
+
+    def get_current_timing_info(self):
+        return self.hdmi_connected, self.hdmi_width, self.hdmi_height, self.hdmi_fps

@@ -156,8 +156,6 @@ class MediaFilesPage(QWidget):
         self.play_icon_pixmap = None
         self.pause_icon_pixmap = None
         self.stop_icon_pixmap = None
-        # self.audioActiveToggle = True
-        self.previewVisibleToggle = True
         self.select_current_file_uri = None
         self.init_ui()
 
@@ -251,7 +249,7 @@ class MediaFilesPage(QWidget):
         self.play_stop_btn.clicked.connect(self.stop_btn_clicked)
 
         self.sound_control_btn = QPushButton()
-        # if self.audioActiveToggle is True:
+
         if self.media_engine.led_video_params.get_play_with_audio() == 1:
             self.sound_control_btn.setIcon(QIcon('materials/soundOnIcon.png'))
         else:
@@ -263,7 +261,7 @@ class MediaFilesPage(QWidget):
         self.sound_control_btn.clicked.connect(self.sound_btn_clicked)
 
         self.preview_control_btn = QPushButton()
-        # if self.previewVisibleToggle is True:
+
         if self.media_engine.led_video_params.get_play_with_preview() == 1:
             self.preview_control_btn.setIcon(QIcon('materials/eyeOpenIcon.png'))
         else:
@@ -271,7 +269,7 @@ class MediaFilesPage(QWidget):
 
         self.preview_control_btn.setIconSize(QSize(32, 32))
         self.preview_control_btn.setCheckable(True)
-        self.preview_control_btn.setChecked(not self.previewVisibleToggle)
+        self.preview_control_btn.setChecked(not self.media_engine.led_video_params.get_play_with_preview())
         self.preview_control_btn.clicked.connect(self.preview_btn_clicked)
 
         self.video_crop_x_lineedit = QLineEdit(self.video_params_setting_widget)
@@ -779,9 +777,7 @@ class MediaFilesPage(QWidget):
 
             self.media_engine.single_play(self.select_current_file_uri,
                                           active_width=self.media_active_width,
-                                          active_height=self.media_active_height,
-                                          audio_active=self.media_engine.led_video_params.get_play_with_audio(),
-                                          preview_visible=self.previewVisibleToggle)
+                                          active_height=self.media_active_height)
             '''w, h = get_led_config_from_file_uri("led_wall_resolution",
                                                 "led_wall_width", "led_wall_height")
             log.debug("w : %s, h : %s", w, h)
@@ -915,9 +911,7 @@ class MediaFilesPage(QWidget):
                     if os.path.exists(self.select_current_file_uri):
                         self.media_engine.single_play(self.select_current_file_uri,
                                                       active_width=self.media_active_width,
-                                                      active_height=self.media_active_height,
-                                                      audio_active=self.media_engine.led_video_params.get_play_with_audio(),
-                                                      preview_visible=self.previewVisibleToggle)
+                                                      active_height=self.media_active_height)
 
     def sound_btn_clicked(self):
         log.debug("")
@@ -942,11 +936,9 @@ class MediaFilesPage(QWidget):
     def preview_btn_clicked(self):
         log.debug("")
         if self.preview_control_btn.isChecked():
-            # self.previewVisibleToggle = False
             self.media_engine.led_video_params.set_play_with_preview(0)
             self.preview_control_btn.setIcon(QIcon('materials/eyeCloseIcon.png'))
         else:
-            # self.previewVisibleToggle = True
             self.media_engine.led_video_params.set_play_with_preview(1)
             self.preview_control_btn.setIcon(QIcon('materials/eyeOpenIcon.png'))
 
@@ -1073,6 +1065,14 @@ class MediaFilesPage(QWidget):
 
     def video_params_changed(self):
         log.debug("video_params_changed")
+
+        self.preview_control_btn.setIcon(QIcon(
+            'materials/eyeOpenIcon.png' if self.media_engine.led_video_params.get_play_with_preview() == 1
+            else 'materials/eyeCloseIcon.png'))
+        self.sound_control_btn.setIcon(QIcon(
+            'materials/soundOnIcon.png' if self.media_engine.led_video_params.get_play_with_audio() == 1
+            else 'materials/soundOffIcon.png'))
+
         self.video_brightness_lineedit.setText(str(self.media_engine.led_video_params.get_led_brightness()))
         self.video_gamma_lineedit.setText(str(self.media_engine.led_video_params.get_led_gamma()))
         self.brightness_algo_combobox.setCurrentIndex(self.media_engine.led_video_params.get_frame_brightness_algo())
