@@ -741,6 +741,8 @@ class PlayPlaylistWorker(QObject):
             if self.force_stop is True:
                 break
             self.file_index += 1
+            if self.file_index >= len(self.files_in_playlist):
+                self.file_index = 0
         self.shm_sem.sem_close(sem_write_flag)
         self.shm_sem.sem_unlink(self.media_engine.shm_sem_write_uri)
         self.shm_sem.sem_close(sem_read_flag)
