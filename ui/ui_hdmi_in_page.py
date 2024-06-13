@@ -775,10 +775,10 @@ class HDMIInPage(QWidget):
         self.output_frame_height_lineedit.setText(str(self.media_engine.led_video_params.get_output_frame_height()))
         self.output_fps_lineedit.setText(str(self.media_engine.led_video_params.get_output_fps()))
 
-        self.hdmi_in_crop_x_lineedit.setText(str(self.media_engine.led_video_params.get_media_file_start_x()))
-        self.hdmi_in_crop_y_lineedit.setText(str(self.media_engine.led_video_params.get_media_file_start_y()))
-        self.hdmi_in_crop_w_lineedit.setText(str(self.media_engine.led_video_params.get_media_file_crop_w()))
-        self.hdmi_in_crop_h_lineedit.setText(str(self.media_engine.led_video_params.get_media_file_crop_h()))
+        self.hdmi_in_crop_x_lineedit.setText(str(self.media_engine.led_video_params.get_hdmi_in_start_x()))
+        self.hdmi_in_crop_y_lineedit.setText(str(self.media_engine.led_video_params.get_hdmi_in_start_y()))
+        self.hdmi_in_crop_w_lineedit.setText(str(self.media_engine.led_video_params.get_hdmi_in_crop_w()))
+        self.hdmi_in_crop_h_lineedit.setText(str(self.media_engine.led_video_params.get_hdmi_in_crop_h()))
 
     def adj_video_br_ga_param(self):
         if (int(self.video_brightness_lineedit.text()) < MIN_FRAME_BRIGHTNESS
