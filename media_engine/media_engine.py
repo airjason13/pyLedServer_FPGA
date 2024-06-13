@@ -263,6 +263,13 @@ class MediaEngine(QObject):
 
     def play_playlist(self, playlist_uri, **kwargs):
         log.debug("playlist uri: %s", playlist_uri)
+        if os.path.exists(playlist_uri) is False:
+            log.debug("no such playlist file")
+            return
+        if utils.utils_file_access.get_file_list_in_playlist(playlist_uri) is None:
+            log.debug("No file in playlist")
+            return
+
         active_width = kwargs.get('active_width', 0)
         active_height = kwargs.get('active_height', 0)
         c_width = 0
