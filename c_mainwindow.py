@@ -40,7 +40,6 @@ class MainUi(QMainWindow):
         log.debug("Venom Main Window Init!")
         super().__init__()
 
-
         eth_if_promisc_cmd = os.popen("ifconfig {} promisc".format(ETH_DEV))
         eth_if_promisc_cmd.close()
 
@@ -130,6 +129,9 @@ class MainUi(QMainWindow):
         except Exception as e:
             log.debug(e)
 
+        self.default_launch_type_int = 0
+        self.default_launch_params_str = ""
+        self.launch_default_type()
         # test frame brightness adjust
         # self.test_timer = QTimer(self)
         # self.test_timer.timeout.connect(self.test_timer_function)
@@ -148,14 +150,64 @@ class MainUi(QMainWindow):
             ret, reg_value = self.fpga_cmd_center.read_fpga_register(fpga.i_id, "gammaTable_b{}".format(str(0)))
             # log.debug("%s : %s", "gammaTable_b{}".format(str(0)), str(reg_value))'''
 
-    def test_timer_function(self):
-        br = int(self.media_engine.led_video_params.get_led_brightness())
-        if br == 100:
-            br = 0
-        else:
-            br += 1
-        log.debug("br : %d", br)
-        self.media_engine.led_video_params.set_led_brightness(br)
+    def launch_default_type(self):
+        try:
+            with open(os.getcwd() + "/static/default_launch_type.dat", "r") as launch_type_config_file:
+                tmp = launch_type_config_file.readline()
+                log.debug("launch_type_config : %s", tmp)
+
+                self.default_launch_type_int = int(tmp.split(":")[0])
+                self.default_launch_params_str = tmp.split(":")[1]
+                log.debug("self.default_launch_type_int : %d", self.default_launch_type_int)
+                log.debug("self.default_launch_params_str : %s", self.default_launch_params_str)
+        except Exception as e:
+            log.debug(e)
+
+        if self.default_launch_type_int == play_type.play_single:
+            try:
+                QTimer.singleShot(5000, self.demo_start_play_single)
+            except Exception as e:
+                log.debug(e)
+        elif self.default_launch_type_int == play_type.play_playlist:
+            try:
+                QTimer.singleShot(5000, self.demo_start_playlist)
+            except Exception as e:
+                log.debug(e)
+        elif self.default_launch_type_int == play_type.play_hdmi_in:
+            try:
+                QTimer.singleShot(5000, self.demo_start_hdmi_in)
+            except Exception as e:
+                log.debug(e)
+
+    def demo_start_play_single(self):
+        log.debug("demo_start_play_single")
+        for btn in self.ui_funcs_select_frame.btn_list:
+            log.debug("btn : %s", btn.text())
+            if btn.text() == 'Media_Files':
+                btn.click()
+                break
+        file_uri = internal_media_folder + '/' + self.default_launch_params_str
+        self.media_engine.single_play(file_uri)
+
+    def demo_start_playlist(self):
+        log.debug("demo_start_playlist")
+        for btn in self.ui_funcs_select_frame.btn_list:
+            log.debug("btn : %s", btn.text())
+            if btn.text() == 'Media_Files':
+                btn.click()
+                break
+        playlist = internal_media_folder + PlaylistFolder + self.default_launch_params_str
+        self.media_engine.play_playlist(playlist)
+
+    def demo_start_hdmi_in(self):
+        log.debug("demo_start_hdmi_in")
+        for btn in self.ui_funcs_select_frame.btn_list:
+            log.debug("btn : %s", btn.text())
+            if btn.text() == 'HDMI_In':
+                btn.click()
+                break
+
+        # self.media_engine.hdmi_in_play()
 
     def utc_test(self):
         log.debug("self.utc_test_count : %d", self.utc_test_count)

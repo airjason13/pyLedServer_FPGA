@@ -759,6 +759,11 @@ class MediaFilesPage(QWidget):
             self.copy_external_file_to_internal()
         elif q.text() == self.TAG_Str_Popup_Menu_Play_Playlist:
             log.debug("Play Playlist not Implemented")
+            selected_widget = self.media_files_tree_widget.itemAt(self.right_clicked_pos)
+            log.debug("selected_widget.text(0) : %s", selected_widget.text(0))
+            playlist_uri = self.internal_media_folder[0] + PlaylistFolder + selected_widget.text(0)
+            self.media_engine.play_playlist(playlist_uri)
+
         elif q.text() == self.TAG_Str_Popup_Menu_Delete_Playlist:
             self.delete_selected_playlist()
         elif q.text() == self.TAG_Str_Popup_Menu_Remove_From_Playlist:

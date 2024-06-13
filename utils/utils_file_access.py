@@ -45,6 +45,19 @@ def get_playlist_file_list(dir, with_path=False):
     return file_list
 
 
+def get_file_list_in_playlist(playlist_uri):
+    file_list = []
+    if os.path.isfile(playlist_uri):
+        with open(playlist_uri, "r") as f:
+            lines = f.readlines()
+        f.close()
+        for line in lines:
+            line = line.strip("\n")
+            file_list.append(line)
+        return file_list
+    return None
+
+
 def get_fpga_config_file_list(dir, with_path=False):
     log.debug("dir : %s", dir)
     if os.path.isdir(dir) is False:

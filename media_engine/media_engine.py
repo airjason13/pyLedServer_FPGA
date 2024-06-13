@@ -18,7 +18,7 @@ from ext_qt_widgets.playing_preview_widget import PlayingPreviewWindow
 from media_engine.media_engine_def import PlayStatus, RepeatOption
 from media_engine.sound_device import SoundDevices, mute_audio_sinks
 from utils.utils_ffmpy import get_ffmpeg_cmd_for_media, get_media_resolution_from_ffmpeg
-from utils.utils_file_access import get_led_config_from_file_uri, get_int_led_config_from_file_uri
+from utils.utils_file_access import get_file_list_in_playlist
 from utils.utils_system import get_eth_interface
 from media_configs.video_params import VideoParams
 from global_def import log, root_dir, ETH_DEV, SU_PWD
@@ -43,6 +43,8 @@ class MediaEngine(QObject):
         self.output_streaming_width = None
         self.play_single_file_thread = None
         self.play_single_file_worker = None
+        self.play_playlist_thread = None
+        self.play_playlist_worker = None
         self.play_hdmi_in_thread = None
         self.play_hdmi_in_worker = None
         self.hdmi_active_width = 0
@@ -169,6 +171,7 @@ class MediaEngine(QObject):
                                           active_width=int(width),
                                           active_height=int(height),
                                           )
+
     def install_signal_media_play_status_changed_slot(self, slot_func):
         self.signal_media_play_status_changed.connect(slot_func)
 
@@ -258,6 +261,47 @@ class MediaEngine(QObject):
         self.play_single_file_thread.finished.connect(self.play_single_file_thread.deleteLater)
         self.play_single_file_thread.start()
 
+    def play_playlist(self, playlist_uri, **kwargs):
+        log.debug("playlist uri: %s", playlist_uri)
+        active_width = kwargs.get('active_width', 0)
+        active_height = kwargs.get('active_height', 0)
+        c_width = 0
+        c_height = 0
+        c_pos_x = 0
+        c_pos_y = 0
+
+        log.debug("active_width = %d", active_width)
+        log.debug("active_height = %d", active_height)
+        log.debug("self.led_video_params.get_media_file_crop_w() = %d", self.led_video_params.get_media_file_crop_w())
+        log.debug("self.led_video_params.get_media_file_crop_h() = %d", self.led_video_params.get_media_file_crop_h())
+
+        if (self.led_video_params.get_media_file_crop_w() is not None
+                and self.led_video_params.get_media_file_crop_h() is not None
+                and active_width and active_height):
+            c_width = min(self.led_video_params.get_media_file_crop_w(), active_width)
+            c_height = min(self.led_video_params.get_media_file_crop_h(), active_height)
+            c_pos_x = self.led_video_params.get_media_file_start_x()
+            c_pos_y = self.led_video_params.get_media_file_start_y()
+
+        log.debug("c_width = %d", c_width)
+        log.debug("c_height = %d", c_height)
+        log.debug("c_pos_x = %d", c_pos_x)
+        log.debug("c_pos_y = %d", c_pos_y)
+        self.stop_play()
+        self.play_playlist_thread = QThread()
+        self.play_playlist_worker = PlayPlaylistWorker(self, playlist_uri,
+                                                            c_width=c_width, c_height=c_height,
+                                                            c_pos_x=c_pos_x, c_pos_y=c_pos_y)
+        self.play_playlist_worker.install_play_status_slot(self.play_status_changed)
+        self.play_playlist_worker.install_pixmap_refreshed_slot(self.preview_pixmap_changed)
+        self.play_playlist_worker.moveToThread(self.play_playlist_thread)
+        self.play_playlist_thread.started.connect(self.play_playlist_worker.run)
+        self.play_playlist_worker.pysignal_playlist_play_finished.connect(self.play_playlist_thread.quit)
+        self.play_playlist_worker.pysignal_playlist_play_finished.connect(
+            self.play_playlist_worker.deleteLater)
+        self.play_playlist_thread.finished.connect(self.play_playlist_thread.deleteLater)
+        self.play_playlist_thread.start()
+
     def stop_play(self):
         log.debug("enter stop_play!\n")
 
@@ -292,6 +336,38 @@ class MediaEngine(QObject):
                 log.debug(e)
             self.play_single_file_worker = None
             self.play_single_file_thread = None
+
+        if self.play_playlist_worker is not None:
+            self.play_playlist_worker.stop()
+            for i in range(5):
+                if self.ff_process is not None:
+                    try:
+                        os.kill(self.ff_process.pid, signal.SIGTERM)
+                    except ProcessLookupError:
+                        log.debug("PID might have changed or process could have exited already")
+                    except Exception as e:
+                        log.debug(f"An error occurred when trying to kill the process: {e}")
+                    finally:
+                        self.ff_process = None
+                        break
+                time.sleep(1)
+            try:
+                if self.play_playlist_thread is not None:
+                    self.play_playlist_thread.quit()
+                for i in range(5):
+                    log.debug("self.play_playlist_thread.isFinished() = %d",
+                              self.play_playlist_thread.isFinished())
+                    if self.play_playlist_thread.isFinished() is True:
+                        break
+                    time.sleep(1)
+
+                log.debug("single_file_worker is not None A2")
+                self.play_playlist_thread.wait()
+                self.play_playlist_thread.exit(0)
+            except Exception as e:
+                log.debug(e)
+            self.play_playlist_worker = None
+            self.play_playlist_worker = None
 
         if self.play_hdmi_in_worker is not None:
             self.resume_playing()
@@ -443,6 +519,243 @@ class MediaEngine(QObject):
                 self.ff_process.kill()
 
 
+class PlayPlaylistWorker(QObject):
+    pysignal_playlist_play_status_change = pyqtSignal(int, str)
+    pysignal_playlist_play_finished = pyqtSignal()
+    pysignal_refresh_image_pixmap = pyqtSignal(np.ndarray)
+    pysignal_send_raw_frame = pyqtSignal(bytes)
+
+    def __init__(self, media_engine: MediaEngine, playlist_uri, c_width: int, c_height: int,
+                 c_pos_x: int, c_pos_y: int, ):
+        super().__init__()
+        self.shm_sem = None
+        self.shm = None
+        self.agent_process = None
+        self.media_engine = media_engine
+        self.playlist_uri = playlist_uri
+        self.video_params = self.media_engine.led_video_params
+        self.force_stop = False
+        self.worker_status = 0
+        self.force_stop_mutex = QMutex()
+        self.play_status = None
+        self.files_in_playlist = get_file_list_in_playlist(self.playlist_uri)
+        log.debug("file list in playlist: %s", self.files_in_playlist)
+        self.file_index = 0
+        # read playlist first
+        self.play_status_change(PlayStatus.Initial, self.files_in_playlist[self.file_index])
+        self.ff_process = self.media_engine.ff_process
+        self.output_width = self.media_engine.output_streaming_width
+        self.output_height = self.media_engine.output_streaming_height
+        self.output_fps = self.media_engine.output_streaming_fps
+        self.crop_visible_area_width = c_width
+        self.crop_visible_area_height = c_height
+        self.crop_position_x = c_pos_x
+        self.crop_position_y = c_pos_y
+        self.playing_source = None
+        self.image_from_pipe = None
+        self.raw_image = None
+        self.preview_window = None
+        # To be implemented
+
+    def install_play_status_slot(self, slot_func):
+        self.pysignal_playlist_play_status_change.connect(slot_func)
+
+    def install_pixmap_refreshed_slot(self, slot_func):
+        self.pysignal_refresh_image_pixmap.connect(slot_func)
+
+    def install_send_raw_frame_slot(self, slot_func):
+        self.pysignal_send_raw_frame.connect(slot_func)
+
+    def play_status_change(self, status: int, src: str):
+        self.play_status = status
+        self.playing_source = src
+        log.debug("self.playing_source : %s", self.playing_source)
+        self.pysignal_playlist_play_status_change.emit(self.play_status, self.playing_source)
+
+    def run(self):
+        # try_wain_write_count_max = 5000
+        # if platform.machine() in ('arm', 'arm64', 'aarch64'):
+        #     try_wain_write_count_max = 500
+        try_wait_write_count = 0
+        self.media_engine.sync_output_streaming_resolution()  # venom for output resolution correction
+        subprocess.Popen("pkill -9 -f show_ffmpeg_shared_memory", shell=True)
+        time.sleep(1)
+
+        while True:
+            self.worker_status = 1
+            if self.play_status != PlayStatus.Stop:
+                try:
+                    ''' 如果 ffprocess 存在'''
+                    if self.ff_process is not None:
+                        '''但是是暫停狀態, 則繼續播放?'''
+                        if self.play_status == PlayStatus.Pausing:
+                            os.kill(self.ff_process.pid, signal.SIGCONT)
+                        else:
+                            os.kill(self.ff_process.pid, signal.SIGTERM)
+                except Exception as e:
+                    log.error(e)
+            self.shm = None
+            while True:
+                try:
+                    # find agent preview window pos
+                    line = os.popen("xdpyinfo | awk '/dimensions/{print $2}'").read()
+                    tmp = line.split("x")
+                    geo_w = int(tmp[0])
+                    geo_h = int(tmp[1])
+
+                    if self.output_width >= 1280 or self.output_height >= 720:
+                        preview_pos_x = geo_w - 640
+                        preview_pos_y = 320
+                    else:
+                        preview_pos_x = geo_w - self.output_width
+                        preview_pos_y = 320
+                        # handle raw socket agent
+                    os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (preview_pos_x, preview_pos_y)
+                    ld_path = root_dir + "/ext_binaries"
+                    agent_cmd = (
+                            "%s/ext_binaries/show_ffmpeg_shared_memory %s %d %d 0 "
+                            % (root_dir, ETH_DEV, self.output_width, self.output_height))
+                    log.debug("agent_cmd : %s", agent_cmd)
+                    time.sleep(1)
+                    self.agent_process = subprocess.Popen(agent_cmd, shell=True)
+                    log.debug("self.agent_process.pid : %d", self.agent_process.pid)
+                    time.sleep(1)
+
+                    self.shm = shared_memory.SharedMemory("posixsm", False, 0x400000)
+                except Exception as e:
+                    log.fatal(e)
+                    subprocess.Popen("pkill -9 -f show_ffmpeg_shared_memory", shell=True)
+                    time.sleep(1)
+
+                if self.shm is not None:
+                    break
+            self.shm_sem = LinuxIpcSemaphorePyapi()
+            # Init write sem
+            sem_write_flag = self.shm_sem.sem_open(self.media_engine.shm_sem_write_uri, os.O_CREAT, 0x666, 1)
+            if sem_write_flag == 0:
+                log.error("failed to create sem: %s", self.media_engine.shm_sem_write_uri)
+                return -1
+
+            # Init the read sem
+            sem_read_flag = self.shm_sem.sem_open(self.media_engine.shm_sem_read_uri, os.O_CREAT, 0x666, 0)
+            if sem_read_flag == 0:
+                log.error("failed to create sem: %s", self.media_engine.shm_sem_read_uri)
+                return -1
+
+            audio_sink_str = 'default'
+            if platform.machine() in ('arm', 'arm64', 'aarch64'):
+                if self.media_engine.headphone_sound is not None:
+                    sink_card, sink_device = self.media_engine.headphone_sound
+                    audio_sink_str = f'hw:{sink_card},{sink_device}'
+            target_fps_str = f"{self.output_fps}/1"
+
+            ffmpeg_cmd = get_ffmpeg_cmd_for_media(self.files_in_playlist[self.file_index],
+                                                  width=self.output_width, height=self.output_height,
+                                                  target_fps=target_fps_str, image_period=20,
+                                                  c_width=self.crop_visible_area_width,
+                                                  c_height=self.crop_visible_area_height,
+                                                  c_pos_x=self.crop_position_x,
+                                                  c_pos_y=self.crop_position_y,
+                                                  audio_sink=audio_sink_str,
+                                                  audio_on=self.video_params.get_play_with_audio()
+                                                  )
+            log.debug("ffmpeg_cmd : %s", ffmpeg_cmd)
+            try:
+                self.ff_process = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, bufsize=10 ** 8, shell=True)
+                self.media_engine.ff_process = self.ff_process
+            except Exception as e:
+                log.error(e)
+            # write__flag_tmp = self.shm_sem.sem_post(sem_write_flag)
+            if self.ff_process.pid > 0:
+                self.play_status_change(PlayStatus.Playing, self.files_in_playlist[self.file_index])
+                self.image_from_pipe = None
+                while self.ff_process.pid > 0:
+                    self.image_from_pipe = self.ff_process.stdout.read(self.output_width * self.output_height * 3)
+                    if len(self.image_from_pipe) <= 0:
+                        log.debug("play end")
+                        if self.agent_process is not None:
+                            self.agent_process.kill()
+                        break
+
+                    try:
+                        self.raw_image = np.frombuffer(self.image_from_pipe, dtype='uint8')
+                        self.raw_image = self.raw_image.reshape((self.output_height, self.output_width, 3))
+
+                        self.ff_process.stdout.flush()
+                        self.pysignal_refresh_image_pixmap.emit(self.raw_image)
+                    except Exception as e:
+                        log.debug(e)
+                        break
+
+                    if self.force_stop is True:
+                        log.debug("self.force_stop is True, ready to kill ff_process")
+                        if self.ff_process is not None:
+                            os.kill(self.ff_process.pid, signal.SIGTERM)
+                        break
+
+                    write_flag_tmp = self.shm_sem.sem_trywait(sem_write_flag)
+                    if write_flag_tmp == -1:
+                        try_wait_write_count += 1
+                        if try_wait_write_count > 500:
+                            try_wait_write_count = 0
+                            log.error("missing agent!")
+                            subprocess.Popen("pkill -f show_ffmpeg_shared_memory", shell=True)
+                            '''kill_agent_cmd = "sudo -S pkill -f show_ffmpeg_shared_memory"
+                            su_kill_agent_cmd = 'echo {} | '.format(SU_PWD) + kill_agent_cmd
+                            log.debug("su_kill_agent_cmd : %s", kill_agent_cmd)
+                            os.system(su_kill_agent_cmd)'''
+                            time.sleep(1)
+                            ld_path = root_dir + "/ext_binaries"
+                            agent_cmd = (
+                                    "%s/ext_binaries/show_ffmpeg_shared_memory %s %d %d 0 "
+                                    % (root_dir, ETH_DEV, self.output_width, self.output_height))
+                            log.debug("agent_cmd : %s", agent_cmd)
+                            subprocess.Popen(agent_cmd, shell=True)
+                            '''agent_cmd = (
+                                    "LD_LIBRARY_PATH=%s %s/ext_binaries/show_ffmpeg_shared_memory %s %s %d %d 0 &"
+                                    % (ld_path, root_dir, os.getlogin(), ETH_DEV, self.output_width, self.output_height))
+                            # su_agent_cmd = 'echo {} | sudo -S '.format(SU_PWD) + agent_cmd
+                            # os.system(su_agent_cmd)
+                            su_agent_cmd = agent_cmd
+                            os.system(su_agent_cmd)'''
+                        continue
+                    else:
+                        try_wait_write_count = 0
+
+                    to_write = memoryview(self.image_from_pipe)
+                    self.shm._buf[:len(to_write)] = to_write[:]
+                    # post the read
+                    read_flag_tmp = self.shm_sem.sem_post(sem_read_flag)
+
+            log.debug("single play end")
+            # if self.media_engine.repeat_option == RepeatOption.Repeat_None:
+            #     log.debug("stop play cause play end")
+            #     break
+            if self.force_stop is True:
+                break
+            self.file_index += 1
+        self.shm_sem.sem_close(sem_write_flag)
+        self.shm_sem.sem_unlink(self.media_engine.shm_sem_write_uri)
+        self.shm_sem.sem_close(sem_read_flag)
+        self.shm_sem.sem_unlink(self.media_engine.shm_sem_read_uri)
+
+        self.play_status_change(PlayStatus.Stop, "")
+        self.worker_status = 0
+        self.pysignal_playlist_play_finished.emit()
+        self.ff_process.kill()
+        self.ff_process = None
+        if self.agent_process is not None:
+            self.agent_process.kill()
+            self.agent_process = None
+        log.debug("play playlist worker finished")
+
+    def stop(self):
+        self.force_stop = True
+
+    def get_worker_status(self):
+        return self.worker_status
+
+
 class PlaySingleFileWorker(QObject):
     pysignal_single_file_play_status_change = pyqtSignal(int, str)
     pysignal_single_file_play_finished = pyqtSignal()
@@ -492,9 +805,9 @@ class PlaySingleFileWorker(QObject):
         self.pysignal_single_file_play_status_change.emit(self.play_status, self.playing_source)
 
     def run(self):
-        try_wain_write_count_max = 5000
-        if platform.machine() in ('arm', 'arm64', 'aarch64'):
-            try_wain_write_count_max = 500
+        # try_wain_write_count_max = 5000
+        # if platform.machine() in ('arm', 'arm64', 'aarch64'):
+        #     try_wain_write_count_max = 500
         try_wait_write_count = 0
         self.media_engine.sync_output_streaming_resolution()  # venom for output resolution correction
         subprocess.Popen("pkill -9 -f show_ffmpeg_shared_memory", shell=True)
