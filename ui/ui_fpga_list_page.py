@@ -34,6 +34,7 @@ class FpgaListPage(QWidget):
         self.widget = QWidget(self.frame)
         self.media_engine = media_engine
         self.name = _name
+        self.fpga_total_num = self.main_windows.fpga_total_num
         self.test_btn = None
         self.label_name = None
         self.rescan_btn = None
@@ -267,10 +268,19 @@ class FpgaListPage(QWidget):
 
     def func_rescan_btn(self):
         log.debug("func_rescan_btn")
+        row_count = self.client_table_widget.rowCount()
+        for i in reversed(range(row_count)):
+            row_to_remove = self.client_table_widget.rowAt(i)
+            self.client_table_widget.removeRow(row_to_remove)
+        log.debug("rescan start")
+
         self.main_windows.fpga_cmd_center.set_fpga_id_broadcast(FPGA_START_ID)
         self.main_windows.fpga_list = []
-        self.fpga_total_num = self.main_windows.get_fpga_total_num()
-        for i in range(FPGA_START_ID, FPGA_START_ID + self.main_windows.fpga_total_num):
+        self.main_windows.fpga_total_num = self.main_windows.get_fpga_total_num()
+        self.fpga_total_num = self.main_windows.fpga_total_num
+        log.debug("self.fpga_total_num : %d", self.fpga_total_num)
+        for i in range(FPGA_START_ID, FPGA_START_ID + self.fpga_total_num):
+            log.debug("scan fpga id : %d", i)
             fpga_tmp = FPGAClient(i, self.main_windows.fpga_cmd_center)
             self.main_windows.fpga_list.append(fpga_tmp)
         self.fpga_list = self.main_windows.fpga_list

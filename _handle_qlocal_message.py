@@ -215,7 +215,47 @@ def adjust_hdmi_crop(self, data):
                 self.media_engine.led_video_params.set_hdmi_in_crop_h(int(hdmi_in_crop_h))
 
 
+def play_single_file(self, data):
+    log.debug("data : %s", data)
+
+    for btn in self.ui_funcs_select_frame.btn_list:
+        log.debug("btn : %s", btn.text())
+        if btn.text() == 'Media_Files':
+            btn.click()
+            break
+    file_uri = internal_media_folder + '/' + data
+    log.debug("file_uri : %s", file_uri)
+    self.media_engine.single_play(file_uri)
+
+
+def play_playlist(self, data):
+    log.debug("data : %s", data)
+
+    for btn in self.ui_funcs_select_frame.btn_list:
+        log.debug("btn : %s", btn.text())
+        if btn.text() == 'Media_Files':
+            btn.click()
+            break
+    playlist = internal_media_folder + PlaylistFolder + data
+    log.debug("playlist : %s", playlist)
+    self.media_engine.play_playlist(playlist)
+
+
+def play_hdmi_in(self, data):
+    log.debug("data : %s", data)
+    # log.debug("demo_start_hdmi_in")
+    for btn in self.ui_funcs_select_frame.btn_list:
+        log.debug("btn : %s", btn.text())
+        if btn.text() == 'HDMI_In':
+            btn.click()
+            break
+    self.media_engine.hdmi_in_play()
+
+
 cmd_function_map = {
+    "play_file": play_single_file,
+    "play_playlist": play_playlist,
+    "play_hdmi_in": play_hdmi_in,
     "set_brightness": adjust_brightness_value,
     "set_gamma": adjust_gamma_value,
     "set_sleep_mode": adjust_sleep_mode,

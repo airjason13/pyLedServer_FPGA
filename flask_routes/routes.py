@@ -147,6 +147,114 @@ def find_playlist_maps() -> map:
     return playlist_nest_dict
 
 
+@app.route('/play/<filename>', methods=['POST'])
+def play(filename):
+    log.debug("route play filename :%s", filename)
+    fname = filename
+    send_message(play_file=fname)
+    status_code = Response(status=200)
+    return status_code
+
+
+@app.route('/create_new_playlist/<data>', methods=['POST'])
+def create_new_playlist(data):
+    if os.path.exists(internal_media_folder + PlaylistFolder) is False:
+        os.mkdir(internal_media_folder + PlaylistFolder)
+
+    log.debug("route create_new_playlist data : %s", data)
+    try:
+        playlist_uri = internal_media_folder + PlaylistFolder + data.split(";")[0].split(":")[1] + ".playlist"
+        file_name = data.split(";")[1].split(":")[1]
+        log.debug("playlist_uri = %s", playlist_uri)
+        if playlist_uri is not None and file_name is not None:
+            playlist_file = open(playlist_uri, "w+")
+            log.debug("file_name = %s", file_name)
+            file_uri = internal_media_folder + "/" + file_name + "\n"
+            log.debug("file_uri = %s", file_uri)
+            playlist_file.write(file_uri)
+            playlist_file.flush()
+            playlist_file.truncate()
+            playlist_file.close()
+    except Exception as e:
+        log.debug(e)
+    send_message(sync_playlist=data)
+    return refresh_template()
+
+
+@app.route('/play_playlist/<playlist>', methods=['POST'])
+def play_playlist(playlist):
+    log.debug("route play playlist : %s", playlist)
+    fname = playlist
+    send_message(play_playlist=fname)
+    status_code = Response(status=200)
+    return status_code
+
+
+
+@app.route('/add_to_playlist/<data>', methods=['POST'])
+def add_to_playlist(data):
+    log.debug("add_to_playlist data:%s", data)
+    playlist_name = data.split(";")[0].split(":")[1]
+    playlist_uri = internal_media_folder + PlaylistFolder + playlist_name
+    file_name = data.split(";")[1].split(":")[1]
+    file_uri = internal_media_folder + "/" + file_name
+    log.debug("file_name:%s, playlist_name:%s", file_name, playlist_name)
+    log.debug("file_uri:%s, playlist_uri:%s", file_uri, playlist_uri)
+    playlist_fd = open(playlist_uri, "a")
+    playlist_fd.write(file_uri + "\n")
+    playlist_fd.flush()
+    playlist_fd.truncate()
+    playlist_fd.close()
+    os.popen("sync")
+    send_message(sync_playlist=data)
+    return refresh_template()
+
+
+
+
+@app.route('/remove_playlist/<data>', methods=['POST'])
+def remove_playlist(data):
+    log.debug("remove_playlist : %s", data)
+
+    playlist_uri = internal_media_folder + PlaylistFolder + data
+    if os.path.isfile(playlist_uri):
+        os.remove(playlist_uri)
+        os.popen("sync")
+    send_message(sync_playlist=data)
+    return refresh_template()
+
+
+@app.route('/remove_file_from_playlist/<data>', methods=['POST'])
+def remove_file_from_playlist(data):
+    log.debug("remove_file_from_playlist : %s", data)
+    playlist_uri = internal_media_folder + PlaylistFolder + data.split(";")[0].split(":")[1]
+    file_uri = internal_media_folder + "/"+ data.split(";")[1].split(":")[1]
+    log.debug("playlist_uri : %s", playlist_uri)
+    log.debug("file_uri : %s", file_uri)
+    if os.path.isfile(playlist_uri):
+        with open(playlist_uri, "r") as fr:
+            lines = fr.readlines()
+            fr.close()
+        with open(playlist_uri, "w") as fw:
+            for line in lines:
+                if line.strip("\n") != file_uri.strip("\n"):
+                    log.debug("write line :%s", line)
+                    fw.write(line)
+            fw.flush()
+            fw.truncate()
+            fw.close()
+    send_message(sync_playlist=data)
+    return refresh_template()
+
+
+@app.route('/play_hdmi_in/<cmd>', methods=['POST'])
+def play_hdmi_in(cmd):
+    log.debug("route hdmi_in cmd : %s ", cmd)
+    send_message(play_hdmi_in=cmd)
+    status_code = Response(status=200)
+    return status_code
+
+
 @app.route('/set_default_play_mode/<data>', methods=['POST'])
 def set_default_play_mode(data):
     log.debug("set_default_play_mode data :" + data)

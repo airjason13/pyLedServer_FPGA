@@ -429,8 +429,8 @@ class MainUi(QMainWindow):
             i_b_gain_value = int(self.media_engine.led_video_params.get_led_blue_gain())
             i_current_gain_value = i_r_gain_value << 16 | i_g_gain_value << 8 | i_b_gain_value
             for fpga in self.fpga_list:
-                self.fpga.fpga_cmd_center.write_fpga_register(self.fpga.i_id, "currentGain",
-                                                              str(i_current_gain_value))
+                fpga.fpga_cmd_center.write_fpga_register(fpga.i_id, "currentGain",
+                                                         str(i_current_gain_value))
 
     def fpga_gamma_index_changed(self):
         ''' set fpga gamma '''
