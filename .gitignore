@@ -5,3 +5,7 @@ liblinux_ipc_sem_pyapi.so
 show_ffmpeg_shared_memory
 playlist.js
 led_config/led_parameters
+ffmpeg_shared_memory_log
+ffmpeg_shared_memory_log/.log_config
+
+
