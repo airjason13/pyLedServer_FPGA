@@ -106,8 +106,11 @@ int main(int argc, char ** argv){
 		printf("Usage : show_ffmpeg_shared_memory eth_if src_frame_width src_frame_height show_preview_or_not\n");
 		return -1;
 	}
-
-	printf("Start show_ffmpeg_shared_memory agent!\n");
+    int enable_log_file = log_init(true, LOG_PREFIX_ID);
+    if(enable_log_file != 0){
+        log_fatal("ERROR!Can't enable log file\n");
+    }
+	log_debug("Start show_ffmpeg_shared_memory agent!\n");
 	//int width = MAX_WIDTH, height = MAX_HEIGHT;
 	//char buffer[MAX_WIDTH*MAX_HEIGHT*3];
 	char *eth_if = argv[1];
@@ -135,20 +138,20 @@ int main(int argc, char ** argv){
         set_inotify_path("/home/venom/PycharmProjects/pyLedServer_FPGA/led_config/");
         set_inotify_file_name("led_parameters");
     }
-    printf("machine_type : %d\n", machine_type);
+    log_debug("machine_type : %d\n", machine_type);
 
     pthread_create(&fs_inotify_tid, NULL, fs_inotify, &machine_type);
 
-	printf("src_frame_width = %d\n", src_frame_width);
-	printf("src_frame_height = %d\n", src_frame_height);
-	printf("show_preview = %d\n", show_preview);
+	log_debug("src_frame_width = %d\n", src_frame_width);
+	log_debug("src_frame_height = %d\n", src_frame_height);
+	log_debug("show_preview = %d\n", show_preview);
 
 	int width = src_frame_width;
 	int height = src_frame_height;
 	bool need_scale = false;
 
-	printf("preview width : %d\n", width);
-	printf("preview height : %d\n", height);
+	log_debug("preview width : %d\n", width);
+	log_debug("preview height : %d\n", height);
 	int color_channels = 3; //RGB24
 	char buffer[width*height*3];
 	SDL_Surface *sdl_sf;

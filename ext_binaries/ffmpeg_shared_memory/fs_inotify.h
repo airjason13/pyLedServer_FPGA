@@ -12,6 +12,7 @@
 #include <stdbool.h>
 #include <pthread.h>
 #include <sys/utsname.h>
+#include "utildbg.h"
 
 void* fs_inotify(void* args);
 

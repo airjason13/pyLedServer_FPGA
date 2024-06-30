@@ -105,7 +105,7 @@ int send_frame_packet(unsigned char *data, unsigned int length,unsigned int offs
     packet_sz = length+CMD_HEAD_SZ+4;
 	
     if (packet_sz > MAX_DATA_LENGTH) {
-        printf("Send_frame_packet , Data too long to fit into the buffer.sz: %u\n",packet_sz);
+        log_debug("Send_frame_packet , Data too long to fit into the buffer.sz: %u\n",packet_sz);
         return -1;
     }
     packet_index = packet_index & 0xFF;
@@ -150,7 +150,7 @@ int send_frame_sync(void)
     memcpy(combined_data,brocast_cmd,20);
     
     if (send_raw_socket_packet(combined_data, 20) == -1){
-        printf("Sending failed");
+        log_debug("Sending failed");
         return -1;
     }
 
@@ -176,7 +176,7 @@ int send_rgb_frame_with_raw_socket(unsigned char *rgb_frame, int frame_sz, unsig
     tim.tv_nsec = 1;
 
     if (frame_id > 0xffff) {
-        printf("frame_id out of 0xffff\n");
+        log_debug("frame_id out of 0xffff\n");
         return -1;
     }
 
@@ -198,7 +198,7 @@ int send_rgb_frame_with_raw_socket(unsigned char *rgb_frame, int frame_sz, unsig
         data_length = segment_length;
         
         if (data_length > MAX_DATA_LENGTH) {
-            printf("Send rgb frame , Data too long to fit into the buffer. sz:%u \n",data_length);
+            log_debug("Send rgb frame , Data too long to fit into the buffer. sz:%u \n",data_length);
             return -1;
         }
 

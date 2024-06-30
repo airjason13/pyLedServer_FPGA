@@ -16,23 +16,23 @@ char inotify_file_name[STR_BUFF_LEN] = {0};
 
 int set_inotify_path(char *path){
     if(path == NULL){
-        printf("set inotify path should not be NULL!\n");
+        log_debug("set inotify path should not be NULL!\n");
         return -1;
     }
     memset(inotify_path, 0, STR_BUFF_LEN);
     strcpy(inotify_path, path);
-    printf("inotify_path : %s\n", inotify_path);
+    log_debug("inotify_path : %s\n", inotify_path);
     return 0;
 }
 
 int set_inotify_file_name(char *file_name){
     if(file_name == NULL){
-        printf("set inotify file_name should not be NULL!\n");
+        log_debug("set inotify file_name should not be NULL!\n");
         return -1;
     }
     memset(inotify_file_name, 0, STR_BUFF_LEN);
     strcpy(inotify_file_name, file_name);
-    printf("inotify_file_name : %s\n", inotify_file_name);
+    log_debug("inotify_file_name : %s\n", inotify_file_name);
     return 0;
 }
 
@@ -44,20 +44,20 @@ int get_frame_brightness(char *folder_path, char *file_name){
     ssize_t read;
     char file_uri[STR_BUFF_LEN];
     sprintf(file_uri, "%s%s", folder_path, file_name);
-    printf("file_uri : %s\n", file_uri);
+    log_debug("file_uri : %s\n", file_uri);
     fp = fopen(file_uri, "r");
     if(fp == NULL){
-        printf("no such file, %s\n", file_uri);
+        log_debug("no such file, %s\n", file_uri);
         return -1;
     }
 
     while ((read = getline(&line, &len, fp)) != -1) {
-        printf("Retrieved line of length %zu:\n", read);
-        printf("%s", line);
+        log_debug("Retrieved line of length %zu:\n", read);
+        log_debug("%s", line);
         if(strstr(line, "led_brightness") != NULL){
-            printf("got brightness\n");
-            sscanf(line, "led_brightness=%d", &br);
-            printf("%d", br);
+            log_debug("got brightness\n");
+            sscanf(line, "led_brightness=%d\n", &br);
+            log_debug("br: %d", br);
             break;
         }
     }
@@ -77,13 +77,13 @@ void* fs_inotify(void* args){
   	int machine_type = 0;
   	int br = 0;
 
-    printf("inotify_path : %s\n", inotify_path);
-    printf("inotify_file_name : %s\n", inotify_file_name);
+    log_debug("inotify_path : %s\n", inotify_path);
+    log_debug("inotify_file_name : %s\n", inotify_file_name);
 
     br = get_frame_brightness(inotify_path, inotify_file_name);
     //取到的br 為100為基底,要改成255為基底的
     br = br * 255/100;
-    printf("final br : %d\n", br);
+    log_debug("final br : %d\n", br);
     set_brightness_value(br);
 
   	uname(&unameData);
@@ -94,7 +94,7 @@ void* fs_inotify(void* args){
     }else{
         machine_type = MACHINE_TYPE_X86;
     }
-    printf("machine_type : %d\n", machine_type);
+    log_debug("machine_type : %d\n", machine_type);
 
   	/*creating the INOTIFY instance*/
   	fd = inotify_init();
@@ -144,12 +144,12 @@ void* fs_inotify(void* args){
           					//printf( "Directory %s modified.\n", event->name );
         				}else {
           					if(!strcmp(event->name, inotify_file_name)){
-          					    printf( "File %s modified.\n", event->name );
-          					    printf( "event name and file matched. %s\n", inotify_file_name);
+          					    log_debug( "File %s modified.\n", event->name );
+          					    log_debug( "event name and file matched. %s\n", inotify_file_name);
           					    br = get_frame_brightness(inotify_path, inotify_file_name);
           					    //取到的br 為100為基底,要改成255為基底的
           					    br = br * 255/100;
-          					    printf("final br : %d\n", br);
+          					    log_debug("final br : %d\n", br);
           					    set_brightness_value(br);
           					}
         				}
