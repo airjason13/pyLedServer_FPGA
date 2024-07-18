@@ -1,11 +1,12 @@
 import logging
 import time
 
+import qdarkstyle
 from PyQt5 import QtWidgets
 from PyQt5.QtCore import QObject, Qt, QLine, QTimer
 from PyQt5.QtGui import QFont, QBrush, QColor
 from PyQt5.QtWidgets import QTreeWidget, QTableWidget, QWidget, QVBoxLayout, QTableWidgetItem, QLabel, QGridLayout, \
-    QPushButton, QLineEdit, QAbstractScrollArea, QHBoxLayout, QMenu, QAction
+    QPushButton, QLineEdit, QAbstractScrollArea, QHBoxLayout, QMenu, QAction, QMessageBox
 
 from ext_qt_widgets.fpga_ota_file_select_dialog import GetFPGAOTADialog
 from ext_qt_widgets.fpga_test_window import FPGARegWindow
@@ -49,6 +50,7 @@ class FpgaListPage(QWidget):
 
         self.fpga_write_flash_btn = None
         self.fpga_read_flash_btn = None
+        self.fpga_set_gamma_table_btn = None
 
         self.label_widget = None
         self.label_widget_layout = None
@@ -101,7 +103,7 @@ class FpgaListPage(QWidget):
 
         # re-scan button
         self.rescan_btn = QPushButton(self.frame)
-        self.rescan_btn.setFixedSize(180, 64)
+        self.rescan_btn.setFixedSize(140, 64)
         self.rescan_btn.setFont(QFont(QFont_Style_Default, QFont_Style_Size_L))
         self.rescan_btn.setText("   Re-Scan   ")
         self.rescan_btn.clicked.connect(self.func_rescan_btn)
@@ -121,15 +123,21 @@ class FpgaListPage(QWidget):
         self.set_fpga_with_config_json_file_btn.clicked.connect(self.func_set_fpga_with_config_file_btn)
 
         self.fpga_write_flash_btn = QPushButton()
-        self.fpga_write_flash_btn.setFixedSize(240, 64)
+        self.fpga_write_flash_btn.setFixedSize(180, 64)
         self.fpga_write_flash_btn.setFont(QFont(QFont_Style_Default, QFont_Style_Size_L))
         self.fpga_write_flash_btn.setText("Write Flash")
         self.fpga_write_flash_btn.clicked.connect(self.func_fpga_write_flash_btn)
         self.fpga_read_flash_btn = QPushButton()
-        self.fpga_read_flash_btn.setFixedSize(240, 64)
+        self.fpga_read_flash_btn.setFixedSize(180, 64)
         self.fpga_read_flash_btn.setFont(QFont(QFont_Style_Default, QFont_Style_Size_L))
         self.fpga_read_flash_btn.setText("Read Flash")
         self.fpga_read_flash_btn.clicked.connect(self.func_fpga_read_flash_btn)
+
+        self.fpga_set_gamma_table_btn = QPushButton()
+        self.fpga_set_gamma_table_btn.setFixedSize(240, 64)
+        self.fpga_set_gamma_table_btn.setFont(QFont(QFont_Style_Default, QFont_Style_Size_L))
+        self.fpga_set_gamma_table_btn.setText("Set Gamma Table")
+        self.fpga_set_gamma_table_btn.clicked.connect(self.func_fpga_set_gamma_table_btn)
 
         self.label_widget = QWidget()
         self.label_widget_layout = QHBoxLayout()
@@ -140,6 +148,7 @@ class FpgaListPage(QWidget):
         self.label_widget_layout.addWidget(self.set_fpga_with_config_json_file_btn)
         self.label_widget_layout.addWidget(self.fpga_write_flash_btn)
         self.label_widget_layout.addWidget(self.fpga_read_flash_btn)
+        self.label_widget_layout.addWidget(self.fpga_set_gamma_table_btn)
         self.label_widget.setLayout(self.label_widget_layout)
 
         self.client_table_widget.setColumnCount(4)
@@ -259,12 +268,21 @@ class FpgaListPage(QWidget):
         if self.media_engine.led_video_params.get_output_frame_height() != int(self.frame_height_lineedit.text()):
             self.media_engine.led_video_params.set_output_frame_height(int(self.frame_height_lineedit.text()))
 
-
-
         # below is for test use
         # self.cmd_test_timer.timeout.connect(self.fpga_write_flash_test)
         # self.cmd_test_timer.timeout.connect(self.fpga_read_flash_test)
         # self.cmd_test_timer.start(3 * 1000)
+
+    def func_fpga_set_gamma_table_btn(self):
+        if len(self.fpga_list) == 0:
+            self.show_info_message_box("Info", "No FPGA Online!")
+            return
+        self.func_rescan_btn()
+        self.main_windows.init_fpga_gamma()
+        if len(self.fpga_list) == 1:
+            self.show_info_message_box("Info", "Set Gamma Table on {} FPGA OK!".format(len(self.fpga_list)))
+        else:
+            self.show_info_message_box("Info", "Set Gamma Table on {} FPGAs OK!".format(len(self.fpga_list)))
 
     def func_rescan_btn(self):
         log.debug("func_rescan_btn")
@@ -288,16 +306,24 @@ class FpgaListPage(QWidget):
         log.debug("func_rescan_btn end")
 
     def func_fpga_write_flash_btn(self):
+        if len(self.fpga_list) == 0:
+            self.show_info_message_box("Info", "No FPGA Online!")
+            return
         self.main_windows.fpga_cmd_center.set_fpga_write_flash()
         time.sleep(5)
         # 需補dialog
-        log.debug("need a ok dialog")
+        # log.debug("need a ok dialog")
+        self.show_info_message_box("Info", "Write Flash OK!")
 
     def func_fpga_read_flash_btn(self):
+        if len(self.fpga_list) == 0:
+            self.show_info_message_box("Info", "No FPGA Online!")
+            return
         self.main_windows.fpga_cmd_center.set_fpga_read_flash()
         time.sleep(5)
         # 需補dialog
-        log.debug("need a ok dialog")
+        # log.debug("need a ok dialog")
+        self.show_info_message_box("Info", "Read Flash OK!")
 
     def func_gen_fpga_config_file_btn(self):
         log.debug("func func_gen_fpga_config_file_btn clicked")
@@ -626,3 +652,16 @@ class FpgaListPage(QWidget):
         self.rgb_gamma_lineedit.setText(str(self.media_engine.led_video_params.get_led_gamma()))
         self.frame_width_lineedit.setText(str(self.media_engine.led_video_params.get_output_frame_width()))
         self.frame_height_lineedit.setText(str(self.media_engine.led_video_params.get_output_frame_height()))
+
+    def show_info_message_box(self, win_title: str, info_text: str, pos_x=800, pos_y=600):
+        try:
+            info_dialog = QMessageBox(self)
+            info_dialog.setIcon(QMessageBox.Information)
+            info_dialog.setWindowTitle(win_title)
+            info_dialog.setText(info_text)
+            info_dialog.setFont(QFont(QFont_Style_Default, QFont_Style_Size_L))
+            info_dialog.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5() + "QPushButton {font-size:36px;}")
+            info_dialog.move(pos_x, pos_y)
+            info_dialog.show()
+        except Exception as e:
+            log.debug(e)

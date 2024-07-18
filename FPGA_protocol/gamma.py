@@ -16,10 +16,10 @@ def rounder(topValue, gammas):
     return [min(topValue, round(x*topValue)) for x in gammas]
 
 
-def init_gamma_table_list(gamma_min=0, gamma_max=max_gamma_value+1, steps=256):
+def init_gamma_table_list(gamma_min=0, gamma_max=max_gamma_value+1, gamma_steps=256):
     for i_gamma_tmp in range(gamma_min, gamma_max):
         bytes_test = bytes()
-        for value in rounder(255, gen_gamma(steps, i_gamma_tmp/10)):
+        for value in rounder(255, gen_gamma(gamma_steps, i_gamma_tmp/10)):
             # i_gamma_tmp.append(value)
             # byte_gamma_tmp.append(int(value).to_bytes(4, byteorder='big'))
             bytes_test += int(value).to_bytes(2, byteorder='big')

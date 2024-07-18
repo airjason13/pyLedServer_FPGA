@@ -106,7 +106,8 @@ class MainUi(QMainWindow):
 
         self.right_frame_page_list[0].sync_clients_table(self.fpga_list)
 
-        self.init_fpga_gamma()
+        # Do not set gamma table at first
+        # self.init_fpga_gamma()
 
         # self.set_fpga_test_register()
 
@@ -149,6 +150,11 @@ class MainUi(QMainWindow):
             # log.debug("%s : %s", "gammaTable_g{}".format(str(0)), str(reg_value))
             ret, reg_value = self.fpga_cmd_center.read_fpga_register(fpga.i_id, "gammaTable_b{}".format(str(0)))
             # log.debug("%s : %s", "gammaTable_b{}".format(str(0)), str(reg_value))'''
+
+
+    def closeEvent(self, event):
+        log.debug("Close All Program!")
+        QApplication.closeAllWindows()
 
     def launch_default_type(self):
         try:
