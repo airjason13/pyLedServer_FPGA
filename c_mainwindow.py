@@ -86,7 +86,6 @@ class MainUi(QMainWindow):
         self.media_engine.led_video_params.install_fpga_gamma_index_changed_slot(self.fpga_gamma_index_changed)
         self.media_engine.install_signal_media_engine_status_changed_slot(self.media_engine_status_changed)
 
-
         ''' Jason for test FPGA read/write '''
         self.fpga_cmd_center = FPGACmdCenter(ETH_DEV, protocolDict["sourceAddress"])
         self.fpga_cmd_center.set_fpga_id_broadcast(FPGA_START_ID)
@@ -134,7 +133,7 @@ class MainUi(QMainWindow):
         except Exception as e:
             log.debug(e)
 
-        self.lcd1602 = LCD1602("LCD_TAG_VERSION_INFO", "LED SERVER", Version, 5000)
+        self.lcd1602 = LCD1602("LCD_TAG_VERSION_INFO", "FPGA LED SERVER", Version, 5000)
         self.lcd1602.start()
 
         self.default_launch_type_int = 0
