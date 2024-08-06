@@ -1,12 +1,19 @@
 import enum
 
 
+
+
 class PlayStatus(enum.IntEnum):
     Initial = -1
     Stop = 0
     Playing = 1
     Pausing = 2
 
+
+TAG_PlayStatus_Dict = { -1 : "Standby",
+                        0 : "Stop",
+                        1 : "Playing",
+                        2 : "Pausing" }
 
 class PlayType(enum.IntEnum):
     Play_None = 0

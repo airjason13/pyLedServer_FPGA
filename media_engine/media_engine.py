@@ -31,6 +31,7 @@ from media_engine.linux_ipc_pyapi_sem import *
 class MediaEngine(QObject):
     signal_media_play_status_changed = pyqtSignal(int, str)
     hdmi_play_status_changed = pyqtSignal(int, str)
+    signal_media_engine_status_changed = pyqtSignal(int, str)
 
     def __init__(self):
         super(MediaEngine, self).__init__()
@@ -172,6 +173,9 @@ class MediaEngine(QObject):
                                           active_height=int(height),
                                           )
 
+    def install_signal_media_engine_status_changed_slot(self, slot_func):
+        self.signal_media_engine_status_changed.connect(slot_func)
+
     def install_signal_media_play_status_changed_slot(self, slot_func):
         self.signal_media_play_status_changed.connect(slot_func)
 
@@ -197,8 +201,11 @@ class MediaEngine(QObject):
 
         if "/dev/video" in playing_src:
             self.hdmi_play_status_changed.emit(status, playing_src)
+            self.signal_media_engine_status_changed.emit(status, "HDMI-In")
         else:
             self.signal_media_play_status_changed.emit(status, playing_src)
+            self.signal_media_engine_status_changed.emit(status, "Media File")
+
         self.play_change_mutex.unlock()
 
     def preview_pixmap_changed(self, raw_image_np_array):

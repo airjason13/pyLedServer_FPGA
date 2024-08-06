@@ -16,6 +16,7 @@ from ext_dev.c_lcd1602 import LCD1602
 from fpga.fpga_clients import FPGAClient
 from global_def import *
 from media_engine.media_engine import MediaEngine
+from media_engine.media_engine_def import TAG_PlayStatus_Dict
 from ui.ui_fpga_list_page import FpgaListPage
 from ui.ui_functions_frame import UiFuncFrame
 from ui.ui_hdmi_in_page import HDMIInPage
@@ -83,6 +84,8 @@ class MainUi(QMainWindow):
         self.media_engine = MediaEngine()
         self.media_engine.led_video_params.install_fpga_current_gain_changed_slot(self.fpga_current_gain_changed)
         self.media_engine.led_video_params.install_fpga_gamma_index_changed_slot(self.fpga_gamma_index_changed)
+        self.media_engine.install_signal_media_engine_status_changed_slot(self.media_engine_status_changed)
+
 
         ''' Jason for test FPGA read/write '''
         self.fpga_cmd_center = FPGACmdCenter(ETH_DEV, protocolDict["sourceAddress"])
@@ -448,3 +451,7 @@ class MainUi(QMainWindow):
         for fpga in self.fpga_list:
             fpga.fpga_cmd_center.write_fpga_register(fpga.i_id, 'currentGammaTable',
                                                      str(self.media_engine.led_video_params.get_led_gamma()))
+
+    def media_engine_status_changed(self, status: int, play_src: str):
+        log.debug("status : %s, play_src : %s", TAG_PlayStatus_Dict.get(status), play_src)
+        self.lcd1602.add_data("media_engine_status", TAG_PlayStatus_Dict.get(status), play_src)
