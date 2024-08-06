@@ -57,7 +57,7 @@ def init_video_params():
 
 def init_reboot_params():
     content_lines = [
-        "reboot_mode_enable=1\n",
+        "reboot_mode_enable=0\n",
         "reboot_time=04:30\n",
     ]
     root_dir = os.path.dirname(sys.modules['__main__'].__file__)
