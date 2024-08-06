@@ -12,6 +12,7 @@ import utils.utils_file_access
 import utils.utils_system
 from FPGA_protocol.gamma import init_gamma_table_list, gamma_table_list, max_gamma_value
 from FPGA_protocol.protocol2 import FPGACmdCenter, protocolDict, FPGAJsonParams, fpga_test_value
+from ext_dev.c_lcd1602 import LCD1602
 from fpga.fpga_clients import FPGAClient
 from global_def import *
 from media_engine.media_engine import MediaEngine
@@ -129,6 +130,9 @@ class MainUi(QMainWindow):
             self.date_timer.start(BRIGHTNESS_TIMER_INTERVAL)
         except Exception as e:
             log.debug(e)
+
+        self.lcd1602 = LCD1602("LCD_TAG_VERSION_INFO", "LED SERVER", Version, 5000)
+        self.lcd1602.start()
 
         self.default_launch_type_int = 0
         self.default_launch_params_str = ""
