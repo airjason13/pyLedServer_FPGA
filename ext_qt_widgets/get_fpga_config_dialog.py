@@ -1,7 +1,9 @@
 import qdarkstyle
 from PyQt5.QtCore import pyqtSignal
+from PyQt5.QtGui import QFont
 from PyQt5.QtWidgets import QWidget, QMessageBox, QGridLayout, QFrame, QLabel, QTextEdit, QPushButton, QComboBox
 from global_def import log
+from qt_ui_style.button_qss import QFont_Style_Default, QFont_Style_Size_L
 
 
 class GetFPGAConfigDialog(QWidget):
@@ -33,9 +35,13 @@ class GetFPGAConfigDialog(QWidget):
         self.init_ui()
         self.error_message_box = QMessageBox()
         self.error_message_box.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
+        self.new_config_file_lable.setFont(QFont(QFont_Style_Default, QFont_Style_Size_L))
+        self.json_file_list_combobox.setFont(QFont(QFont_Style_Default, QFont_Style_Size_L))
+        self.confirm_btn.setFont(QFont(QFont_Style_Default, QFont_Style_Size_L))
+        self.cancel_btn.setFont(QFont(QFont_Style_Default, QFont_Style_Size_L))
 
     def init_ui(self):
-        self.setFixedSize(400, 100)
+        # self.setFixedSize(1280, 320)
         ''' Total frame layout'''
         self.layout = QGridLayout(self)
         layout_widget = QFrame()
@@ -53,11 +59,11 @@ class GetFPGAConfigDialog(QWidget):
 
         self.confirm_btn = QPushButton()
         self.confirm_btn.setText("Ok")
-        self.confirm_btn.setFixedWidth(80)
+        self.confirm_btn.setFixedWidth(120)
         self.confirm_btn.setFixedHeight(40)
         self.cancel_btn = QPushButton()
         self.cancel_btn.setText("Cancel")
-        self.cancel_btn.setFixedWidth(80)
+        self.cancel_btn.setFixedWidth(120)
         self.cancel_btn.setFixedHeight(40)
         layout_gridbox.addWidget(self.new_config_file_lable, 0, 1)
         layout_gridbox.addWidget(self.json_file_list_combobox, 1, 1)

@@ -1,13 +1,15 @@
 import logging
+import threading
 import time
 
 import qdarkstyle
 from PyQt5 import QtWidgets
-from PyQt5.QtCore import QObject, Qt, QLine, QTimer
+from PyQt5.QtCore import QObject, Qt, QLine, QTimer, QThread, pyqtSignal
 from PyQt5.QtGui import QFont, QBrush, QColor
 from PyQt5.QtWidgets import QTreeWidget, QTableWidget, QWidget, QVBoxLayout, QTableWidgetItem, QLabel, QGridLayout, \
-    QPushButton, QLineEdit, QAbstractScrollArea, QHBoxLayout, QMenu, QAction, QMessageBox
+    QPushButton, QLineEdit, QAbstractScrollArea, QHBoxLayout, QMenu, QAction, QMessageBox, QApplication
 
+from ext_qt_widgets.VProgressDialog import VProgressDialog
 from ext_qt_widgets.fpga_ota_file_select_dialog import GetFPGAOTADialog
 from ext_qt_widgets.fpga_test_window import FPGARegWindow
 from ext_qt_widgets.gen_fpga_config_json_dialog import GenFPGAConfigJsonDialog
@@ -79,6 +81,15 @@ class FpgaListPage(QWidget):
         self.client_table_widget = QTableWidget()
         self.client_media_setting_widget = None
         self.right_click_select_fpga = None
+
+        self.progress_dialog = None
+
+        self.get_fpga_config_json_thread = None
+        self.get_fpga_config_json_worker = None
+
+        self.read_fpga_to_config_json_thread = None
+        self.read_fpga_to_config_json_worker = None
+
         self.fpga_list = fpga_list
         self.show_register_window = []
         self.init_ui()
@@ -336,6 +347,7 @@ class FpgaListPage(QWidget):
 
     def func_set_fpga_with_config_file_btn(self):
         log.debug("func func_set_fpga_with_config_file_btn clicked")
+
         self.get_fpga_config_json_file_dialog = None
         config_json_files_list = get_fpga_config_file_list(root_dir + '/fpga_config_jsons')
         self.get_fpga_config_json_file_dialog = GetFPGAConfigDialog(config_json_files_list)
@@ -344,8 +356,32 @@ class FpgaListPage(QWidget):
         self.get_fpga_config_json_file_dialog.show()
 
     def slot_gen_new_fpga_config_json_file(self, new_config_json_file_name: str):
+        if len(self.fpga_list) == 0:
+            self.show_info_message_box("Info", "No FPGA Online!")
+            return
         log.debug('slot_gen_new_fpga_config_json_file : %s', new_config_json_file_name)
-        data = dict()
+
+        self.progress_dialog = VProgressDialog(
+            label_str="Reading FPGA to config file {}, Do not do anything else!".format(new_config_json_file_name))
+        self.progress_dialog.show()
+
+        self.read_fpga_to_config_json_thread = None
+        self.read_fpga_to_config_json_worker = None
+
+        self.read_fpga_to_config_json_thread = QThread()
+        self.read_fpga_to_config_json_worker = ReadFPGAConfigToJsonFileProgressWorker(self.fpga_list,
+                                                                                      new_config_json_file_name)
+
+        self.read_fpga_to_config_json_worker.moveToThread(self.read_fpga_to_config_json_thread)
+        self.read_fpga_to_config_json_thread.started.connect(self.read_fpga_to_config_json_worker.run)
+        self.read_fpga_to_config_json_worker.qsignal_finished.connect(self.read_fpga_to_config_json_thread.quit)
+        # self.read_fpga_to_config_json_worker.qsignal_finished.connect(self.read_fpga_to_config_json_thread.deleteLater)
+        self.read_fpga_to_config_json_worker.qsignal_finished.connect(self.progress_dialog.close)
+        self.read_fpga_to_config_json_thread.finished.connect(self.read_fpga_to_config_json_thread.deleteLater)
+        self.read_fpga_to_config_json_worker.qsignal_progress.connect(self.show_progress)
+        self.read_fpga_to_config_json_thread.start()
+
+        '''data = dict()
         data["fpga_config"] = []
 
         for fpga in self.fpga_list:
@@ -367,15 +403,39 @@ class FpgaListPage(QWidget):
 
         with open(root_dir + '/fpga_config_jsons/' + new_config_json_file_name + ".json", "w") as json_file:
             json.dump(data, json_file, indent=2)
-            log.debug('write json')
+            log.debug('write json')'''
+
+    def show_progress(self, value: int):
+        self.progress_dialog.set_process_value(value)
 
     def slot_get_fpga_config_json_file(self, config_json_file_name: str):
+        if len(self.fpga_list) == 0:
+            self.show_info_message_box("Info", "No FPGA Online!")
+            return
         log.debug("slot_get_fpga_config_json_file")
         fpga_setting_dict = load_fpga_json_file(config_json_file_name)
         target_fpga = None
         log.debug("len(fpga_setting_dict['fpga_config']): %d", len(fpga_setting_dict["fpga_config"]))
-        # log.debug("fpga_setting_dict['fpga_config'][0] : %s", fpga_setting_dict['fpga_config'][0])
-        for target_fpga_config_dict in fpga_setting_dict['fpga_config']:
+
+        self.progress_dialog = VProgressDialog(
+            label_str="Writing FPGA with config file {}, Do not do anything else!".format(config_json_file_name))
+        self.progress_dialog.show()
+
+        self.get_fpga_config_json_thread = None
+        self.get_fpga_config_json_worker = None
+
+        self.get_fpga_config_json_thread = QThread()
+        self.get_fpga_config_json_worker = GetFPGAConfigJsonFileProgressWorker(self.fpga_list, fpga_setting_dict)
+        self.get_fpga_config_json_worker.moveToThread(self.get_fpga_config_json_thread)
+        self.get_fpga_config_json_thread.started.connect(self.get_fpga_config_json_worker.run)
+        self.get_fpga_config_json_worker.qsignal_finished.connect(self.get_fpga_config_json_thread.quit)
+        # self.get_fpga_config_json_worker.qsignal_finished.connect(self.get_fpga_config_json_thread.deleteLater)
+        self.get_fpga_config_json_worker.qsignal_finished.connect(self.progress_dialog.close)
+        self.get_fpga_config_json_thread.finished.connect(self.get_fpga_config_json_thread.deleteLater)
+        self.get_fpga_config_json_worker.qsignal_progress.connect(self.show_progress)
+        self.get_fpga_config_json_thread.start()
+
+        '''for target_fpga_config_dict in fpga_setting_dict['fpga_config']:
             target_fpga = None
             for reg_name, reg_value in target_fpga_config_dict.items():
                 if reg_name == "deviceID":
@@ -391,9 +451,17 @@ class FpgaListPage(QWidget):
                         log.debug("no such fpga, please check")
                         log.debug("popup a warning dialog")
                     else:
-                        target_fpga.write_cmd(reg_name, str(reg_value))
+                        target_fpga.write_cmd(reg_name, str(reg_value))'''
 
-            # log.debug("reg_name: %s,reg_value: %s ", reg_name, reg_value)
+        # self.progress_dialog.close()
+        # self.progress_dialog = None
+
+        # log.debug("reg_name: %s,reg_value: %s ", reg_name, reg_value)
+        '''if len(self.fpga_list) == 1:
+            self.show_info_message_box(win_title="Info", info_text="Write Config to {} FPGA OK!")
+        else:
+            self.show_info_message_box(win_title="Info",
+                                       info_text="Write Config to {} FPGAs OK!".format(len(self.fpga_list)))'''
 
     def sync_clients_table(self, fpga_list: []):
         if len(fpga_list) == 0:
@@ -653,6 +721,12 @@ class FpgaListPage(QWidget):
         self.frame_width_lineedit.setText(str(self.media_engine.led_video_params.get_output_frame_width()))
         self.frame_height_lineedit.setText(str(self.media_engine.led_video_params.get_output_frame_height()))
 
+    def set_fpga_width_register(self):
+        log.debug("")
+
+    def set_fpga_height_register(self):
+        log.debug("")
+
     def show_info_message_box(self, win_title: str, info_text: str, pos_x=800, pos_y=600):
         try:
             info_dialog = QMessageBox(self)
@@ -665,3 +739,108 @@ class FpgaListPage(QWidget):
             info_dialog.show()
         except Exception as e:
             log.debug(e)
+
+
+# read FPGA register to config file
+class ReadFPGAConfigToJsonFileProgressWorker(QObject):
+    qsignal_finished = pyqtSignal()
+    qsignal_progress = pyqtSignal(int)
+
+    def __init__(self, fpga_list: list, new_config_json_file_name: str):
+        super().__init__()
+        self.fpga_list = fpga_list
+        self.new_config_json_file_name = new_config_json_file_name
+        log.debug("ReadFPGAConfigToJsonFileProgressWorker Init")
+
+    def run(self):
+        data = dict()
+        data["fpga_config"] = []
+        if len(self.fpga_list) == 0:
+            x_factor = int(100 / 1)
+        else:
+            x_factor = int(100 / len(self.fpga_list))
+        progress_count = 0
+        for fpga in self.fpga_list:
+            params = {}
+            for k, v in dataAddressDict.items():
+                log.debug("read fpga id: %d, reg: %s", fpga.i_id, k)
+                if 'gammaTable_' in k or 'test' in k:
+                    pass
+                elif k == 'gammaTable':
+                    pass
+                else:
+                    ret, str_value = fpga.fpga_cmd_center.read_fpga_register(fpga.i_id, k)
+                    if ret == 0:
+                        params[k] = str_value
+                    else:
+                        params[k] = "unknown"
+            data["fpga_config"].append(params)
+            progress_count += 1
+            self.qsignal_progress.emit(progress_count * x_factor)
+            params = None
+
+        with open(root_dir + '/fpga_config_jsons/' + self.new_config_json_file_name + ".json", "w") as json_file:
+            json.dump(data, json_file, indent=2)
+            log.debug('write json')
+            json_file.flush()
+            json_file.truncate()
+            json_file.close()
+
+        self.qsignal_progress.emit(100)
+        time.sleep(2)
+        log.debug("ReadFPGAConfigToJsonFileProgressWorker Run End")
+        self.qsignal_finished.emit()
+
+
+# write FPGA registers with config file dict
+class GetFPGAConfigJsonFileProgressWorker(QObject):
+    qsignal_finished = pyqtSignal()
+    qsignal_progress = pyqtSignal(int)
+
+    def __init__(self, fpga_list: list, fpga_setting_dict: dict):
+        super().__init__()
+        self.fpga_list = fpga_list
+        self.fpga_setting_dict = fpga_setting_dict
+        log.debug("GetFPGAConfigJsonFileProgressWorker Init")
+
+    def run(self):
+        log.debug("GetFPGAConfigJsonFileProgressWorker Run Start")
+        '''for i in range(100):
+            self.qsignal_progress.emit(i)
+            time.sleep(1)'''
+        total_num = 0
+        # log.debug("self.fpga_setting_dict : %s", self.fpga_setting_dict)
+        for target_fpga_config_dict in self.fpga_setting_dict['fpga_config']:
+            for reg_name, reg_value in target_fpga_config_dict.items():
+                if reg_name == "deviceID":
+                    i_fpga_id = int(reg_value)
+                else:
+                    total_num += 1
+        log.debug("total_num : %d", total_num)
+        x_factor = int(total_num)
+        log.debug("x_factor : %d", x_factor)
+        if x_factor < 1:
+            x_factor = 1
+        write_count = 0
+        for target_fpga_config_dict in self.fpga_setting_dict['fpga_config']:
+            target_fpga = None
+            for reg_name, reg_value in target_fpga_config_dict.items():
+                if reg_name == "deviceID":
+                    i_fpga_id = int(reg_value)
+                    for tmp_fpga in self.fpga_list:
+                        if tmp_fpga.i_id == i_fpga_id:
+                            target_fpga = tmp_fpga
+                            log.debug("got target_fpga, target_fpga_id :%d", target_fpga.i_id)
+                elif reg_name == 'flashControl' or reg_name == 'UTC' or reg_name == 'MD5':
+                    log.debug("%s does not need to write", reg_name)
+                else:
+                    if target_fpga is None:
+                        log.debug("no such fpga, please check")
+                        log.debug("popup a warning dialog")
+                    else:
+                        target_fpga.write_cmd(reg_name, str(reg_value))
+                    write_count += 1
+                    self.qsignal_progress.emit(int((write_count*100)/x_factor))
+        self.qsignal_progress.emit(100)
+        log.debug("GetFPGAConfigJsonFileProgressWorker Run End")
+        self.qsignal_finished.emit()

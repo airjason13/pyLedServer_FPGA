@@ -7,5 +7,5 @@ playlist.js
 led_config/led_parameters
 ffmpeg_shared_memory_log
 ffmpeg_shared_memory_log/.log_config
-
+*.json
 
