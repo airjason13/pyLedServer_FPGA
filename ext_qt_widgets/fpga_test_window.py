@@ -2,10 +2,10 @@ import qdarkstyle
 from PyQt5 import Qt
 from PyQt5.QtGui import QFont
 from PyQt5.QtWidgets import QWidget, QLabel, QVBoxLayout, QTableWidget, QAbstractScrollArea, QGridLayout, \
-    QTableWidgetItem, QLineEdit, QPushButton, QHBoxLayout
+    QTableWidgetItem, QLineEdit, QPushButton, QHBoxLayout, QRadioButton
 
 from fpga.fpga_clients import FPGAClient
-from qt_ui_style.button_qss import QFont_Style_Default, QFont_Style_Size_L, QFont_Style_Size_M
+from qt_ui_style.button_qss import QFont_Style_Default, QFont_Style_Size_L, QFont_Style_Size_M, QFont_Style_Size_S
 from global_def import log
 
 common_reg_list = [
@@ -37,9 +37,20 @@ for i in range(64):
 
 
 class FPGARegWindow(QWidget):
+    window_default_width = 960
+    window_default_height = 1080
+    default_table_column_width = 190
+    common_register_map_table_width = 400
+    common_register_map_table_height = 340
+    gamma_register_map_table_width = 400
+    gamma_register_map_table_height = 340
+    layout_register_map_table_width = 400
+    layout_register_map_table_height = 680
+    default_lineedit_width = 64
+    fpga_default_num_of_port = 64
     def __init__(self, fpga: FPGAClient ):
         super(FPGARegWindow, self).__init__()
-        self.resize(960, 1080)
+        self.resize(self.window_default_width, self.window_default_height)
         self.setWindowOpacity(1.0)  # 窗口透明度
         self.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
         self.fpga = fpga
@@ -56,6 +67,8 @@ class FPGARegWindow(QWidget):
         self.register_layout = QGridLayout()
         self.cmd_widget = QWidget()
         self.cmd_widget_layout = QGridLayout()
+        self.easy_layout_widget = QWidget()
+        self.easy_layout_widget_layout = QGridLayout()
         self.r_gain_label = QLabel()
         self.r_gain_lineedit = QLineEdit()
         self.g_gain_label = QLabel()
@@ -63,6 +76,28 @@ class FPGARegWindow(QWidget):
         self.b_gain_label = QLabel()
         self.b_gain_lineedit = QLineEdit()
         self.set_current_gain_btn = QPushButton()
+
+        self.easy_layout_led_wall_width_label = QLabel()
+        self.easy_layout_led_wall_width_lineedit = QLineEdit()
+        self.easy_layout_led_wall_height_label = QLabel()
+        self.easy_layout_led_wall_height_lineedit = QLineEdit()
+        self.easy_layout_panel_way_label = QLabel()
+        self.easy_layout_panel_way_lineedit = QLineEdit()
+        self.easy_layout_start_x_label = QLabel()
+        self.easy_layout_start_x_lineedit = QLineEdit()
+        self.easy_layout_start_y_label = QLabel()
+        self.easy_layout_start_y_lineedit = QLineEdit()
+        self.easy_layout_start_port_width_label = QLabel()
+        self.easy_layout_start_port_width_lineedit = QLineEdit()
+        self.easy_layout_start_port_height_label = QLabel()
+        self.easy_layout_start_port_height_lineedit = QLineEdit()
+        self.easy_layout_num_of_port_used_label = QLabel()
+        self.easy_layout_num_of_port_used_lineedit = QLineEdit()
+        self.easy_layout_decreasing_radio_btn_widget = QWidget()
+        self.easy_layout_decreasing_radio_btn = QRadioButton(self.easy_layout_decreasing_radio_btn_widget)
+        self.easy_layout_staggered_radio_btn_widget = QWidget()
+        self.easy_layout_staggered_radio_btn = QRadioButton(self.easy_layout_staggered_radio_btn_widget)
+        self.easy_layout_confirm_btn = QPushButton()
         self.main_layout = QVBoxLayout()
 
         self.init_ui()
@@ -75,6 +110,8 @@ class FPGARegWindow(QWidget):
 
         self.common_register_map_table.cellChanged.connect(self.common_register_map_table_cell_changed)
         self.layout_register_map_table.cellChanged.connect(self.layout_register_map_table_cell_changed)
+
+        self.setWindowTitle("FPGA ID.{} Reg Map".format(str(self.fpga.i_id)))
 
     def init_ui(self):
         self.info_label.setText('FPGA {} Info'.format(str(self.fpga.i_id)))
@@ -89,9 +126,11 @@ class FPGARegWindow(QWidget):
         self.info_widget.setLayout(self.info_widget_layout)
 
         self.common_register_map_table.setColumnCount(2)
-        self.common_register_map_table.setFixedSize(320, 280)
-        self.common_register_map_table.setColumnWidth(0, 180)
-        self.common_register_map_table.setColumnWidth(1, 120)
+        self.common_register_map_table.setFixedSize(self.common_register_map_table_width,
+                                                    self.common_register_map_table_height)
+        # self.common_register_map_table.setFixedHeight(360)
+        self.common_register_map_table.setColumnWidth(0, self.default_table_column_width)
+        self.common_register_map_table.setColumnWidth(1, self.default_table_column_width)
         self.common_register_map_table.setRowCount(0)
         self.common_register_map_table.horizontalHeader().setSizeAdjustPolicy(QAbstractScrollArea.AdjustToContents)
         self.common_register_map_table.horizontalHeader().setFont(QFont(QFont_Style_Default, QFont_Style_Size_L))
@@ -100,17 +139,22 @@ class FPGARegWindow(QWidget):
 
         self.gamma_register_map_table.setColumnCount(2)
         self.gamma_register_map_table.setRowCount(0)
-        self.gamma_register_map_table.setColumnWidth(0, 180)
-        self.gamma_register_map_table.setColumnWidth(1, 120)
+        self.gamma_register_map_table.setFixedSize(self.gamma_register_map_table_width,
+                                                   self.gamma_register_map_table_height)
+        # self.gamma_register_map_table.setFixedHeight(360)
+        self.gamma_register_map_table.setColumnWidth(0, self.default_table_column_width)
+        self.gamma_register_map_table.setColumnWidth(1, self.default_table_column_width)
         self.gamma_register_map_table.horizontalHeader().setSizeAdjustPolicy(QAbstractScrollArea.AdjustToContents)
         self.gamma_register_map_table.horizontalHeader().setFont(QFont(QFont_Style_Default, QFont_Style_Size_L))
         self.gamma_register_map_table.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
         self.gamma_register_map_table.setHorizontalHeaderLabels(['Gamma Register', 'Value'])
 
         self.layout_register_map_table.setColumnCount(2)
-        self.layout_register_map_table.setFixedSize(360, 720)
-        self.layout_register_map_table.setColumnWidth(0, 180)
-        self.layout_register_map_table.setColumnWidth(1, 160)
+        self.layout_register_map_table.setFixedSize(self.layout_register_map_table_width,
+                                                    self.layout_register_map_table_height)
+        # self.layout_register_map_table.setFixedHeight(360)
+        self.layout_register_map_table.setColumnWidth(0, self.default_table_column_width)
+        self.layout_register_map_table.setColumnWidth(1, self.default_table_column_width)
         self.layout_register_map_table.setRowCount(0)
         self.layout_register_map_table.horizontalHeader().setSizeAdjustPolicy(QAbstractScrollArea.AdjustToContents)
         self.layout_register_map_table.horizontalHeader().setFont(QFont(QFont_Style_Default, QFont_Style_Size_L))
@@ -125,7 +169,7 @@ class FPGARegWindow(QWidget):
         self.r_gain_label.setText("RGain:")
         self.g_gain_label.setText("GGain:")
         self.b_gain_label.setText("BGain:")
-        self.set_current_gain_btn.setText("Set")
+        self.set_current_gain_btn.setText("Set CG")
         self.set_current_gain_btn.clicked.connect(self.set_current_gain_btn_clicked)
 
         self.cmd_widget_layout.addWidget(self.r_gain_label, 0, 0)
@@ -135,13 +179,229 @@ class FPGARegWindow(QWidget):
         self.cmd_widget_layout.addWidget(self.b_gain_label, 0, 4)
         self.cmd_widget_layout.addWidget(self.b_gain_lineedit, 0, 5)
         self.cmd_widget_layout.addWidget(self.set_current_gain_btn, 0, 6)
+        self.cmd_widget.setFont(QFont(QFont_Style_Default, QFont_Style_Size_S))
         self.cmd_widget.setLayout(self.cmd_widget_layout)
 
+        self.easy_layout_led_wall_width_label.setText("LED Total Width:")
+        self.easy_layout_led_wall_width_lineedit.setFixedWidth(self.default_lineedit_width)
+        self.easy_layout_led_wall_width_lineedit.setText(str(0))
+        self.easy_layout_led_wall_height_label.setText("Led Total Height:")
+        self.easy_layout_led_wall_height_lineedit.setFixedWidth(self.default_lineedit_width)
+        self.easy_layout_led_wall_height_lineedit.setText(str(0))
+        self.easy_layout_panel_way_label.setText("Panel Way:")
+        self.easy_layout_panel_way_lineedit.setFixedWidth(self.default_lineedit_width)
+        self.easy_layout_panel_way_lineedit.setText(str(0))
+        self.easy_layout_start_x_label.setText("Port 0 Start X:")
+        self.easy_layout_start_x_lineedit.setFixedWidth(self.default_lineedit_width)
+        self.easy_layout_start_x_lineedit.setText(str(0))
+        self.easy_layout_start_y_label.setText("Port 0 Start Y:")
+        self.easy_layout_start_y_lineedit.setFixedWidth(self.default_lineedit_width)
+        self.easy_layout_start_y_lineedit.setText(str(0))
+        self.easy_layout_start_port_width_label.setText("Port Width:")
+        self.easy_layout_start_port_width_lineedit.setFixedWidth(self.default_lineedit_width)
+        self.easy_layout_start_port_width_lineedit.setText(str(0))
+        self.easy_layout_start_port_height_label.setText("Port Height:")
+        self.easy_layout_start_port_height_lineedit.setFixedWidth(self.default_lineedit_width)
+        self.easy_layout_start_port_height_lineedit.setText(str(0))
+        self.easy_layout_num_of_port_used_label.setText("Num of Port Used:")
+        self.easy_layout_num_of_port_used_lineedit.setFixedWidth(self.default_lineedit_width)
+        self.easy_layout_num_of_port_used_lineedit.setText(str(self.fpga_default_num_of_port))
+        self.easy_layout_decreasing_radio_btn.setText("Decreasing")
+        self.easy_layout_staggered_radio_btn.setText("Staggered")
+        self.easy_layout_confirm_btn.setText("Set Layout")
+        self.easy_layout_confirm_btn.clicked.connect(self.set_easy_layout)
+
+        self.easy_layout_widget_layout.addWidget(self.easy_layout_led_wall_width_label, 0, 0)
+        self.easy_layout_widget_layout.addWidget(self.easy_layout_led_wall_width_lineedit, 0, 1)
+        self.easy_layout_widget_layout.addWidget(self.easy_layout_led_wall_height_label, 0, 2)
+        self.easy_layout_widget_layout.addWidget(self.easy_layout_led_wall_height_lineedit, 0, 3)
+        self.easy_layout_widget_layout.addWidget(self.easy_layout_panel_way_label, 0, 4)
+        self.easy_layout_widget_layout.addWidget(self.easy_layout_panel_way_lineedit, 0, 5)
+        self.easy_layout_widget_layout.addWidget(self.easy_layout_decreasing_radio_btn_widget, 0, 8)
+        self.easy_layout_widget_layout.addWidget(self.easy_layout_staggered_radio_btn_widget, 1, 8)
+        self.easy_layout_widget_layout.addWidget(self.easy_layout_start_x_label, 1, 0)
+        self.easy_layout_widget_layout.addWidget(self.easy_layout_start_x_lineedit, 1, 1)
+        self.easy_layout_widget_layout.addWidget(self.easy_layout_start_y_label, 1, 2)
+        self.easy_layout_widget_layout.addWidget(self.easy_layout_start_y_lineedit, 1, 3)
+        self.easy_layout_widget_layout.addWidget(self.easy_layout_start_port_width_label, 1, 4)
+        self.easy_layout_widget_layout.addWidget(self.easy_layout_start_port_width_lineedit, 1, 5)
+        self.easy_layout_widget_layout.addWidget(self.easy_layout_start_port_height_label, 1, 6)
+        self.easy_layout_widget_layout.addWidget(self.easy_layout_start_port_height_lineedit, 1, 7)
+        self.easy_layout_widget_layout.addWidget(self.easy_layout_num_of_port_used_label, 0, 6)
+        self.easy_layout_widget_layout.addWidget(self.easy_layout_num_of_port_used_lineedit, 0, 7)
+        self.easy_layout_widget_layout.addWidget(self.easy_layout_confirm_btn, 2, 8)
+        self.easy_layout_widget.setFont(QFont(QFont_Style_Default, QFont_Style_Size_S))
+
+        self.easy_layout_widget.setLayout(self.easy_layout_widget_layout)
+
         self.main_layout.addWidget(self.info_widget)
-        # self.main_layout.addWidget(self.refresh_btn)
         self.main_layout.addWidget(self.register_map_table_widget)
         self.main_layout.addWidget(self.cmd_widget)
+        self.main_layout.addWidget(self.easy_layout_widget)
         self.main_widget.setLayout(self.main_layout)
+
+    def set_easy_layout_port_data(self, port_id: int, port_width: int, port_height: int,
+                                  port_start_x: int, port_start_y: int):
+
+        log.debug("port: %d, start_x: %d", port_id, port_start_x)
+        self.fpga.fpga_cmd_center.write_fpga_register(self.fpga.i_id, "numberOfPixel_p{}".format(str(port_id)),
+                                                      str(port_width*port_height))
+        self.fpga.fpga_cmd_center.write_fpga_register(self.fpga.i_id, "portWidth_p{}".format(str(port_id)),
+                                                      str(port_width))
+        self.fpga.fpga_cmd_center.write_fpga_register(self.fpga.i_id, "portHeight_p{}".format(str(port_id)),
+                                                      str(port_height))
+        self.fpga.fpga_cmd_center.write_fpga_register(self.fpga.i_id, "startX_p{}".format(str(port_id)),
+                                                      str(port_start_x))
+        self.fpga.fpga_cmd_center.write_fpga_register(self.fpga.i_id, "startY_p{}".format(str(port_id)),
+                                                      str(port_start_y))
+
+    def set_easy_layout(self):
+        log.debug("set width/height/panelway first")
+        self.fpga.fpga_cmd_center.write_fpga_register(self.fpga.i_id, "frameWidth",
+                                                      str(self.easy_layout_led_wall_width_lineedit.text()))
+        self.fpga.fpga_cmd_center.write_fpga_register(self.fpga.i_id, "frameHeight",
+                                                      str(self.easy_layout_led_wall_height_lineedit.text()))
+        self.fpga.fpga_cmd_center.write_fpga_register(self.fpga.i_id, "panelWay",
+                                                      str(self.easy_layout_panel_way_lineedit.text()))
+
+        log.debug("set port data")
+        try:
+            if self.easy_layout_staggered_radio_btn.isChecked():  # staggered
+                log.debug("staggered easy layout")
+                tmp_start_x = int(self.easy_layout_start_x_lineedit.text())
+                tmp_start_y = int(self.easy_layout_start_y_lineedit.text())
+                tmp_port_w = int(self.easy_layout_start_port_width_lineedit.text())
+                tmp_port_h = int(self.easy_layout_start_port_height_lineedit.text())
+                num_of_port_used = int(self.easy_layout_num_of_port_used_lineedit.text())
+                match int(self.easy_layout_panel_way_lineedit.text()):
+                    case 0:
+                        log.debug("layout type: %d increasing not implemented yet",
+                                    int(self.easy_layout_panel_way_lineedit.text()))
+
+                    case 1:
+                        log.debug("layout type: %d increasing not implemented yet",
+                                    int(self.easy_layout_panel_way_lineedit.text()))
+
+                    case 2:
+                        log.debug("layout type: %d increasing not implemented yet",
+                                    int(self.easy_layout_panel_way_lineedit.text()))
+
+                    case 3:
+                        log.debug("layout type: %d increasing not implemented yet",
+                                    int(self.easy_layout_panel_way_lineedit.text()))
+
+                    case 4:
+                        '''
+                            |       /\
+                            |       |
+                            \/ -->  |
+                        '''
+                        if self.easy_layout_decreasing_radio_btn.isChecked():
+                            for tmp_port_id in range(self.fpga_default_num_of_port):
+                                if tmp_port_id < num_of_port_used:
+                                    if tmp_port_id % 2 == 1:
+                                        real_start_x = tmp_start_x - ((tmp_port_id - 1) * tmp_port_w)
+                                    else:
+                                        real_start_x = tmp_start_x - ((tmp_port_id + 1) * tmp_port_w)
+                                    self.set_easy_layout_port_data(tmp_port_id, tmp_port_w, tmp_port_h,
+                                                                   real_start_x, tmp_start_y)
+                                else:
+                                    self.set_easy_layout_port_data(tmp_port_id, 0, 0,
+                                                                   0, 0)
+                        else:
+                            for tmp_port_id in range(self.fpga_default_num_of_port):
+                                if tmp_port_id < num_of_port_used:
+                                    if tmp_port_id % 2 == 1:
+                                        real_start_x = tmp_start_x + ((tmp_port_id - 1) * tmp_port_w)
+                                    else:
+                                        real_start_x = tmp_start_x + ((tmp_port_id + 1) * tmp_port_w)
+                                    self.set_easy_layout_port_data(tmp_port_id, tmp_port_w, tmp_port_h,
+                                                                   real_start_x, tmp_start_y)
+                                else:
+                                    self.set_easy_layout_port_data(tmp_port_id, 0, 0,
+                                                                   0, 0)
+
+                    case 5:
+                        '''
+                           /\      |
+                           |       |
+                           | <---  \/ 
+                       '''
+                        if self.easy_layout_decreasing_radio_btn.isChecked():
+                            for tmp_port_id in range(self.fpga_default_num_of_port):
+                                if tmp_port_id < num_of_port_used:
+                                    if tmp_port_id % 2 == 1:
+                                        real_start_x = tmp_start_x - ((tmp_port_id - 1) * tmp_port_w)
+                                    else:
+                                        real_start_x = tmp_start_x - ((tmp_port_id + 1) * tmp_port_w)
+                                    self.set_easy_layout_port_data(tmp_port_id, tmp_port_w, tmp_port_h,
+                                                                   real_start_x, tmp_start_y)
+                                else:
+                                    self.set_easy_layout_port_data(tmp_port_id, 0, 0,
+                                                                   0, 0)
+                        else:
+                            for tmp_port_id in range(self.fpga_default_num_of_port):
+                                if tmp_port_id < num_of_port_used:
+                                    if tmp_port_id % 2 == 1:
+                                        real_start_x = tmp_start_x + ((tmp_port_id - 1) * tmp_port_w)
+                                    else:
+                                        real_start_x = tmp_start_x + ((tmp_port_id + 1) * tmp_port_w)
+                                    self.set_easy_layout_port_data(tmp_port_id, tmp_port_w, tmp_port_h,
+                                                                   real_start_x, tmp_start_y)
+                                else:
+                                    self.set_easy_layout_port_data(tmp_port_id, 0, 0,
+                                                                   0, 0)
+
+                    case 6:
+                        '''  
+                             /\ -->
+                             |    |
+                             |    \/ -->  
+                        '''
+                        if self.easy_layout_decreasing_radio_btn.isChecked():
+                            for tmp_port_id in range(self.fpga_default_num_of_port):
+                                if tmp_port_id < num_of_port_used:
+                                    if tmp_port_id % 2 == 1:
+                                        real_start_x = tmp_start_x - ((tmp_port_id - 1)*tmp_port_w)
+                                    else:
+                                        real_start_x = tmp_start_x - ((tmp_port_id + 1)*tmp_port_w)
+                                    self.set_easy_layout_port_data(tmp_port_id, tmp_port_w, tmp_port_h,
+                                                                   real_start_x, tmp_start_y)
+                                else:
+                                    self.set_easy_layout_port_data(tmp_port_id, 0, 0,
+                                                                   0, 0)
+                        else:
+                            log.debug("layout type: 6 increasing not implemented yet")
+
+                    case 7:
+                        '''
+                            <---/\
+                            |   | 
+                            \/  |
+                        '''
+                        if self.easy_layout_decreasing_radio_btn.isChecked():
+                            for tmp_port_id in range(self.fpga_default_num_of_port):
+                                if tmp_port_id < num_of_port_used:
+                                    if tmp_port_id % 2 == 1:
+                                        real_start_x = tmp_start_x - ((tmp_port_id - 1)*tmp_port_w)
+                                    else:
+                                        real_start_x = tmp_start_x - ((tmp_port_id + 1)*tmp_port_w)
+                                    self.set_easy_layout_port_data(tmp_port_id, tmp_port_w, tmp_port_h,
+                                                                   real_start_x, tmp_start_y)
+                                else:
+                                    self.set_easy_layout_port_data(tmp_port_id, 0, 0,
+                                                                   0, 0)
+                        else:
+                            log.debug("layout type: 7 increasing not implemented yet")
+
+                    case _:
+                        log.debug("not Implemented yet")
+
+            else:
+                log.debug("not Implement not staggered easy layout yet")
+        except Exception as e:
+            log.error(e)
+
 
     def func_refresh_btn(self):
         log.debug("func_refresh_btn")

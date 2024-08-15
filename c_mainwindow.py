@@ -449,7 +449,7 @@ class MainUi(QMainWindow):
         log.debug("fpga_gamma_index_changed")
         for fpga in self.fpga_list:
             fpga.fpga_cmd_center.write_fpga_register(fpga.i_id, 'currentGammaTable',
-                                                     str(self.media_engine.led_video_params.get_led_gamma()))
+                                                     str(int(self.media_engine.led_video_params.get_led_gamma()*10)))
 
     def media_engine_status_changed(self, status: int, play_src: str):
         log.debug("status : %s, play_src : %s", TAG_PlayStatus_Dict.get(status), play_src)

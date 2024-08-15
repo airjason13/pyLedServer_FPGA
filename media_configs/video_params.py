@@ -342,6 +342,7 @@ class VideoParams(QObject):
         return self.sleep_mode_frame_brightness
 
     def set_hdmi_in_start_y(self, start_y):
+
         if self.hdmi_in_start_y != start_y:
             self.hdmi_in_start_y = start_y
             self.sync_video_param()
@@ -374,7 +375,9 @@ class VideoParams(QObject):
         return self.hdmi_in_crop_w
 
     def set_media_file_start_y(self, start_y):
-        self.media_file_start_y = start_y
+        if self.media_file_start_y != start_y:
+            self.media_file_start_y = start_y
+            self.sync_video_param()
 
     def get_media_file_start_y(self):
         return self.media_file_start_y
