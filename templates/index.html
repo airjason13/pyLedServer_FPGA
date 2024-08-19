@@ -1551,6 +1551,15 @@
         function play(data){
             var url = "/play/" + data;
             $.post(url, {});
+            Swal.fire({
+                    icon: 'success',
+                    title: 'Play : ' + data,
+                    showConfirmButton: false
+                })
+            setTimeout(function(){
+                Swal.close();
+                window.location.reload();
+            }, 1600);
         }
 
         // play playlist

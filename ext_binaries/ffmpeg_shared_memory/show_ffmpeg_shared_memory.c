@@ -124,19 +124,27 @@ int main(int argc, char ** argv){
     pthread_t fs_inotify_tid;
 
     uname(&unameData);
-
-    if(strstr(unameData.nodename, "pi4" )){
-        machine_type = MACHINE_TYPE_Pi4;
-        set_inotify_path("/home/root/pyLedServer_FPGA/led_config/");
-        set_inotify_file_name("led_parameters");
-    }else if(strstr(unameData.nodename, "pi5" )){
-        machine_type = MACHINE_TYPE_Pi5;
-        set_inotify_path("/home/root/pyLedServer_FPGA/led_config/");
-        set_inotify_file_name("led_parameters");
-    }else{
+    log_debug("unameData.nodename : %s", unameData.nodename);
+    log_debug("unameData.machine : %s", unameData.machine);
+    if(strstr(unameData.machine, "x86" )){
         machine_type = MACHINE_TYPE_X86;
-        set_inotify_path("/home/venom/PycharmProjects/pyLedServer_FPGA/led_config/");
-        set_inotify_file_name("led_parameters");
+            set_inotify_path("/home/venom/PycharmProjects/pyLedServer_FPGA/led_config/");
+            set_inotify_file_name("led_parameters");
+            log_debug("on X86 Base");
+    }else{
+        if(strstr(unameData.nodename, "pi4" )){
+            machine_type = MACHINE_TYPE_Pi4;
+            set_inotify_path("/home/root/pyLedServer_FPGA/led_config/");
+            set_inotify_file_name("led_parameters");
+        }else if(strstr(unameData.nodename, "pi5" )){
+            machine_type = MACHINE_TYPE_Pi5;
+            set_inotify_path("/home/root/pyLedServer_FPGA/led_config/");
+            set_inotify_file_name("led_parameters");
+        }else{
+            machine_type = MACHINE_TYPE_Pi4;
+            set_inotify_path("/home/root/pyLedServer_FPGA/led_config/");
+            set_inotify_file_name("led_parameters");
+        }
     }
     log_debug("machine_type : %d\n", machine_type);
 

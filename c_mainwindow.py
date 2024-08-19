@@ -144,6 +144,7 @@ class MainUi(QMainWindow):
         # self.test_timer.timeout.connect(self.test_timer_function)
         # self.test_timer.start(3*1000)
 
+        log.debug("self.", self.window().width())
         '''target_gamma_table_list = [
             "gammaTable_r{}".format(str(0)),
             "gammaTable_g{}".format(str(0)),

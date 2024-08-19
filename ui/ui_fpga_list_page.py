@@ -632,7 +632,7 @@ class FpgaListPage(QWidget):
         q_table_widget_item = self.client_table_widget.itemAt(position)
         if q_table_widget_item is None:
             return
-        log.debug("client ip :%s", q_table_widget_item.text())
+        log.debug("client id :%s", q_table_widget_item.text())
         for fpga in self.fpga_list:
             if fpga.i_id == int(q_table_widget_item.text()):
                 self.right_click_select_fpga = fpga
@@ -696,13 +696,21 @@ class FpgaListPage(QWidget):
                 show_register_window.show()
                 self.show_register_window.append(show_register_window)
             else:
+                found_exist_fpga_test_window = False
                 for test_window in self.show_register_window:
-                    if test_window.fpga == self.right_click_select_fpga:
+                    log.debug("test_window.fpga.i_id :%d", test_window.fpga.i_id)
+                    log.debug("self.right_click_select_fpga.i_id :%d", self.right_click_select_fpga.i_id)
+                    if test_window.fpga.i_id == self.right_click_select_fpga.i_id:
                         test_window.show()
-                    else:
-                        show_register_window = FPGARegWindow(self.right_click_select_fpga)
-                        show_register_window.show()
-                        self.show_register_window.append(show_register_window)
+                        test_window.activateWindow()
+                        # test_window.raise()
+                        found_exist_fpga_test_window = True
+                        log.debug("find exist fpga test window, return")
+                        break
+                if found_exist_fpga_test_window == False:
+                    show_register_window = FPGARegWindow(self.right_click_select_fpga)
+                    show_register_window.show()
+                    self.show_register_window.append(show_register_window)
         elif q.text() == "OTA":
             # target_ota_fpga = self.right_click_select_fpga
             # log.debug("fpga id: %d going to OTA", target_ota_fpga.i_id)

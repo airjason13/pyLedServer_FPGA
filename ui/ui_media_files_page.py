@@ -604,6 +604,9 @@ class MediaFilesPage(QWidget):
         log.debug("right_click_context_menu")
         widgetitem = self.media_files_tree_widget.itemAt(position)
         self.right_clicked_pos = position
+        if widgetitem is None:
+            log.debug("no widget item at position")
+            return
         log.debug(" %s", widgetitem.text(0))
         if widgetitem.parent() is None:
             log.debug("Click on Title")
