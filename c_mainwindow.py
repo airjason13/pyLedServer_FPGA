@@ -17,6 +17,7 @@ from fpga.fpga_clients import FPGAClient
 from global_def import *
 from media_engine.media_engine import MediaEngine
 from media_engine.media_engine_def import TAG_PlayStatus_Dict
+from ui.ui_cms_page import CMSPage
 from ui.ui_fpga_list_page import FpgaListPage
 from ui.ui_functions_frame import UiFuncFrame
 from ui.ui_hdmi_in_page import HDMIInPage
@@ -26,8 +27,8 @@ from ui.ui_sys_sw_info import UiSystemSoftware
 from ui.ui_test_page import TestPage
 
 '''List of Page Selector Button Name '''
-Page_Select_Btn_Name_List = ["FPGA_List", "Media_Files", "HDMI_In", "Led_Settings", "Test"]
-Page_List = [FpgaListPage, MediaFilesPage, HDMIInPage, LedSettingsPage, TestPage]
+Page_Select_Btn_Name_List = ["FPGA_List", "Media_Files", "HDMI_In", "CMS", "Led_Settings", "Test"]
+Page_List = [FpgaListPage, MediaFilesPage, HDMIInPage, CMSPage, LedSettingsPage, TestPage]
 
 Page_Map = dict(zip(Page_Select_Btn_Name_List, Page_List))
 
@@ -144,7 +145,7 @@ class MainUi(QMainWindow):
         # self.test_timer.timeout.connect(self.test_timer_function)
         # self.test_timer.start(3*1000)
 
-        log.debug("self.", self.window().width())
+
         '''target_gamma_table_list = [
             "gammaTable_r{}".format(str(0)),
             "gammaTable_g{}".format(str(0)),
