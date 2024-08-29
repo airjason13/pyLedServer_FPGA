@@ -1,8 +1,10 @@
+from tokenize import Ignore
+
 import qdarkstyle
 from PyQt5 import QtWidgets
 from PyQt5.QtCore import pyqtSignal, Qt, QTimer
 from PyQt5.QtGui import QPixmap, QImage
-from PyQt5.QtWidgets import QWidget, QGridLayout, QLabel, QFrame
+from PyQt5.QtWidgets import QWidget, QGridLayout, QLabel, QFrame, QVBoxLayout, QSizePolicy
 import time
 
 from global_def import log
@@ -40,19 +42,27 @@ class PlayingPreviewWindow(QWidget):
         ''' Total frame layout'''
         self.layout = QGridLayout(self)
         layout_widget = QFrame()
-        layout_gridbox = QGridLayout()
-        layout_widget.setLayout(layout_gridbox)
+        # layout_gridbox = QGridLayout()
+        layout_vertical = QVBoxLayout()
+        layout_widget.setLayout(layout_vertical)
         self.preview_label = QLabel()
         self.preview_label.setText("Playing Preview")
         self.live_icon_label = QLabel()
         self.live_icon_label.setPixmap(self.live_icon_pixmap)
-        layout_gridbox.addWidget(self.preview_label, 1, 0, 8, 8)
-        layout_gridbox.addWidget(self.live_icon_label, 0, 0)
+
+        # layout_gridbox.addWidget(self.preview_label, 1, 0, 10, 10)
+        # layout_gridbox.addWidget(self.live_icon_label, 0, 0)
+        self.preview_label.setScaledContents(True)
+        self.preview_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        layout_vertical.addWidget(self.live_icon_label)
+        layout_vertical.addWidget(self.preview_label)
         self.layout.addWidget(layout_widget)
 
     def refresh_image(self, np_image):
         # log.debug("")
         qt_img = self.convert_ffmpeg_qt(np_image)
+
+        # self.preview_label.setFixedWidth(qt_img.width())
         self.preview_label.setPixmap(qt_img)
 
     def convert_ffmpeg_qt(self, ffmpeg_img):
@@ -60,6 +70,9 @@ class PlayingPreviewWindow(QWidget):
         # rgb_image = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
         # log.debug("%s", time.time())
         h, w, ch = ffmpeg_img.shape
+        # log.debug("h: %d, w: %d, ch : %d", h, w, ch)
+        # log.debug("self.image_display_width: %d, self.image_display_height: %d, ",
+        #           self.image_display_width, self.image_display_height)
         bytes_per_line = ch * w
         convert_to_Qt_format = QImage(ffmpeg_img.data, w, h, bytes_per_line, QImage.Format_RGB888)
         p = convert_to_Qt_format.scaled(self.image_display_width, self.image_display_height, Qt.KeepAspectRatio)
@@ -74,3 +87,4 @@ class PlayingPreviewWindow(QWidget):
 
     def perform_close(self):
         super().close()
+

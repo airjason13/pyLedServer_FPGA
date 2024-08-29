@@ -9,11 +9,17 @@ from global_def import log
 def get_ffmpeg_cmd_for_media(video_uri: str, **kwargs):
     log.debug("video_uri : %s", video_uri)
     log.debug("%s", kwargs)
-    log.debug("%d", kwargs.get("width"))
-    log.debug("%d", kwargs.get("height"))
+    log.debug("width %d", kwargs.get("width"))
+    log.debug("height %d", kwargs.get("height"))
+    log.debug("window_width: %d", kwargs.get("window_width", 0))
+    log.debug("window_height: %d", kwargs.get("window_height", 0))
     ff = None
     width = kwargs.get("width", 1280)
     height = kwargs.get("height", 720)
+
+    window_width = kwargs.get("window_width", 640)
+    window_height = kwargs.get("window_height", 480)
+
     target_fps = kwargs.get("target_fps", "24/1")
     c_width = kwargs.get("c_width")
     c_height = kwargs.get("c_height")
@@ -28,6 +34,7 @@ def get_ffmpeg_cmd_for_media(video_uri: str, **kwargs):
     filter_params = ','.join(filter(None, [crop_param, scale_param]))
     pipe_sink = '-'
 
+    window_size_params = str(window_width) + "x" + str(window_height)
     # unix_socket = 'unix:///home/root/ffmpeg_unix_socket/ffmpeg_unix_socket'
     if "/dev/video" in video_uri:
 
@@ -81,6 +88,17 @@ def get_ffmpeg_cmd_for_media(video_uri: str, **kwargs):
                 # pipe_sink: []
             },
         )
+    else: # elif video_uri.endswith("CMS"):
+        ff = ffmpy.FFmpeg(
+            inputs={
+                video_uri: ["-f", "x11grab", "-video_size", window_size_params]
+            },
+            outputs={
+                pipe_sink: ["-loglevel", "error", "-vf", filter_params, "-r", target_fps, "-pix_fmt", "rgb24", "-f",
+                            "rawvideo"],
+            }
+        )
+
 
     log.debug("ff.cmd : %s", ff.cmd)
     ff.cmd += " -y"
