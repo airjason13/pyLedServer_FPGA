@@ -15,13 +15,6 @@ import struct
 import json
 import os
 
-
-# read FPGA data
-with open("led_config/dataFPGA.json", "r") as jsonFile:
-    data = json.load(jsonFile)
-
-
-
 class LedSettingsPage(QWidget):
     # need to change to Jason function
     signal_file_changed = pyqtSignal(str)
@@ -41,18 +34,63 @@ class LedSettingsPage(QWidget):
         self.watcher.fileChanged.connect(self.file_changed)
         # print("os.getcwd() = ", os.getcwd())
 
-        self.init_ui()
+        list = ["deviceID", "portNumber", "portWay", "portStyle", "startX", "startY", "portWidth", "portHeight",
+                "frameWidth", "frameHeight"]  # 10
+        value = []
+        # read data from FPGA
+        readFPGA = FPGACmdCenter(protocolDict["interface"], protocolDict["sourceAddress"])
+        id = 2
+        self.fpgaLen = 0
+        while True:
+            ret, str_value = readFPGA.read_fpga_register(id, "deviceID")
+            print("str_value = ", str_value)
+            if str_value == None:
+                break
+
+            tempVal = []
+            tempVal = tempVal + [str(id), "0", "0"]
+            ret, str_value = readFPGA.read_fpga_register(id, "panelWay")
+            tempVal = tempVal + [str(str_value)]
+            ret, str_value = readFPGA.read_fpga_register(id, 'startX_p{}'.format("0"))  # only read 0 port
+            tempVal = tempVal + [str(str_value)]
+            ret, str_value = readFPGA.read_fpga_register(id, 'startY_p{}'.format("0"))  # only read 0 port
+            tempVal = tempVal + [str(str_value)]
+            ret, str_value = readFPGA.read_fpga_register(id, 'portWidth_p{}'.format("0"))  # only read 0 port
+            tempVal = tempVal + [str(str_value)]
+            ret, str_value = readFPGA.read_fpga_register(id, 'portHeight_p{}'.format("0"))  # only read 0 port
+            tempVal = tempVal + [str(str_value)]
+            ret, str_value = readFPGA.read_fpga_register(id, "frameWidth")
+            tempVal = tempVal + [str(str_value)]
+            ret, str_value = readFPGA.read_fpga_register(id, "frameHeight")
+            tempVal = tempVal + [str(str_value)]
+            value.append(tempVal)
+
+            # print(value)
+            id = id + 1
+            self.fpgaLen = self.fpgaLen + 1
+
+        data = {"fpgaID": [dict(zip(list, row)) for row in value]}
+        with open("led_config/dataFPGA.json", "w") as jsonFile:
+            json.dump(data, jsonFile, indent=2)
+            # print('write json')
+
+        # print("fpgaLen = ", self.fpgaLen)
+
+        with open("led_config/dataFPGA.json", "r") as jsonFile:
+            self.data = json.load(jsonFile)
+            self.init_ui()
 
     def init_ui(self):
         ledWidthLabel = QtWidgets.QLabel('LED Width : ')
         self.ledWidthInput = QtWidgets.QLineEdit(self)
         self.ledWidthInput.setAlignment(QtCore.Qt.AlignCenter)
-        self.ledWidthInput.setPlaceholderText(data["frameWidth"])
+        # self.ledWidthInput.setPlaceholderText(data["frameWidth"])
         ledHeightLabel = QtWidgets.QLabel('   LED Height : ')
         self.ledHeightInput = QtWidgets.QLineEdit(self)
         self.ledHeightInput.setAlignment(QtCore.Qt.AlignCenter)
-        self.ledHeightInput.setPlaceholderText(data["frameHeight"])
+        # self.ledHeightInput.setPlaceholderText(data["frameHeight"])
         setBtn = QtWidgets.QPushButton('  Set  ')  # 建立按鈕
+        writeFlashBtn = QtWidgets.QPushButton('  Write Flash  ')  # 建立按鈕
 
         box = QtWidgets.QWidget(self)  # 建立放置 QFormLayout 的 Widget
         box.setGeometry(50, 0, 1100, 150)
@@ -63,6 +101,7 @@ class LedSettingsPage(QWidget):
         layout.addWidget(ledHeightLabel)
         layout.addWidget(self.ledHeightInput)
         layout.addWidget(setBtn)
+        layout.addWidget(writeFlashBtn)
 
         boxG = QtWidgets.QWidget(self)  # 建立放 QGridLayout 的元件
         boxG.setGeometry(50, 200, 1100, 700)  # 指定大小位置
@@ -73,16 +112,19 @@ class LedSettingsPage(QWidget):
         self.portStyleList = []
         self.portImgList = []
 
-        for n in range(len(data["fpgaID"])):
-            portStyleLabel = QtWidgets.QLabel('FPGA ID = ' + data["fpgaID"][n]["deviceID"] + '\t')
+        # if (len(data["fpgaID"]) < self.fpgaLen):
+        #     self.setDefaultJson()
+
+        for n in range(self.fpgaLen):
+            portStyleLabel = QtWidgets.QLabel('FPGA ID = ' + self.data["fpgaID"][n]["deviceID"] + '\t')
             portStyleSet = QtWidgets.QLabel(
-                'Start( x , y ) = ( ' + data["fpgaID"][n]["startX"] + ' , ' + data["fpgaID"][n]["startY"] + ' )' +
-                '\nW x H = ' + data["fpgaID"][n]["portWidth"] + ' x ' + data["fpgaID"][n]["portHeight"]
+                'Start( x , y ) = ( ' + self.data["fpgaID"][n]["startX"] + ' , ' + self.data["fpgaID"][n]["startY"] + ' )' +
+                '\nW x H = ' + self.data["fpgaID"][n]["portWidth"] + ' x ' + self.data["fpgaID"][n]["portHeight"]
             )
             self.portStyleList.append(portStyleSet)
 
             portImg = QtWidgets.QLabel(self)
-            img = QtGui.QImage('materials/' + data["fpgaID"][n]["portStyle"] + '.png')  # 讀取圖片
+            img = QtGui.QImage('materials/' + str(self.data["fpgaID"][n]["portStyle"]) + '.png')  # 讀取圖片
             portImg.setPixmap(QtGui.QPixmap(img).scaled(150, 150))  # 加入圖片
             self.portImgList.append(portImg)
 
@@ -170,70 +212,80 @@ class LedSettingsPage(QWidget):
                 color: #888888;
             }
         ''')
+        writeFlashBtn.setStyleSheet('''
+            QPushButton{
+                background-color: none;
+                border: none;
+                color: #FFCCCC;
+                font-size: 30px;
+                font-weight: bold;
+            }
+            QPushButton:hover{
+                color: #888888;
+            }
+        ''')
 
         setBtn.clicked.connect(self.setWidthHeight)
-        # self.portStyleBtn.clicked.connect(lambda:self.fpgaEdit(data["fpgaID"][1]["id"]))
+        writeFlashBtn.clicked.connect(self.writeFlash)
+
+    # 固化
+    def writeFlash(self):
+        writePortStyle = FPGACmdCenter(protocolDict["interface"], protocolDict["sourceAddress"])
+        writePortStyle.set_fpga_write_flash()
+
+    def setDefaultJson(self):
+        for i in range(len(self.data["fpgaID"]), self.fpgaLen):
+            data["fpgaID"][i]["deviceID"] = str(i)
+            data["fpgaID"][i]["portNumber"] = "0"
+            data["fpgaID"][i]["portWay"] = 0
+            data["fpgaID"][i]["portStyle"] = "0"
+            data["fpgaID"][i]["startX"] = "0"
+            data["fpgaID"][i]["startY"] = "0"
+            data["fpgaID"][i]["portWidth"] = "0"
+            data["fpgaID"][i]["portHeight"] = "0"
+            data["fpgaID"][i]["frameWidth"] = "0"
+            data["fpgaID"][i]["frameHeight"] = "0"
+
+        with open("led_config/dataFPGA.json", "w") as jsonFile:
+            json.dump(data, jsonFile, indent=2)
+            print('write json')
 
     # set the first page LED Width and Height with every port
     def setWidthHeight(self):
-        # stop = False
-        # writeRegister = setRaw(protocolDict["interface"], protocolDict["sourceAddress"], protocolDict["destinationAddress"], flowCtrlDict["writeRegister"])
-        fpgaNum = len(data["fpgaID"])
-        # not ready; write_fpga_register; write_fpga_register_with_bytes
+        frameWidth = self.data["frameWidth"]
+        frameHeight = self.data["frameHeight"]
         writeWidthHeight = FPGACmdCenter(protocolDict["interface"], protocolDict["sourceAddress"])
-        # print('data = ', len(data["fpgaID"]))
+        # print('fpgaNum = ', len(data["fpgaID"]))
         writeData = False
         if self.ledWidthInput.text() != "":
-            self.ledWidthInput.setPlaceholderText(self.ledWidthInput.text())
+            # self.ledWidthInput.setPlaceholderText(self.ledWidthInput.text())
             # set on RPI
-            data["frameWidth"] = self.ledWidthInput.text()
-            for i in range(fpgaNum):
-                data["fpgaID"][i]["frameWidth"] = self.ledWidthInput.text()
-                # self.writeFPGA(data["fpgaID"][i]["deviceID"], "frameWidth", self.ledWidthInput.text())
-                writeWidthHeight.write_fpga_register(data["fpgaID"][i]["frameWidth"], "frameWidth",
-                                                     self.ledWidthInput.text())
-            # writeRegister.setData(dataAddressDict["frameWidth"], data["ledWidth"])
+            self.data["frameWidth"] = self.ledWidthInput.text()
+            frameWidth = self.ledWidthInput.text()
             writeData = True
         if self.ledHeightInput.text() != "":
-            self.ledHeightInput.setPlaceholderText(self.ledHeightInput.text())
-            data["frameHeight"] = self.ledHeightInput.text()
-            for i in range(fpgaNum):
-                data["fpgaID"][i]["frameHeight"] = self.ledHeightInput.text()
-                writeWidthHeight.write_fpga_register(data["fpgaID"][i]["deviceID"], "frameHeight",
-                                                     self.ledHeightInput.text())
-                # self.writeFPGA(data["fpgaID"][i]["deviceID"], "frameHeight", self.ledHeightInput.text())
-            # writeRegister.setData(dataAddressDict["frameHeight"], data["ledHeight"])
+            # self.ledHeightInput.setPlaceholderText(self.ledHeightInput.text())
+            self.data["frameHeight"] = self.ledHeightInput.text()
+            frameHeight = self.ledHeightInput.text()
             writeData = True
+
+        for i in range(self.fpgaLen):
+            self.data["fpgaID"][i]["frameWidth"] = frameWidth
+            self.data["fpgaID"][i]["frameHeight"] = frameHeight
+            writeWidthHeight.write_fpga_register(self.data["fpgaID"][i]["deviceID"], "frameWidth",
+                                                 frameWidth)
+            writeWidthHeight.write_fpga_register(self.data["fpgaID"][i]["deviceID"], "frameHeight",
+                                                 frameHeight)
+            print(i)
+
+        # 固化
+        # writeWidthHeight.set_fpga_write_flash()
+
         if writeData:
             with open("led_config/dataFPGA.json", "w") as jsonFile:
-                json.dump(data, jsonFile, indent=2)
+                json.dump(self.data, jsonFile, indent=2)
                 print('write json')
 
-    '''
-    def writeFPGA(self, id, dataName, payload):
-        pkIndex = random.randint(0,99)
-        receiveReadACK = getRaw(protocolDict["interface"], flowCtrlDict["writeRegister_ack"], pkIndex)
-        stopThreads = False
-
-        receiveReadACK.start()
-        time.sleep(0.5)
-        startTime = time.time()
-        while True:
-            writeRegister = setRaw(protocolDict["interface"], protocolDict["sourceAddress"], id, pkIndex, flowCtrlDict["writeRegister"])
-            writeRegister.sendCMD(dataAddressDict[dataName], dataLenDict[dataName], payload)
-            time.sleep(0.5)
-            if receiveReadACK.ackStatus == 0:
-                #data["fpgaID"][n][dataName] = str(receiveReadACK.payload)
-                stopThreads = True
-                receiveReadACK.join()
-                break
-            endTime = time.time()
-            if (endTime - startTime) >= 1:
-                global stop
-                stop = True
-                print('cannot receive any ACK')
-                return
-    '''
 
     def fpgaEdit(self):
         sender = self.sender()
@@ -256,13 +308,13 @@ class LedSettingsPage(QWidget):
         print('file_changed')
         print('self.portStyleList = ', self.portStyleList)
 
-        for n in range(len(data["fpgaID"])):
+        for n in range(self.fpgaLen):
             self.portStyleList[n].setText(
-                'Start( x , y ) = ( ' + data["fpgaID"][n]["startX"] + ' , ' + data["fpgaID"][n]["startY"] + ' )' +
-                '\nW x H = ' + data["fpgaID"][n]["portWidth"] + ' x ' + data["fpgaID"][n]["portHeight"]
+                'Start( x , y ) = ( ' + self.data["fpgaID"][n]["startX"] + ' , ' + self.data["fpgaID"][n]["startY"] + ' )' +
+                '\nW x H = ' + self.data["fpgaID"][n]["portWidth"] + ' x ' + self.data["fpgaID"][n]["portHeight"]
             )
             # self.portStyleSet.setObjectName('portStyle'+str(n))
-            img = QtGui.QImage('materials/' + data["fpgaID"][n]["portStyle"] + '.png')
+            img = QtGui.QImage('materials/' + self.data["fpgaID"][n]["portStyle"] + '.png')
             self.portImgList[n].setPixmap(QtGui.QPixmap(img).scaled(150, 150))  # 加入圖片
 
     def func_test_btn(self):
@@ -276,49 +328,63 @@ class portSettingWindow(QtWidgets.QWidget):
         self.setStyleSheet("background-color: #222222;")
         self.resize(1500, 900)
         self.writeData = False
-        # print('FPGA fpgaEditID = ' , fpgaEditID)
-        # self.fpgaEditID = fpgaEditID
+        # self.portStyleNum = int(data["fpgaID"][fpgaEditID]["portStyle"])
         self.ui(fpgaEditID)
 
     def ui(self, fpgaEditID):
+
         fpgaEditID = int(fpgaEditID)
-        fpgaIDLabel = QtWidgets.QLabel('FPGA ID = ' + data["fpgaID"][fpgaEditID]["deviceID"])
-        print('FPGA fpgaEditID = ', fpgaEditID)
+        fpgaIDLabel = QtWidgets.QLabel('FPGA ID = ' + self.data["fpgaID"][fpgaEditID]["deviceID"])
+        # print('FPGA fpgaEditID = ', fpgaEditID)
         currentLabel = QtWidgets.QLabel('Current Port Style  ⇨  ')
         self.portStyleImg = QtWidgets.QLabel(self)
-        img = QtGui.QImage('materials/' + data["fpgaID"][fpgaEditID]["portStyle"] + '.png')  # 讀取圖片
+        img = QtGui.QImage('materials/' + self.data["fpgaID"][fpgaEditID]["portStyle"] + '.png')  # 讀取圖片
         self.portStyleImg.setPixmap(QtGui.QPixmap(img).scaled(150, 150))  # 加入圖片
 
-        setPortLabel = QtWidgets.QLabel('From 0 port to ')
+        setPortLabel = QtWidgets.QLabel('Port Number =  ')
         self.portInput = QtWidgets.QLineEdit(self)
         self.portInput.setMaxLength(2)
-        self.portInput.setPlaceholderText(data["fpgaID"][fpgaEditID]["portNumber"])
+        # self.portInput.setPlaceholderText(data["fpgaID"][fpgaEditID]["portNumber"])
         self.portInput.setAlignment(QtCore.Qt.AlignCenter)
-        setLabel = QtWidgets.QLabel(' port, way = ')
+        setLabel = QtWidgets.QLabel(' , way = ')
         self.Bbox = QtWidgets.QComboBox(self)
         self.Bbox.addItems([' ⬆ ', ' ⬇ ', ' ⬅ ', ' ⮕ '])
-        self.Bbox.setCurrentIndex(int(data["fpgaID"][fpgaEditID]["portWay"]))
+        # self.Bbox.addItems([' up ', ' down ', ' left ', ' right '])
+        self.Bbox.setCurrentIndex(int(self.data["fpgaID"][fpgaEditID]["portWay"]))
+        reverseLabel = QtWidgets.QLabel(' , reverse = ')
+        self.reverseInput = QtWidgets.QLineEdit(self)
+        self.reverseInput.setPlaceholderText("0")
+        self.reverseInput.setMaxLength(2)
+        self.reverseInput.setAlignment(QtCore.Qt.AlignCenter)
+        # self.rb_a = QtWidgets.QRadioButton(self)
+        # self.rb_a.setText('True')
+        # self.rb_b = QtWidgets.QRadioButton(self)
+        # self.rb_b.setText('False')
+        # self.group = QtWidgets.QButtonGroup(self)
+        # self.group.addButton(self.rb_a, 1)
+        # self.group.addButton(self.rb_b, 0)
+        # self.Bbox.resize(100,150)
 
         # self.Bbox.currentIndexChanged.connect(self.showMsg)
 
         XYLabel1 = QtWidgets.QLabel('Start ( X , Y ) = ( ')
         self.XYInput1 = QtWidgets.QLineEdit(self)
         self.XYInput1.setAlignment(QtCore.Qt.AlignCenter)
-        self.XYInput1.setPlaceholderText(data["fpgaID"][fpgaEditID]["startX"])
+        self.XYInput1.setPlaceholderText(self.data["fpgaID"][fpgaEditID]["startX"])
         XYLabel3 = QtWidgets.QLabel(' , ')
         self.XYInput2 = QtWidgets.QLineEdit(self)
         self.XYInput2.setAlignment(QtCore.Qt.AlignCenter)
-        self.XYInput2.setPlaceholderText(data["fpgaID"][fpgaEditID]["startY"])
+        self.XYInput2.setPlaceholderText(self.data["fpgaID"][fpgaEditID]["startY"])
         XYLabel2 = QtWidgets.QLabel(' )\t')
 
         WHLabel1 = QtWidgets.QLabel('Width , Height = ( ')
         self.WHInput1 = QtWidgets.QLineEdit(self)
         self.WHInput1.setAlignment(QtCore.Qt.AlignCenter)
-        self.WHInput1.setPlaceholderText(data["fpgaID"][fpgaEditID]["portWidth"])
+        self.WHInput1.setPlaceholderText(self.data["fpgaID"][fpgaEditID]["portWidth"])
         WHLabel2 = QtWidgets.QLabel(' , ')
         self.WHInput2 = QtWidgets.QLineEdit(self)
         self.WHInput2.setAlignment(QtCore.Qt.AlignCenter)
-        self.WHInput2.setPlaceholderText(data["fpgaID"][fpgaEditID]["portHeight"])
+        self.WHInput2.setPlaceholderText(self.data["fpgaID"][fpgaEditID]["portHeight"])
         WHLabel3 = QtWidgets.QLabel(' )\t')
 
         cancelBtn = QtWidgets.QPushButton('  Cancel  ')  # 建立按鈕
@@ -395,7 +461,6 @@ class portSettingWindow(QtWidgets.QWidget):
             color: #FFFFBB;
             font-size: 40px;
             font-weight: bold;
-
         ''')
 
         self.XYInput1.setStyleSheet('''
@@ -404,7 +469,6 @@ class portSettingWindow(QtWidgets.QWidget):
             color: #FFFFBB;
             font-size: 40px;
             font-weight: bold;
-
         ''')
 
         self.XYInput2.setStyleSheet('''
@@ -440,8 +504,34 @@ class portSettingWindow(QtWidgets.QWidget):
             color: #FFFFBB;
             font-size: 30px;
             font-weight: bold;
-            width: 50px;
+            width: 80px;
         ''')
+
+        reverseLabel.setStyleSheet('''
+            color: #FFFFFF;
+            font-size: 30px;
+            font-weight: bold;
+        ''')
+
+        self.reverseInput.setStyleSheet('''
+            border: 3px hidden;
+            border-bottom: 3px solid #FFFFFF;
+            color: #FFFFBB;
+            font-size: 40px;
+            font-weight: bold;
+        ''')
+
+        # self.rb_b.setStyleSheet('''
+        #     color: #FFFFFF;
+        #     font-size: 25px;
+        #     font-weight: bold;
+        # ''')
+        #
+        # self.rb_a.setStyleSheet('''
+        #     color: #FFFFFF;
+        #     font-size: 25px;
+        #     font-weight: bold;
+        # ''')
 
         setBtn.setStyleSheet('''
             background-color: none;
@@ -546,6 +636,10 @@ class portSettingWindow(QtWidgets.QWidget):
         Slayout.addWidget(self.portInput)
         Slayout.addWidget(setLabel)
         Slayout.addWidget(self.Bbox)
+        Slayout.addWidget(reverseLabel)
+        Slayout.addWidget(self.reverseInput)
+        # Slayout.addWidget(self.rb_a)
+        # Slayout.addWidget(self.rb_b)
 
         # Bbox = QtWidgets.QComboBox(self)
         # Bbox.addItems(['⬆','⬇','⬅','⮕'])
@@ -620,70 +714,70 @@ class portSettingWindow(QtWidgets.QWidget):
     # def tempData(self, portStyle, portNumber, startX, startY, portWidth, portHeight):
     def tempData(self, fpgaEditID):
         # old data in FPGA
-        currentPortStyle = data["fpgaID"][fpgaEditID]["portStyle"]
-        portNumber = data["fpgaID"][fpgaEditID]["portNumber"]
-        startX = data["fpgaID"][fpgaEditID]["startX"]  # number 0 port
-        startY = data["fpgaID"][fpgaEditID]["startY"]  # number 0 port
-        portWidth = data["fpgaID"][fpgaEditID]["portWidth"]
-        portHeight = data["fpgaID"][fpgaEditID]["portHeight"]
-        wayNum = data["fpgaID"][fpgaEditID]["portWay"]
+        deviceID = self.data["fpgaID"][fpgaEditID]["deviceID"]
+        currentPortStyle = self.data["fpgaID"][fpgaEditID]["portStyle"]
+        portNumber = self.data["fpgaID"][fpgaEditID]["portNumber"]
+        startX = self.data["fpgaID"][fpgaEditID]["startX"]  # number 0 port
+        startY = self.data["fpgaID"][fpgaEditID]["startY"]  # number 0 port
+        portWidth = self.data["fpgaID"][fpgaEditID]["portWidth"]
+        portHeight = self.data["fpgaID"][fpgaEditID]["portHeight"]
+        wayNum = self.data["fpgaID"][fpgaEditID]["portWay"]
+        portStyleNum = self.data["fpgaID"][fpgaEditID]["portStyle"]
+        reverse = False
+
+        print("deviceID = ", deviceID)
+        print("fpgaEditID = ", fpgaEditID)
 
         if wayNum != self.Bbox.currentIndex():
             wayNum = self.Bbox.currentIndex()
-            data["fpgaID"][fpgaEditID]["portWay"] = self.Bbox.currentIndex()
+            self.data["fpgaID"][fpgaEditID]["portWay"] = self.Bbox.currentIndex()
             self.writeData = True
-        # [' ⬆ ',' ⬇ ',' ⬅ ',' ⮕ '] 0, 1, 2, 3
-        # way = self.Bbox.currentText()
-        # print(f'{wayNum}:{way}')
-
-        # writeTempData = FPGACmdCenter(protocolDict["interface"], protocolDict["sourceAddress"])
-        # writeTempData.write_fpga_register(data["fpgaID"][i]["frameWidth"], "frameWidth", self.ledWidthInput.text())
-        '''
-        print('currentPortStyle = ', currentPortStyle)
-        print('portNumber = ', portNumber)
-        print('startX = ', startX)
-        print('startY = ', startY)
-        print('portWidth = ', portWidth)
-        print('portHeight = ', portHeight)
-        '''
-        '''
-        if self.WHInput2.text() != "" and self.WHInput1.text() != "" and self.XYInput1.text()!= "" and self.XYInput2.text() != "" and self.portInput.text() != "":
-            # data["fpgaID"][fpgaEditID]["portHeight"] = self.WHInput2.text()
-            # self.WHInput2.setPlaceholderText(self.WHInput2.text())
-            #self.portInput.text()
-
-            self.writeData = True
-        '''
 
         if self.WHInput2.text() != "":
             portHeight = self.WHInput2.text()
-            data["fpgaID"][fpgaEditID]["portHeight"] = self.WHInput2.text()
+            self.data["fpgaID"][fpgaEditID]["portHeight"] = self.WHInput2.text()
             self.WHInput2.setPlaceholderText(self.WHInput2.text())
             self.writeData = True
         if self.WHInput1.text() != "":
             portWidth = self.WHInput1.text()
-            data["fpgaID"][fpgaEditID]["portWidth"] = self.WHInput1.text()
+            self.data["fpgaID"][fpgaEditID]["portWidth"] = self.WHInput1.text()
             self.WHInput1.setPlaceholderText(self.WHInput1.text())
             self.writeData = True
         if self.XYInput1.text() != "":
             startX = self.XYInput1.text()
-            data["fpgaID"][fpgaEditID]["startX"] = self.XYInput1.text()
+            self.data["fpgaID"][fpgaEditID]["startX"] = self.XYInput1.text()
             self.XYInput1.setPlaceholderText(self.XYInput1.text())
             self.writeData = True
         if self.XYInput2.text() != "":
             startY = self.XYInput2.text()
-            data["fpgaID"][fpgaEditID]["startY"] = self.XYInput2.text()
+            self.data["fpgaID"][fpgaEditID]["startY"] = self.XYInput2.text()
             self.XYInput2.setPlaceholderText(self.XYInput2.text())
             self.writeData = True
         if self.portInput.text() != "":
             portNumber = self.portInput.text()
-            data["fpgaID"][fpgaEditID]["portNumber"] = self.portInput.text()
-            data["fpgaID"][fpgaEditID]["portWay"] = self.Bbox.currentIndex()
+            self.data["fpgaID"][fpgaEditID]["portNumber"] = self.portInput.text()
+            self.data["fpgaID"][fpgaEditID]["portWay"] = self.Bbox.currentIndex()
             self.portInput.setPlaceholderText(self.portInput.text())
             self.writeData = True
 
-        ''' Jason for test FPGA read/write '''
+        if self.reverseInput.text() != "0" and self.reverseInput.text() != "":
+            self.reverseInput = self.reverseInput.text()
+            reverse = True
+            # print('reverseInput = ' + reverseInput)
+            # return
+
+        ''' FPGA read/write '''
         writePortStyle = FPGACmdCenter(protocolDict["interface"], protocolDict["sourceAddress"])
+        writePortStyle.write_fpga_register(deviceID, "panelWay", portStyleNum)
+
+        for n in range(int(portNumber) + 1):
+            writePortStyle.write_fpga_register(deviceID, 'portWidth_p{}'.format(str(n)), portWidth)
+            writePortStyle.write_fpga_register(deviceID, 'portHeight_p{}'.format(str(n)), portHeight)
+
+        # self.group.checkedId()
+        if reverse:
+            tempX = []
+            tempY = []
 
         match int(currentPortStyle):
             case 0 | 1 | 2 | 3:
@@ -691,40 +785,79 @@ class portSettingWindow(QtWidgets.QWidget):
                     for n in range(int(portNumber) + 1):
                         start_Y = int(startY) - n * int(portHeight)
                         start_X = int(startX)
-                        writePortStyle.write_fpga_register(fpgaEditID, 'startX_p{}'.format(str(n)), str(start_X))
-                        writePortStyle.write_fpga_register(fpgaEditID, 'startY_p{}'.format(str(n)), str(start_Y))
-                        # setPort(portDataAddressDict["startY"], n)
-                        print('start = (' + str(start_X) + ', ' + str(start_Y) + ')')
+                        if reverse:
+                            tempX.append(start_X)
+                            tempY.append(start_Y)
+                        else:
+                            writePortStyle.write_fpga_register(deviceID, 'startX_p{}'.format(str(n)), str(start_X))
+                            writePortStyle.write_fpga_register(deviceID, 'startY_p{}'.format(str(n)), str(start_Y))
+                            print('start = (' + str(start_X) + ', ' + str(start_Y) + ')')
                 if wayNum == 1:  # ⬇
                     for n in range(int(portNumber) + 1):
                         start_Y = int(startY) + n * int(portHeight)
                         start_X = int(startX)
-                        writePortStyle.write_fpga_register(fpgaEditID, 'startX_p{}'.format(str(n)), str(start_X))
-                        writePortStyle.write_fpga_register(fpgaEditID, 'startY_p{}'.format(str(n)), str(start_Y))
-                        print('start = (' + str(start_X) + ', ' + str(start_Y) + ')')
+                        if reverse:
+                            tempX.append(start_X)
+                            tempY.append(start_Y)
+                        else:
+                            writePortStyle.write_fpga_register(deviceID, 'startX_p{}'.format(str(n)), str(start_X))
+                            writePortStyle.write_fpga_register(deviceID, 'startY_p{}'.format(str(n)), str(start_Y))
+                            print('start = (' + str(start_X) + ', ' + str(start_Y) + ')')
 
             case 4 | 5 | 6 | 7:
                 if wayNum == 2:  # ⬅
                     for n in range(int(portNumber) + 1):
                         start_X = int(startX) - n * int(portWidth)
                         start_Y = int(startY)
-                        writePortStyle.write_fpga_register(fpgaEditID, 'startX_p{}'.format(str(n)), str(start_X))
-                        writePortStyle.write_fpga_register(fpgaEditID, 'startY_p{}'.format(str(n)), str(start_Y))
-                        print('start = (' + str(start_X) + ', ' + str(start_Y) + ')')
+                        if reverse:
+                            tempX.append(start_X)
+                            tempY.append(start_Y)
+                        else:
+                            writePortStyle.write_fpga_register(deviceID, 'startX_p{}'.format(str(n)), str(start_X))
+                            writePortStyle.write_fpga_register(deviceID, 'startY_p{}'.format(str(n)), str(start_Y))
+                            print('start = (' + str(start_X) + ', ' + str(start_Y) + ')')
                 if wayNum == 3:  # ⮕
                     for n in range(int(portNumber) + 1):
                         start_X = int(startX) + n * int(portWidth)
                         start_Y = int(startY)
-                        writePortStyle.write_fpga_register(fpgaEditID, 'startX_p{}'.format(str(n)), str(start_X))
-                        writePortStyle.write_fpga_register(fpgaEditID, 'startY_p{}'.format(str(n)), str(start_Y))
-                        print('start = (' + str(start_X) + ', ' + str(start_Y) + ')')
+                        if reverse:
+                            tempX.append(start_X)
+                            tempY.append(start_Y)
+                        else:
+                            writePortStyle.write_fpga_register(deviceID, 'startX_p{}'.format(str(n)), str(start_X))
+                            writePortStyle.write_fpga_register(deviceID, 'startY_p{}'.format(str(n)), str(start_Y))
+                            print('start = (' + str(start_X) + ', ' + str(start_Y) + ')')
                 # print('currentPortStyle = ', currentPortStyle)
-
             # case _:
+
+        if reverse:
+            outputX = []
+            outputY = []
+            portCount = 0
+            print("reverse")
+            for i in range(0, len(tempX)-1, int(self.reverseInput)):
+                outputX = tempX[i:i + int(self.reverseInput)]
+                outputX.reverse()
+                outputY = tempY[i:i + int(self.reverseInput)]
+                outputY.reverse()
+                for j in range(0, int(self.reverseInput)):
+                    print('start = (' + str(outputX[j]) + ', ' + str(outputY[j]) + ')')
+                    print("start _p = ", portCount)
+                    # print("startY_p = ", outputY[j])
+                    # no verify
+                    writePortStyle.write_fpga_register(deviceID, 'startX_p{}'.format(str(portCount)), str(outputX[j]))
+                    writePortStyle.write_fpga_register(deviceID, 'startY_p{}'.format(str(portCount)), str(outputY[j]))
+                    portCount = portCount + 1
+            # print("reverse outputX = ", outputX)
+            # print("reverse outputY = ", outputY)
+            # print(tempY)
+            # print('reverse startY = ' + tempX)
+            # print('reverse startY = ' + tempY)
+            # int(portNumber) % int(self.reverseInput) != 0
 
         if self.writeData:
             with open("led_config/dataFPGA.json", "w") as jsonFile:
-                json.dump(data, jsonFile, indent=2)
+                json.dump(self.data, jsonFile, indent=2)
                 print('write json')
 
         self.close()
@@ -734,9 +867,10 @@ class portSettingWindow(QtWidgets.QWidget):
     # change img
     def portStyle(self, text, fpgaEditID):
         self.writeData = True
+        # self.portStyleNum = text
         img = QtGui.QImage('materials/' + text + '.png')
         self.portStyleImg.setPixmap(QtGui.QPixmap(img).scaled(150, 150))
-        data["fpgaID"][fpgaEditID]["portStyle"] = text
+        self.data["fpgaID"][fpgaEditID]["portStyle"] = text
 
     def cancel(self):
         self.close()
