@@ -248,7 +248,7 @@ class MainUi(QMainWindow):
                 log.debug("UTC read/write failed!")
 
     def init_ui_total(self):
-        self.setWindowTitle("GIS FPGA LED Server")
+        self.setWindowTitle("GIS FPGA LED Server " + Version )
         self.setWindowOpacity(1.0)  # 窗口透明度
         self.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
 
