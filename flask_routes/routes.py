@@ -456,7 +456,7 @@ class LaunchTypeForm(Form):
             ('single_file_mode', 'Single File Mode'),
             ('playlist_mode', 'Playlist Mode'),
             ('hdmi_in_mode', 'HDMI-In Mode'),
-            # ('cms_mode', 'CMS Mode')
+            ('cms_mode', 'CMS Mode')
         ],
         default=get_default_play_mode_default(),
         render_kw=style,

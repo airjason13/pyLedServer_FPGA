@@ -169,7 +169,6 @@ class MainUi(QMainWindow):
             with open(os.getcwd() + "/static/default_launch_type.dat", "r") as launch_type_config_file:
                 tmp = launch_type_config_file.readline()
                 log.debug("launch_type_config : %s", tmp)
-
                 self.default_launch_type_int = int(tmp.split(":")[0])
                 self.default_launch_params_str = tmp.split(":")[1]
                 log.debug("self.default_launch_type_int : %d", self.default_launch_type_int)
@@ -192,6 +191,13 @@ class MainUi(QMainWindow):
                 QTimer.singleShot(5000, self.demo_start_hdmi_in)
             except Exception as e:
                 log.debug(e)
+        elif self.default_launch_type_int == play_type.play_cms:
+            try:
+                QTimer.singleShot(5000, self.demo_start_cms)
+            except Exception as e:
+                log.debug(e)
+
+
 
     def demo_start_play_single(self):
         log.debug("demo_start_play_single")
@@ -222,6 +228,17 @@ class MainUi(QMainWindow):
                 break
 
         # self.media_engine.hdmi_in_play()
+
+    def demo_start_cms(self):
+        log.debug("demo_start_cms")
+        for btn in self.ui_funcs_select_frame.btn_list:
+            log.debug("btn : %s", btn.text())
+            if btn.text() == 'CMS':
+                btn.click()
+                break
+
+        self.right_frame_page_list[3].cms_start_btn.click()
+
 
     def utc_test(self):
         log.debug("self.utc_test_count : %d", self.utc_test_count)
