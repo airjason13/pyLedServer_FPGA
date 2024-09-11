@@ -596,9 +596,9 @@ class MediaEngine(QObject):
             # ffmpeg_cmd = get_media_resolution_from_ffmpeg(file_uri)
             ffmpeg_cmd = ['ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=width,height',
                           '-of', 'csv=s=x:p=0', file_uri]
-            self.ff_process = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            self.ffprobe_process = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                                text=True)
-            output, error = self.ff_process.communicate()
+            output, error = self.ffprobe_process.communicate()
             # log.debug("output : %s", output)
             # log.debug("error : %s", error)
             match = re.search(r'(\d{2,5})x(\d{2,5})', output)
@@ -612,8 +612,8 @@ class MediaEngine(QObject):
             log.debug(f"Error processing video file: {str(e)}")
             return None, None
         finally:
-            if self.ff_process and self.ff_process.poll() is None:
-                self.ff_process.kill()
+            if self.ffprobe_process and self.ffprobe_process.poll() is None:
+                self.ffprobe_process.kill()
 
 
 class PlayPlaylistWorker(QObject):

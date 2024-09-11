@@ -778,6 +778,8 @@ class MediaFilesPage(QWidget):
             self.select_current_file_uri = select_file_uri
             self.media_active_width = 0
             self.media_active_height = 0
+            self.media_engine.resume_playing()
+            self.media_engine.stop_play()
             resolution = self.media_engine.get_video_resolution(self.select_current_file_uri)
             log.debug("resolution : %s", resolution)
             if resolution is not None:

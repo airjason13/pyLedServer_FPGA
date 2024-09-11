@@ -221,7 +221,7 @@ class FpgaListPage(QWidget):
 
         self.frame_height_label = QLabel()
         self.frame_height_label.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
-        self.frame_height_label.setText("Frame Width:")
+        self.frame_height_label.setText("Frame Height:")
         self.frame_height_lineedit = QLineEdit()
         self.frame_height_lineedit.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
         self.frame_height_lineedit.setText(str_frame_height)

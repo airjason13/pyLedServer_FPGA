@@ -38,7 +38,7 @@ class LedSettingsPage(QWidget):
                 "frameWidth", "frameHeight"]  # 10
         value = []
         # read data from FPGA
-        readFPGA = FPGACmdCenter(protocolDict["interface"], protocolDict["sourceAddress"])
+        readFPGA = FPGACmdCenter(ETH_DEV, protocolDict["sourceAddress"])
         id = 2
         self.fpgaLen = 0
         while True:
@@ -69,9 +69,9 @@ class LedSettingsPage(QWidget):
             id = id + 1
             self.fpgaLen = self.fpgaLen + 1
 
-        data = {"fpgaID": [dict(zip(list, row)) for row in value]}
+        dataJson = {"fpgaID": [dict(zip(list, row)) for row in value]}
         with open("led_config/dataFPGA.json", "w") as jsonFile:
-            json.dump(data, jsonFile, indent=2)
+            json.dump(dataJson, jsonFile, indent=2)
             # print('write json')
 
         # print("fpgaLen = ", self.fpgaLen)
@@ -230,7 +230,7 @@ class LedSettingsPage(QWidget):
 
     # 固化
     def writeFlash(self):
-        writePortStyle = FPGACmdCenter(protocolDict["interface"], protocolDict["sourceAddress"])
+        writePortStyle = FPGACmdCenter(ETH_DEV, protocolDict["sourceAddress"])
         writePortStyle.set_fpga_write_flash()
 
     def setDefaultJson(self):
@@ -252,10 +252,11 @@ class LedSettingsPage(QWidget):
 
     # set the first page LED Width and Height with every port
     def setWidthHeight(self):
-        frameWidth = self.data["frameWidth"]
-        frameHeight = self.data["frameHeight"]
-        writeWidthHeight = FPGACmdCenter(protocolDict["interface"], protocolDict["sourceAddress"])
-        # print('fpgaNum = ', len(data["fpgaID"]))
+        print('setWidthHeight~')
+        frameWidth = self.data["fpgaID"][0]["frameWidth"]
+        frameHeight = self.data["fpgaID"][0]["frameHeight"]
+        writeWidthHeight = FPGACmdCenter(ETH_DEV, protocolDict["sourceAddress"])
+
         writeData = False
         if self.ledWidthInput.text() != "":
             # self.ledWidthInput.setPlaceholderText(self.ledWidthInput.text())
@@ -307,6 +308,8 @@ class LedSettingsPage(QWidget):
         self.signal_file_changed.emit(path)
         print('file_changed')
         print('self.portStyleList = ', self.portStyleList)
+        with open("led_config/dataFPGA.json", "r") as jsonFile:
+            self.data = json.load(jsonFile)
 
         for n in range(self.fpgaLen):
             self.portStyleList[n].setText(
@@ -329,7 +332,9 @@ class portSettingWindow(QtWidgets.QWidget):
         self.resize(1500, 900)
         self.writeData = False
         # self.portStyleNum = int(data["fpgaID"][fpgaEditID]["portStyle"])
-        self.ui(fpgaEditID)
+        with open("led_config/dataFPGA.json", "r") as jsonFile:
+            self.data = json.load(jsonFile)
+            self.ui(fpgaEditID)
 
     def ui(self, fpgaEditID):
 
@@ -767,7 +772,7 @@ class portSettingWindow(QtWidgets.QWidget):
             # return
 
         ''' FPGA read/write '''
-        writePortStyle = FPGACmdCenter(protocolDict["interface"], protocolDict["sourceAddress"])
+        writePortStyle = FPGACmdCenter(ETH_DEV, protocolDict["sourceAddress"])
         writePortStyle.write_fpga_register(deviceID, "panelWay", portStyleNum)
 
         for n in range(int(portNumber) + 1):
@@ -785,6 +790,8 @@ class portSettingWindow(QtWidgets.QWidget):
                     for n in range(int(portNumber) + 1):
                         start_Y = int(startY) - n * int(portHeight)
                         start_X = int(startX)
+                        if start_Y < 0:
+                            break
                         if reverse:
                             tempX.append(start_X)
                             tempY.append(start_Y)
@@ -796,6 +803,8 @@ class portSettingWindow(QtWidgets.QWidget):
                     for n in range(int(portNumber) + 1):
                         start_Y = int(startY) + n * int(portHeight)
                         start_X = int(startX)
+                        if start_Y < 0:
+                            break
                         if reverse:
                             tempX.append(start_X)
                             tempY.append(start_Y)
@@ -809,6 +818,8 @@ class portSettingWindow(QtWidgets.QWidget):
                     for n in range(int(portNumber) + 1):
                         start_X = int(startX) - n * int(portWidth)
                         start_Y = int(startY)
+                        if start_X < 0:
+                            break
                         if reverse:
                             tempX.append(start_X)
                             tempY.append(start_Y)
@@ -820,6 +831,8 @@ class portSettingWindow(QtWidgets.QWidget):
                     for n in range(int(portNumber) + 1):
                         start_X = int(startX) + n * int(portWidth)
                         start_Y = int(startY)
+                        if start_X < 0:
+                            break
                         if reverse:
                             tempX.append(start_X)
                             tempY.append(start_Y)
