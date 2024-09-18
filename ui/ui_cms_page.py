@@ -49,7 +49,6 @@ class CMSPage(QWidget):
         self.video_brightness_lineedit = None
         self.video_gamma_lineedit = None
         self.video_adj_br_ga_btn = None
-
         self.brightness_algo_label = None
         self.brightness_algo_combobox = None
         self.sleep_mode_enable_label = None

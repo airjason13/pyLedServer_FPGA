@@ -251,11 +251,22 @@ def play_hdmi_in(self, data):
             break
     self.media_engine.hdmi_in_play()
 
+def play_cms(self, data):
+    log.debug("data : %s", data)
+    # log.debug("demo_start_hdmi_in")
+    for btn in self.ui_funcs_select_frame.btn_list:
+        log.debug("btn : %s", btn.text())
+        if btn.text() == 'CMS':
+            btn.click()
+            break
+    self.right_frame_page_list[3].cms_start_btn.click()
+
 
 cmd_function_map = {
     "play_file": play_single_file,
     "play_playlist": play_playlist,
     "play_hdmi_in": play_hdmi_in,
+    "play_cms": play_cms,
     "set_brightness": adjust_brightness_value,
     "set_gamma": adjust_gamma_value,
     "set_sleep_mode": adjust_sleep_mode,

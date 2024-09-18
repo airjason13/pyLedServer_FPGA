@@ -254,6 +254,13 @@ def play_hdmi_in(cmd):
     status_code = Response(status=200)
     return status_code
 
+@app.route('/play_cms/<cmd>', methods=['POST'])
+def play_cms(cmd):
+    log.debug("route cms cmd : %s ", cmd)
+    send_message(play_cms=cmd)
+    status_code = Response(status=200)
+    return status_code
+
 
 @app.route('/set_default_play_mode/<data>', methods=['POST'])
 def set_default_play_mode(data):

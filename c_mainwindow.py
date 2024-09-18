@@ -25,10 +25,11 @@ from ui.ui_led_settings_page import LedSettingsPage
 from ui.ui_media_files_page import MediaFilesPage
 from ui.ui_sys_sw_info import UiSystemSoftware
 from ui.ui_test_page import TestPage
+from ui.ui_system_page import SystemPage
 
 '''List of Page Selector Button Name '''
-Page_Select_Btn_Name_List = ["FPGA_List", "Media_Files", "HDMI_In", "CMS", "Led_Settings", "Test"]
-Page_List = [FpgaListPage, MediaFilesPage, HDMIInPage, CMSPage, LedSettingsPage, TestPage]
+Page_Select_Btn_Name_List = ["FPGA_List", "Media_Files", "HDMI_In", "CMS", "Led_Settings", "System", "Test"]
+Page_List = [FpgaListPage, MediaFilesPage, HDMIInPage, CMSPage, LedSettingsPage, SystemPage, TestPage]
 
 Page_Map = dict(zip(Page_Select_Btn_Name_List, Page_List))
 
