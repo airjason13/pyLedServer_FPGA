@@ -1,9 +1,10 @@
 import glob
 import os
+import re
 import sys
 
 from astral_hashmap import City_Map
-from global_def import log, internal_media_folder, PlaylistFolder, play_type
+from global_def import log, internal_media_folder, PlaylistFolder, play_type, root_dir
 
 led_params_config_folder_name = "led_config"
 led_params_config_file_name = "led_parameters"
@@ -16,6 +17,10 @@ png_extends = internal_media_folder + "/*.png"
 webp_extends = internal_media_folder + '/*.webp'
 playlist_extends = internal_media_folder + PlaylistFolder + "*.playlist"
 
+WLAN0_ENABLE_TAG = "WLAN0_ENABLE"
+SSID_DEFAULT_TAG = "SSID_DEFAULT"
+BAND_DEFAULT_TAG = "BAND_DEFAULT"
+CHANNEL_DEFAULT_TAG = "CHANNEL_DEFAULT"
 
 def init_video_params():
     content_lines = [
@@ -284,6 +289,95 @@ def get_playlist_default():
         log.debug(e)
 
     return get_playlist_list()[0]
+
+def get_wifi_devices_default():
+    output = os.popen("nmcli --get-values GENERAL.DEVICE,GENERAL.TYPE device show | sed '/^wifi/!{h;d;};x'").read()
+
+    devs = output.strip().split("\n")
+    real_devs = []
+    for i in range(len(devs)):
+        log.debug("dev: %s", devs[i])
+        if 'p2p' in devs[i]:
+            pass
+        else:
+            real_devs.append(devs[i])
+
+    log.debug("real_devs: %s", real_devs)
+    return real_devs[0]
+
+def get_wifi_bands_channels_default():
+    log.debug("To be Implemented!")
+    target_channel = 0
+    ret_channel = ""
+    ''' get phy0 support channels '''
+    output = os.popen("iw {} info | grep dBm ".format('phy0')).read()
+    tmp = re.sub(r"[\t\* ]*", "", output)
+    log.debug("tmp type : %s", type(tmp))
+    channels_list = tmp.split("\n")
+    log.debug("channels_list type : %s", type(channels_list))
+
+    ''' get target config file definition'''
+    led_config_dir = os.path.join(root_dir, 'led_config')
+    with open(os.path.join(led_config_dir, "setup_wlan0_hotspot.sh.target"), "r") as f:
+        lines = f.readlines()
+    f.close()
+
+    for line in lines:
+        if line.startswith(CHANNEL_DEFAULT_TAG):
+            log.debug("line: %s", line)
+            target_channel = line.strip().split("=")[1]
+    log.debug("target_channel: %s", target_channel)
+
+    for channel in channels_list:
+        if "MHz" in channel:
+            log.debug("channel: %s", channel)
+            log.debug("channel test %s", channel.split("[")[1].split("]")[0])
+            if target_channel == channel.split("[")[1].split("]")[0]:
+                log.debug("bingo, target_channel = %s", channel)
+                ret_channel = channel
+
+    return ret_channel
+
+def get_wifi_bands_channels_tuple():
+    tuple = []
+    output = os.popen("iw {} info | grep dBm ".format('phy0')).read()
+    tmp = re.sub(r"[\t\* ]*", "", output)
+    log.debug("tmp type : %s", type(tmp))
+    channels_list = tmp.split("\n")
+    log.debug("channels_list type : %s", type(channels_list))
+    for channel in channels_list:
+        tuple.append((channel, channel))
+    return tuple
+
+def get_internal_wifi_ssid_default():
+    # get target config file definition
+    led_config_dir = os.path.join(root_dir, 'led_config')
+    with open(os.path.join(led_config_dir, "setup_wlan0_hotspot.sh.target"), "r") as f:
+        lines = f.readlines()
+    f.close()
+    for line in lines:
+        if line.startswith(SSID_DEFAULT_TAG):
+            tmp = line.strip().split("=")[1]
+            if tmp == "GISTLED":
+                default_ssid = tmp + "_SN"
+            else:
+                default_ssid = tmp
+            return default_ssid
+
+    return "default_wifi_ssid"
+
+
+def get_ext_wifi_ssid_default():
+    log.debug("To be implemented")
+    return "ext_wifi_ssid"
+
+def get_wifi_bands_default():
+    log.debug("To be Implemented!")
+    return "2.4G"
+
+def get_wifi_channels_default():
+    log.debug("To be Implemented!")
+    return "11"
 
 
 def get_icled_type_default():

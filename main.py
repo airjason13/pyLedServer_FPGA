@@ -1,4 +1,6 @@
 from flask import Flask
+import utils.utils_file_access
+utils.utils_file_access.check_and_rebuild_binaries()
 
 import jqlocalserver
 from c_mainwindow import MainUi

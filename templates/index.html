@@ -228,6 +228,13 @@
             </td>
 
         </tr>
+        <tr>
+            <td>
+                <button data-bs-toggle="modal" data-bs-target="#id_wifi_hotspot" class="item">
+                    Wifi Hotspot
+                </button>
+            </td>
+        </tr>
     </table>
 
     <!-- Playlist Modal -->
@@ -632,6 +639,50 @@
             <div class="modal-footer">
                 <div class="d-grid gap-2 d-md-block">
                     <button type="button" id="SetAudioPreview" data-bs-dismiss="modal"  class="btn btn-danger" onclick="submit_audio_preview_option()">Set</button>
+                </div>
+            </div>
+        </div>
+        </div>
+    </div>
+
+    <!-- Audio/Preview Modal -->
+    <div class="modal fade" id="id_wifi_hotspot" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="wifi_hotspot" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable ">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="wifi_hotspot">Set Wifi Hotspot</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-floating mb-2">
+                    <select class="form-select" id="floatingWifiDevice" >
+	                <option value={{default_play_form.wifi_devices_switcher.data}} selected disabled>{{default_play_form.wifi_devices_switcher.data}}</option>
+                    {% for k,v in default_play_form.wifi_devices_switcher.choices %}
+                        <option value="{{k}}">{{v}}</option>
+	                {% endfor %}
+
+                    </select>
+                    <label for="floatingWifiDevice">Wifi Hotspot Device</label>
+                </div>
+                <div class="form-floating mb-2">
+                    <select class="form-select" id="floatingHotspotChannels" >
+	                <option value={{default_play_form.wifi_bands_channels_switcher.data}} selected disabled>{{default_play_form.wifi_bands_channels_switcher.data}}</option>
+                    {% for k,v in default_play_form.wifi_bands_channels_switcher.choices %}
+                        <option value="{{k}}">{{v}}</option>
+	                {% endfor %}
+
+                    </select>
+                    <label for="floatingHotspotChannels">Wifi Hotspot Channels</label>
+                </div>
+                <div class="form-floating mb-2">
+                    <input type="text" class="form-control" id="floatingHotspotSSID"  value={{ internal_wifi_ssid }}>
+                    <label for="floatingHotspotSSID">Wifi Hotspot SSID</label>
+
+                </div>
+            </div>
+            <div class="modal-footer">
+                <div class="d-grid gap-2 d-md-block">
+                    <button type="button" id="SetWifiHotspot" data-bs-dismiss="modal"  class="btn btn-danger" onclick="submit_wifi_hotspot_option()">Set</button>
                 </div>
             </div>
         </div>
@@ -1491,6 +1542,20 @@
                 var url = "/set_brightness_values/" + data;
                 $.post(url, {});
             }
+        }
+
+        //Wifi Hotspot Setting
+        function submit_wifi_hotspot_option(){
+            var device = $("#floatingWifiDevice option:selected").val();
+            var channel = $("#floatingHotspotChannels option:selected").text();
+            var ssid = $("#floatingHotspotSSID").val();
+            console.log('device = ' + device);
+            console.log('channel = ' + channel);
+            console.log('ssid = ' + ssid);
+
+            data = "1;" + device + ";" + channel + ";" + ssid
+            var url = "/set_wifi_hotspot_info/" + data;
+            $.post(url, {});
         }
 
         // Default Mode Setting

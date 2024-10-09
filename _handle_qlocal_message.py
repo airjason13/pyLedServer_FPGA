@@ -261,6 +261,58 @@ def play_cms(self, data):
             break
     self.right_frame_page_list[3].cms_start_btn.click()
 
+def parse_wifi_band(data:str):
+    log.debug("data : %s", data)
+    band = "2.4G"
+    if data.startswith("24"):
+        band = "2.4G"
+    else:
+        band = "5G"
+    return band
+
+def parse_wifi_channel(data:str):
+    log.debug("data : %s", data)
+    channel = data.strip().split("[")[1].split("]")[0]
+    return channel
+
+def set_wifi_hotspot_info(self, data):
+    log.debug("data : %s", data)
+    data_list = data.strip().split(";")
+    internal_wifi_enable = data_list[0]
+    wifi_device = data_list[1]
+    wifi_band = parse_wifi_band(data_list[2])
+    wifi_channel = parse_wifi_channel(data_list[2])
+    wifi_ssid = data_list[3]
+
+    log.debug("internal_wifi_enable : %s, wifi_device: %s, wifi_band: %s, wifi_channel: %s",
+              internal_wifi_enable, wifi_device, wifi_band, wifi_channel)
+
+    target_page = None
+    for page in self.right_frame_page_list:
+        if page.name == "System":
+            target_page = page
+            break
+    if target_page is not None:
+        log.debug("target_page name: %s", target_page.name)
+    else:
+        log.error("Page Name Error!")
+
+    for i in range(len(page.wireless_devices)):
+        if page.wireless_devices[i] == wifi_device:
+            page.combobox_wireless_devices.setCurrentIndex(i)
+
+    for i in range(len(page.wireless_band_list)):
+        if page.wireless_band_list[i] == wifi_band:
+            page.combobox_wireless_bands.setCurrentIndex(i)
+
+    for i in range(len(page.wireless_channel_list)):
+        if page.wireless_channel_list[i].strip().split("[")[1].split("]")[0] == wifi_channel:
+            page.combobox_wireless_channels.setCurrentIndex(i)
+
+    page.lineedit_hotspot_ssid.setText(wifi_ssid)
+
+    page.btn_set_wireless.click()
+
 
 cmd_function_map = {
     "play_file": play_single_file,
@@ -285,6 +337,7 @@ cmd_function_map = {
     "set_audio_preview_mode": adjust_audio_preview,
     "set_media_crop_values": adjust_media_crop,
     "set_hdmi_crop_values": adjust_hdmi_crop,
+    "set_wifi_hotspot_info": set_wifi_hotspot_info,
 }
 
 """ handle the command from LocalServer"""

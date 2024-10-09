@@ -4,7 +4,9 @@ from flask_routes.routes_ops import get_sleep_mode_default, get_brightness_mode_
     get_city_list, get_reboot_mode_default, get_brightness_value_default, mp4_extends, jpg_extends, jpeg_extends, \
     png_extends, playlist_extends, get_default_play_mode_default, get_playlist_default, get_frame_rate_res_default, \
     get_icled_type_default, get_still_image_period_default, get_icled_current_gain_values_default, \
-    get_audio_enable_default, get_preview_enable_default, get_media_crop_values_default, get_hdmi_crop_values_default
+    get_audio_enable_default, get_preview_enable_default, get_media_crop_values_default, get_hdmi_crop_values_default, \
+    get_wifi_devices_default, get_wifi_bands_default, get_wifi_channels_default, get_wifi_bands_channels_default, \
+    get_wifi_bands_channels_tuple, get_internal_wifi_ssid_default, get_ext_wifi_ssid_default
 from global_def import log, internal_media_folder, PlaylistFolder, play_type, ThumbnailFileFolder
 from flask import render_template, send_from_directory, Response, request, redirect, url_for
 import hashlib
@@ -402,6 +404,13 @@ def uploads():
     # time.sleep(10)
     return redirect(url_for("index"))
 
+@app.route('/set_wifi_hotspot_info/<data>', methods=['POST'])
+def set_wifi_hotspot_info(data):
+    log.debug("set_wifi_hotspot_info data :" + data)
+    send_message(set_wifi_hotspot_info=data)
+    status_code = Response(status=200)
+    return status_code
+
 
 class BrightnessAlgoForm(Form):
     style = {'class': 'ourClasses', 'style': 'font-size:24px;color:white', }
@@ -480,6 +489,36 @@ class LaunchTypeForm(Form):
         render_kw=style,
     )
 
+    wifi_devices_switcher = RadioField(
+        label="Wifi Hotspot Device",
+        id="wifi_devices_switcher",
+        choices=[
+            ('wlo1', 'wlo1'),
+            ('ext', 'ext')
+        ],
+        default=get_wifi_devices_default(),
+        render_kw=style,
+    )
+
+    wifi_bands_channels_switcher = RadioField(
+        label="Wifi Hotspot Bands",
+        id="wifi_bands_switcher",
+        choices=get_wifi_bands_channels_tuple(),
+        default=get_wifi_bands_channels_default(),
+        render_kw=style,
+    )
+
+    '''wifi_channels_switcher = RadioField(
+        label="Wifi Hotspot Channels",
+        id="wifi_bands_switcher",
+        choices=[
+            ('1', '1'),
+            ('2', '2')
+        ],
+        default=get_wifi_channels_default(),
+        render_kw=style,
+    )'''
+
     # single file list
     single_file_selectfield_style = {'class': 'ourClasses',
                                      'style': 'font-size:24px;color:black;size:320px;width:300px', }
@@ -550,7 +589,8 @@ def refresh_template():
                            frame_res_rate_values=frame_res_rate_values, still_image_period=still_image_period,
                            icled_current_gain_values=icled_current_gain_values, audio_enable=audio_enable,
                            preview_enable=preview_enable, media_crop_values=media_crop_values,
-                           hdmi_crop_values=hdmi_crop_values)
+                           hdmi_crop_values=hdmi_crop_values, internal_wifi_ssid=get_internal_wifi_ssid_default(),
+                           external_wifi_ssid=get_ext_wifi_ssid_default())
 
 
 @app.route("/")
