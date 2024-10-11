@@ -561,6 +561,8 @@ def refresh_template():
     default_play_form = LaunchTypeForm()
     default_play_form.launch_type_switcher.data = get_default_play_mode_default()
     default_play_form.icled_type_switcher.data = get_icled_type_default()
+    default_play_form.wifi_bands_channels_switcher.data = get_wifi_bands_channels_default()
+    
 
     default_play_form.single_file_selectfiled.choices = get_file_list()
     default_play_form.playlist_selectfield.choices = get_playlist_list()

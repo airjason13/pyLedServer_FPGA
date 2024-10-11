@@ -22,6 +22,8 @@ SSID_DEFAULT_TAG = "SSID_DEFAULT"
 BAND_DEFAULT_TAG = "BAND_DEFAULT"
 CHANNEL_DEFAULT_TAG = "CHANNEL_DEFAULT"
 
+band_channel_not_supported_list = [12, 13, 14, 38, 42, 46, 144]
+
 def init_video_params():
     content_lines = [
         "led_brightness=50\n",
@@ -306,7 +308,7 @@ def get_wifi_devices_default():
     return real_devs[0]
 
 def get_wifi_bands_channels_default():
-    log.debug("To be Implemented!")
+
     target_channel = 0
     ret_channel = ""
     ''' get phy0 support channels '''
@@ -346,7 +348,14 @@ def get_wifi_bands_channels_tuple():
     channels_list = tmp.split("\n")
     log.debug("channels_list type : %s", type(channels_list))
     for channel in channels_list:
-        tuple.append((channel, channel))
+        log.debug("channel : %s", channel)
+        if "[" in channel:
+            tmp_str_channel_number = channel.split("[")[1].split("]")[0]
+            tmp_int_channel_number = int(tmp_str_channel_number)
+            if tmp_int_channel_number in band_channel_not_supported_list:
+                log.debug("channel %d not supported", tmp_int_channel_number)
+            else:
+                tuple.append((channel, channel))
     return tuple
 
 def get_internal_wifi_ssid_default():

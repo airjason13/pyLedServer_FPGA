@@ -5,7 +5,7 @@ Hotspot_con_FILE=/etc/NetworkManager/system-connections/Hotspot.nmconnection
 WLAN0_ENABLE=TRUE
 SSID_DEFAULT=GISTLED_GGG
 BAND_DEFAULT=a
-CHANNEL_DEFAULT=40
+CHANNEL_DEFAULT=44
 
 
 if [ "$WLAN0_ENABLE" = "TRUE" ]; then

@@ -351,7 +351,6 @@ class SystemPage(QWidget):
                 log.debug("setup_wlan0_hotspot ok")
 
 
-
         '''log.debug("default band: %s", self.get_wifi_hotspot_data(
             self.combobox_wireless_devices.itemText(self.combobox_wireless_devices.currentIndex()),
             self.BAND_DEFAULT_TAG))
