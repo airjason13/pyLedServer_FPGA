@@ -205,7 +205,7 @@ def set_sleep_params(start_time, end_time):
     ]
     root_dir = os.path.dirname(sys.modules['__main__'].__file__)
     led_config_dir = os.path.join(root_dir, 'led_config')
-    file_uri = os.path.join(led_config_dir, ".sleep_time_config")
+    file_uri = os.path.join(led_config_dir, "sleep_time_config")
     config_file = open(file_uri, 'w')
     config_file.writelines(content_lines)
     config_file.close()
@@ -219,7 +219,7 @@ def init_sleep_time_params():
     ]
     root_dir = os.path.dirname(sys.modules['__main__'].__file__)
     led_config_dir = os.path.join(root_dir, 'led_config')
-    file_uri = os.path.join(led_config_dir, ".sleep_time_config")
+    file_uri = os.path.join(led_config_dir, "sleep_time_config")
     config_file = open(file_uri, 'w')
     config_file.writelines(content_lines)
     config_file.close()
@@ -231,10 +231,10 @@ def get_sleep_time_from_file():
     s_end_time = ""
     root_dir = os.path.dirname(sys.modules['__main__'].__file__)
     led_config_dir = os.path.join(root_dir, 'led_config')
-    if os.path.isfile(os.path.join(led_config_dir, ".sleep_time_config")) is False:
+    if os.path.isfile(os.path.join(led_config_dir, "sleep_time_config")) is False:
         init_sleep_time_params()
 
-    with open(os.path.join(led_config_dir, ".sleep_time_config"), "r") as f:
+    with open(os.path.join(led_config_dir, "sleep_time_config"), "r") as f:
         lines = f.readlines()
     f.close()
     for line in lines:

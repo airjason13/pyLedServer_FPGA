@@ -106,11 +106,11 @@
     </style>
 </head>
 
-<body>
+<body onload="ShowTime()">
     </br>
-    <h1><b class="hight-light" style="font-size: 6.5vmin">LED Control Web</b></h1>
-    <h2><b>{{sw_version}}</b></h2>
-
+    <h1><b class="hight-light" style="font-size: 6.5vmin">LED Control Web </b></h1>
+    <h2><b class="hight-light" style="font-size: 4.5vmin">{{sw_version}}</b></h2>
+    <div class="hight-light" style="font-size: 3vmin" id="showbox"></div>
     <div id="carouselCaptions" class="carousel slide" data-bs-ride="carousel">
         <div class="carousel-indicators">
           {% for i in range(files|length) %}
@@ -569,7 +569,7 @@
                     <label for="floatingMediaCropWidth">Media Crop Width</label>
                 </div>
                 <div class="form-floating mb-2">
-                    <input type="number" class="form-control" id="floatingMediaCropHeight" onchange="checkValue0_1080(this.id)" value={{ media_crop_values.media_file_crop_w }}>
+                    <input type="number" class="form-control" id="floatingMediaCropHeight" onchange="checkValue0_1080(this.id)" value={{ media_crop_values.media_file_crop_h }}>
                     <label for="floatingMediaCropHeight">Media Crop Height</label>
                 </div>
             </div>
@@ -845,6 +845,16 @@
             $("#addToPlaylist").hide();
         }
         */
+
+        function ShowTime(){
+            var NowDate=new Date();
+            var h=NowDate.getHours();
+            var m=NowDate.getMinutes();
+            var s=NowDate.getSeconds();　
+            document.getElementById('showbox').innerHTML = h+'時'+m+'分'+s+'秒';
+            setTimeout('ShowTime()',1000);
+        }
+
 		function deleteConfirm(){
 			Swal.fire({
 				icon: 'success',

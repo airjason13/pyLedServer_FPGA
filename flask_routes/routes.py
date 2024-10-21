@@ -6,7 +6,8 @@ from flask_routes.routes_ops import get_sleep_mode_default, get_brightness_mode_
     get_icled_type_default, get_still_image_period_default, get_icled_current_gain_values_default, \
     get_audio_enable_default, get_preview_enable_default, get_media_crop_values_default, get_hdmi_crop_values_default, \
     get_wifi_devices_default, get_wifi_bands_default, get_wifi_channels_default, get_wifi_bands_channels_default, \
-    get_wifi_bands_channels_tuple, get_internal_wifi_ssid_default, get_ext_wifi_ssid_default
+    get_wifi_bands_channels_tuple, get_internal_wifi_ssid_default, get_ext_wifi_ssid_default, \
+    get_sleep_end_time_default, get_sleep_start_time_default
 from global_def import log, internal_media_folder, PlaylistFolder, play_type, ThumbnailFileFolder
 from flask import render_template, send_from_directory, Response, request, redirect, url_for
 import hashlib
@@ -111,7 +112,7 @@ def get_single_file_default() -> str:
             default_launch_type_int = int(tmp.split(":")[0])
             default_launch_type_params_str = tmp.split(":")[1]
             if default_launch_type_int == play_type.play_single:
-                log.debug("get_single_file_default :" + default_launch_type_params_str)
+                log.debug("get_single_file_default :%s" + default_launch_type_params_str)
                 return default_launch_type_params_str
             else:
                 file_list = get_file_list()
@@ -266,7 +267,7 @@ def play_cms(cmd):
 
 @app.route('/set_default_play_mode/<data>', methods=['POST'])
 def set_default_play_mode(data):
-    log.debug("set_default_play_mode data :" + data)
+    log.debug("set_default_play_mode data :%s" + data)
     # send_message(set_default_play_mode_option=data)
     tmp = data
     default_mode = "0"
@@ -314,7 +315,7 @@ def route_get_thumbnail(filename):
 
 @app.route('/set_brightness_algo/<data>', methods=['POST'])
 def set_brightness_algo(data):
-    log.debug("set_brightness_algo data :" + data)
+    log.debug("set_brightness_algo data :%s" + data)
     send_message(set_brightness_algo=data)
     status_code = Response(status=200)
     return status_code
@@ -362,29 +363,37 @@ def set_hdmi_crop_res_values(data):
 
 @app.route('/set_brightness_values/<data>', methods=['POST'])
 def set_brightness_values(data):
-    log.debug("set_brightness_values data :" + data)
+    log.debug("set_brightness_values data :%s" + data)
     send_message(set_frame_brightness_values_option=data)
+    status_code = Response(status=200)
+    return status_code
+
+
+@app.route('/set_sleep_time/<data>', methods=['POST'])
+def set_sleep_time(data):
+    log.debug("set_sleep_time data :%s" + data)
+    send_message(set_sleep_time_values_option=data)
     status_code = Response(status=200)
     return status_code
 
 
 @app.route('/set_icled_type_gain/<data>', methods=['POST'])
 def set_icled_type_gain(data):
-    log.debug("set_icled_type_gain data :" + data)
+    log.debug("set_icled_type_gain data :%s" + data)
     send_message(set_icled_type_gain=data)
     status_code = Response(status=200)
     return status_code
 
 @app.route('/set_image_period_values/<data>', methods=['POST'])
 def set_image_period_values(data):
-    log.debug("set_image_period_values data :" + data)
+    log.debug("set_image_period_values data :%s" + data)
     send_message(set_image_period_values=data)
     status_code = Response(status=200)
     return status_code
 
 @app.route('/set_frame_rate_res_values/<data>', methods=['POST'])
 def set_frame_rate_res_values(data):
-    log.debug("set_frame_rate_res_values data :" + data)
+    log.debug("set_frame_rate_res_values data :%s" + data)
     send_message(set_frame_rate_res_values=data)
     status_code = Response(status=200)
     return status_code
@@ -406,7 +415,7 @@ def uploads():
 
 @app.route('/set_wifi_hotspot_info/<data>', methods=['POST'])
 def set_wifi_hotspot_info(data):
-    log.debug("set_wifi_hotspot_info data :" + data)
+    log.debug("set_wifi_hotspot_info data :%s" + data)
     send_message(set_wifi_hotspot_info=data)
     status_code = Response(status=200)
     return status_code
@@ -547,7 +556,7 @@ class LaunchTypeForm(Form):
     )
 
 
-def refresh_template():
+def refresh_template(sleep_start_time=None):
     maps = find_file_maps()
     playlist_nest_dict = find_playlist_maps()
 
@@ -585,12 +594,16 @@ def refresh_template():
     media_crop_values = get_media_crop_values_default()
     hdmi_crop_values = get_hdmi_crop_values_default()
 
+    sleep_start_time = get_sleep_start_time_default()
+    sleep_end_time = get_sleep_end_time_default()
+
     return render_template("index.html", title="GIS TLED", files=maps, sw_version=Version,
                            form=brightness_algo_form, brightnessvalues=brightnessvalues,
                            playlist_nest_dict=playlist_nest_dict, default_play_form=default_play_form,
                            frame_res_rate_values=frame_res_rate_values, still_image_period=still_image_period,
                            icled_current_gain_values=icled_current_gain_values, audio_enable=audio_enable,
                            preview_enable=preview_enable, media_crop_values=media_crop_values,
+                           sleep_start_time=sleep_start_time, sleep_end_time=sleep_end_time,
                            hdmi_crop_values=hdmi_crop_values, internal_wifi_ssid=get_internal_wifi_ssid_default(),
                            external_wifi_ssid=get_ext_wifi_ssid_default())
 

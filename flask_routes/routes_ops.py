@@ -558,3 +558,50 @@ def get_hdmi_crop_values_default():
     f.close()
 
     return hdmi_crop_values_maps
+
+def get_sleep_start_time_default():
+    sleep_start_time = "11:50"
+    root_dir = os.path.dirname(sys.modules['__main__'].__file__)
+    led_config_dir = os.path.join(root_dir, 'led_config')
+    if os.path.isfile(os.path.join(led_config_dir, "sleep_time_config")) is False:
+        init_sleep_time_params()
+        # init_reboot_params()
+
+    with open(os.path.join(led_config_dir, "sleep_time_config"), "r") as f:
+        lines = f.readlines()
+    f.close()
+    for line in lines:
+        if "sleep_start_time" in line:
+            sleep_start_time = line.split("=")[1]
+    # log.debug("sleep_start_time = %s", sleep_start_time)
+    return sleep_start_time
+
+def init_sleep_time_params():
+    content_lines = [
+        "sleep_start_time=00:30\n",
+        "sleep_end_time=04:30\n",
+    ]
+    root_dir = os.path.dirname(sys.modules['__main__'].__file__)
+    led_config_dir = os.path.join(root_dir, 'led_config')
+    file_uri = os.path.join(led_config_dir, "sleep_time_config")
+    config_file = open(file_uri, 'w')
+    config_file.writelines(content_lines)
+    config_file.close()
+    os.system('sync')
+
+def get_sleep_end_time_default():
+    sleep_end_time = "11:50"
+    root_dir = os.path.dirname(sys.modules['__main__'].__file__)
+    led_config_dir = os.path.join(root_dir, 'led_config')
+    if os.path.isfile(os.path.join(led_config_dir, "sleep_time_config")) is False:
+        init_sleep_time_params()
+        # init_reboot_params()
+
+    with open(os.path.join(led_config_dir, "sleep_time_config"), "r") as f:
+        lines = f.readlines()
+    f.close()
+    for line in lines:
+        if "sleep_end_time" in line:
+            sleep_end_time = line.split("=")[1]
+    # log.debug("sleep_end_time = %s", sleep_end_time)
+    return sleep_end_time

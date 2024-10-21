@@ -1,3 +1,4 @@
+import utils.utils_file_access
 from astral_hashmap import City_Map
 from global_def import *
 
@@ -63,8 +64,15 @@ def adjust_frame_brightness(self, data: str):
     log.debug("i_sleep_mode_brightness : %d", i_sleep_mode_brightness)
 
 
+def set_sleep_time(self, sleep_time: str):
+    log.debug("sleep_time : %s", sleep_time)
+    sleep_time_list = sleep_time.split(";")
+    sleep_start_time = sleep_time_list[0]
+    sleep_end_time = sleep_time_list[1]
+    utils.utils_file_access.set_sleep_params(sleep_start_time, sleep_end_time)
+
 def adjust_icled_type(self, type: str):
-    log.debug("type : ", type)
+    log.debug("type : %s", type)
     if 'anapex' in type:
         self.media_engine.led_video_params.set_icled_type(0)
     elif 'aos' in type:
@@ -325,6 +333,7 @@ cmd_function_map = {
     "set_brightness_algo": adjust_brightness_algo,
     "set_target_city": adjust_target_city,
     "set_frame_brightness_values_option": adjust_frame_brightness,
+    "set_sleep_time_values_option":set_sleep_time,
     "set_icled_type": adjust_icled_type,
     "set_led_r_gain": adjust_led_r_gain,
     "set_led_g_gain": adjust_led_g_gain,
