@@ -5,7 +5,7 @@ from version import *
 import platform
 import utils.log_utils
 
-log = utils.log_utils.logging_init(__file__)
+log = utils.log_utils.logging_init(__file__, "ledserver_fpga.log")
 
 root_dir = os.path.dirname(sys.modules['__main__'].__file__)
 LD_PATH = root_dir + "/ext_binaries/"

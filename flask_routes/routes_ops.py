@@ -332,8 +332,8 @@ def get_wifi_bands_channels_default():
 
     for channel in channels_list:
         if "MHz" in channel:
-            log.debug("channel: %s", channel)
-            log.debug("channel test %s", channel.split("[")[1].split("]")[0])
+            # log.debug("channel: %s", channel)
+            # log.debug("channel test %s", channel.split("[")[1].split("]")[0])
             if target_channel == channel.split("[")[1].split("]")[0]:
                 log.debug("bingo, target_channel = %s", channel)
                 ret_channel = channel
@@ -344,16 +344,17 @@ def get_wifi_bands_channels_tuple():
     tuple = []
     output = os.popen("iw {} info | grep dBm ".format('phy0')).read()
     tmp = re.sub(r"[\t\* ]*", "", output)
-    log.debug("tmp type : %s", type(tmp))
+    # log.debug("tmp type : %s", type(tmp))
     channels_list = tmp.split("\n")
-    log.debug("channels_list type : %s", type(channels_list))
+    # log.debug("channels_list type : %s", type(channels_list))
     for channel in channels_list:
-        log.debug("channel : %s", channel)
+        # log.debug("channel : %s", channel)
         if "[" in channel:
             tmp_str_channel_number = channel.split("[")[1].split("]")[0]
             tmp_int_channel_number = int(tmp_str_channel_number)
             if tmp_int_channel_number in band_channel_not_supported_list:
-                log.debug("channel %d not supported", tmp_int_channel_number)
+                pass
+                # log.debug("channel %d not supported", tmp_int_channel_number)
             else:
                 tuple.append((channel, channel))
     return tuple
@@ -605,3 +606,7 @@ def get_sleep_end_time_default():
             sleep_end_time = line.split("=")[1]
     # log.debug("sleep_end_time = %s", sleep_end_time)
     return sleep_end_time
+
+def get_internal_wifi_mode_default():
+    internal_wifi_mode = "Enable"
+    return internal_wifi_mode

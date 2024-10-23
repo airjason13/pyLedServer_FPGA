@@ -333,10 +333,10 @@
                         <select class="form-select" id="floatingBrightnessMode" onchange="selectBrightnessMode();"> <!-- submit_frame_brightness_mode_option(); -->
                         <option value={{form.brightness_mode_switcher.data}} selected disabled>{{form.brightness_mode_switcher.data}}</option>
 
-	         <!-- <option selected disabled>Choose a Mode</option> -->
-	         {% for k,v in form.brightness_mode_switcher.choices %}
+	                <!-- <option selected disabled>Choose a Mode</option> -->
+	                {% for k,v in form.brightness_mode_switcher.choices %}
                         <option value="{{k}}">{{v}}</option>
-	         {% endfor %}
+	                {% endfor %}
                         <!-- <option value="1">Time Mode</option>
                         <option value="0">Fix Mode</option> -->
                         </select>
@@ -344,12 +344,12 @@
                     </div>
 
                     <div class="form-check form-switch mt-2" id="sleepModeDiv" style="text-align: left;">
-	         {% if form.sleep_mode_switcher.data == "Enable" %}
+                        {% if form.sleep_mode_switcher.data == "Enable" %}
                         <input class="form-check-input" type="checkbox" id="switchSleepMode" onchange="checkboxSleepMode(this);" checked> <!-- submit_sleep_mode_option(); -->
                         {% else %}
-	         <input class="form-check-input" type="checkbox" id="switchSleepMode" onchange="checkboxSleepMode(this);"> <!-- submit_sleep_mode_option(); -->
+	                    <input class="form-check-input" type="checkbox" id="switchSleepMode" onchange="checkboxSleepMode(this);"> <!-- submit_sleep_mode_option(); -->
                         {% endif %}
-	         <label class="form-check-label" for="switchSleepMode">Sleep Mode</label>
+	                    <label class="form-check-label" for="switchSleepMode">Sleep Mode</label>
                     </div>
                     <div class="form-floating mt-2" id="sleepStartDiv">
                         <input type="time" class="form-control" id="floatingStartTime" value={{sleep_start_time}}>
@@ -645,7 +645,7 @@
         </div>
     </div>
 
-    <!-- Audio/Preview Modal -->
+    <!-- Wifi Setting Modal -->
     <div class="modal fade" id="id_wifi_hotspot" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="wifi_hotspot" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable ">
         <div class="modal-content">
@@ -654,6 +654,14 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
+                <div class="form-check form-switch mt-2" id="WifiDisableDiv" style="text-align: left;">
+                        {% if form.internal_wifi_mode_switcher.data == "Enable" %}
+                        <input class="form-check-input" type="checkbox" id="switchWifiDisable" onchange="checkboxWifiDisable(this);" checked>
+                        {% else %}
+	                    <input class="form-check-input" type="checkbox" id="switchWifiDisable" onchange="checkboxWifiDisable(this);">
+                        {% endif %}
+	                    <label class="form-check-label" for="WifiDisableDiv">Internal Wifi Mode</label>
+                </div>
                 <div class="form-floating mb-2">
                     <select class="form-select" id="floatingWifiDevice" >
 	                <option value={{default_play_form.wifi_devices_switcher.data}} selected disabled>{{default_play_form.wifi_devices_switcher.data}}</option>

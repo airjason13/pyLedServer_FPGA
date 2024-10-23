@@ -7,7 +7,7 @@ from flask_routes.routes_ops import get_sleep_mode_default, get_brightness_mode_
     get_audio_enable_default, get_preview_enable_default, get_media_crop_values_default, get_hdmi_crop_values_default, \
     get_wifi_devices_default, get_wifi_bands_default, get_wifi_channels_default, get_wifi_bands_channels_default, \
     get_wifi_bands_channels_tuple, get_internal_wifi_ssid_default, get_ext_wifi_ssid_default, \
-    get_sleep_end_time_default, get_sleep_start_time_default
+    get_sleep_end_time_default, get_sleep_start_time_default, get_internal_wifi_mode_default
 from global_def import log, internal_media_folder, PlaylistFolder, play_type, ThumbnailFileFolder
 from flask import render_template, send_from_directory, Response, request, redirect, url_for
 import hashlib
@@ -447,6 +447,17 @@ class BrightnessAlgoForm(Form):
         render_kw=style,
 
     )
+
+    internal_wifi_mode_switcher = RadioField(
+        "Internal Wifi Mode",
+        id="internal_wifi_mode_switcher",
+        choices=[('Disable', 'Disable'),
+                 ('Enable', 'Enable'),
+                 ],
+        default=get_internal_wifi_mode_default(),
+        render_kw=style,
+
+    )
     city_style = {'class': 'ourClasses', 'style': 'font-size:24px;color:black;size:320px;width:200px', }
     city_selectfiled = SelectField(
         "City",
@@ -497,17 +508,49 @@ class LaunchTypeForm(Form):
         default=get_icled_type_default(),
         render_kw=style,
     )
+    output = os.popen("nmcli --get-values GENERAL.DEVICE,GENERAL.TYPE device show | sed '/^wifi/!{h;d;};x'").read()
+    devs = output.strip().split("\n")
 
-    wifi_devices_switcher = RadioField(
-        label="Wifi Hotspot Device",
-        id="wifi_devices_switcher",
-        choices=[
-            ('wlo1', 'wlo1'),
-            ('ext', 'ext')
-        ],
-        default=get_wifi_devices_default(),
-        render_kw=style,
-    )
+    real_devs = []
+    for i in devs:
+        if "p2p" not in i:
+            real_devs.append(i)
+
+    log.debug("real_devs: %s", real_devs)
+    if len(real_devs) == 0 :
+        log.debug("no real_devs")
+        wifi_devices_switcher = RadioField(
+            label="Wifi Hotspot Device",
+            id="wifi_devices_switcher",
+            choices=[
+                ("None", "None")
+            ],
+            default=get_wifi_devices_default(),
+            render_kw=style,
+        )
+    elif len(real_devs) == 1 :
+        log.debug("real_devs[0]: %s", real_devs[0])
+        wifi_devices_switcher = RadioField(
+            label="Wifi Hotspot Device",
+            id="wifi_devices_switcher",
+            choices=[
+                (real_devs[0], real_devs[0])
+            ],
+            default=get_wifi_devices_default(),
+            render_kw=style,
+        )
+    else:
+        log.debug("real_devs[1]: %s", real_devs[1])
+        wifi_devices_switcher = RadioField(
+            label="Wifi Hotspot Device",
+            id="wifi_devices_switcher",
+            choices=[
+                (real_devs[0], real_devs[0]),
+                (real_devs[1], real_devs[1])
+            ],
+            default=get_wifi_devices_default(),
+            render_kw=style,
+        )
 
     wifi_bands_channels_switcher = RadioField(
         label="Wifi Hotspot Bands",
