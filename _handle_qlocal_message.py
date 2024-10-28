@@ -1,3 +1,5 @@
+import logging
+
 import utils.utils_file_access
 from astral_hashmap import City_Map
 from global_def import *
@@ -322,6 +324,46 @@ def set_wifi_hotspot_info(self, data):
     page.btn_set_wireless.click()
 
 
+def enable_internal_wifi(self, data):
+    log.debug("type(data) : %s", type(data))
+    log.debug("data : %s", data)
+    if platform.machine() in ('arm', 'arm64', 'aarch64'):
+        if 'disable' in data:
+            # turn off internal wifi
+            # os.popen("rfkill block 0")
+            log.debug("turn off wlan0yy")
+        else:
+            log.debug("turn off wlan0yy")
+
+
+def set_ext_eth_info(self, data):
+    log.debug("data: %s", data)
+    target_page = None
+    for page in self.right_frame_page_list:
+        if page.name == "System":
+            target_page = page
+            break
+    if target_page is not None:
+        log.debug("target_page name: %s", target_page.name)
+    else:
+        log.error("Page Name Error!")
+
+    if "DHCP" in data:
+        page.combobox_ext_eth_dhcp_enable.setCurrentIndex(1)
+        page.lineedit_ext_eth_static_ip.setText("xxx.xxx.xxx.xxx" + "/24")
+        page.lineedit_ext_eth_gateway.setText("xxx.xxx.xxx.xxx")
+        page.lineedit_ext_eth_dns.setText("xxx.xxx.xxx.xxx")
+    else:
+        page.combobox_ext_eth_dhcp_enable.setCurrentIndex(0)
+        data_list = data.strip().split(";")
+        page.lineedit_ext_eth_static_ip.setText(data_list[1] + "/24")
+        page.lineedit_ext_eth_gateway.setText(data_list[2])
+        page.lineedit_ext_eth_dns.setText(data_list[3])
+
+    page.btn_set_ext_eth.click()
+
+
+
 cmd_function_map = {
     "play_file": play_single_file,
     "play_playlist": play_playlist,
@@ -347,6 +389,8 @@ cmd_function_map = {
     "set_media_crop_values": adjust_media_crop,
     "set_hdmi_crop_values": adjust_hdmi_crop,
     "set_wifi_hotspot_info": set_wifi_hotspot_info,
+    "enable_internal_wifi": enable_internal_wifi,
+    "set_ext_eth_info": set_ext_eth_info,
 }
 
 """ handle the command from LocalServer"""

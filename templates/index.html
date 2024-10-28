@@ -234,7 +234,14 @@
                     Wifi Hotspot
                 </button>
             </td>
+             <td>
+                <button data-bs-toggle="modal" data-bs-target="#id_ext_eth_setting" class="item">
+                    EXT ETH Setting
+                </button>
+            </td>
         </tr>
+
+
     </table>
 
     <!-- Playlist Modal -->
@@ -654,14 +661,14 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <div class="form-check form-switch mt-2" id="WifiDisableDiv" style="text-align: left;">
+                <!-- <div class="form-check form-switch mt-2" id="WifiDisableDiv" style="text-align: left;">
                         {% if form.internal_wifi_mode_switcher.data == "Enable" %}
-                        <input class="form-check-input" type="checkbox" id="switchWifiDisable" onchange="checkboxWifiDisable(this);" checked>
+                        <input class="form-check-input" type="checkbox" id="switchWifiEnable" onchange="checkboxWifiEnable(this);" checked>
                         {% else %}
-	                    <input class="form-check-input" type="checkbox" id="switchWifiDisable" onchange="checkboxWifiDisable(this);">
+	                    <input class="form-check-input" type="checkbox" id="switchWifiEnable" onchange="checkboxWifiEnable(this);">
                         {% endif %}
 	                    <label class="form-check-label" for="WifiDisableDiv">Internal Wifi Mode</label>
-                </div>
+                </div> -->
                 <div class="form-floating mb-2">
                     <select class="form-select" id="floatingWifiDevice" >
 	                <option value={{default_play_form.wifi_devices_switcher.data}} selected disabled>{{default_play_form.wifi_devices_switcher.data}}</option>
@@ -691,6 +698,46 @@
             <div class="modal-footer">
                 <div class="d-grid gap-2 d-md-block">
                     <button type="button" id="SetWifiHotspot" data-bs-dismiss="modal"  class="btn btn-danger" onclick="submit_wifi_hotspot_option()">Set</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    </div>
+    <!-- Ext Eth Setting Modal -->
+    <div class="modal fade" id="id_ext_eth_setting" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="ext_eth_setting" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable ">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="ext_eth_setting">EXT ETH Setting </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-floating mb-2">
+                <select class="form-select" id="floatingExtEthMethod" onchange="onchangeExtEthMethod()">
+	                <option value={{default_play_form.ext_eth_method_switcher.data}} selected disabled>{{default_play_form.ext_eth_method_switcher.data}}</option>
+                    {% for k,v in default_play_form.ext_eth_method_switcher.choices %}
+                        <option value="{{k}}">{{v}}</option>
+	                {% endfor %}
+
+                    </select>
+                    <label for="floatingExtEthMethod">Ext Eth Method</label>
+                </div>
+                <div class="form-floating mb-2">
+                    <input type="text" class="form-control" id="floatingIPv4"  value={{ ext_eth_info_maps.static_ip }}>
+                    <label for="floatingIPv4">EXT ETH IPv4</label>
+                </div>
+                <div class="form-floating mb-2">
+                    <input type="text" class="form-control" id="floatingGateway"  value={{ ext_eth_info_maps.gateway }}>
+                    <label for="floatingGateway">EXT ETH Gateway</label>
+                </div>
+                <div class="form-floating mb-2">
+                    <input type="text" class="form-control" id="floatingDNS"  value={{ ext_eth_info_maps.dns }}>
+                    <label for="floatingDNS">EXT ETH DNS</label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <div class="d-grid gap-2 d-md-block">
+                    <button type="button" id="SetExtEthInfo" data-bs-dismiss="modal"  class="btn btn-danger" onclick="submit_ext_eth_option()">Set</button>
                 </div>
             </div>
         </div>
@@ -1562,8 +1609,23 @@
             }
         }
 
-        //Wifi Hotspot Setting
+        function checkboxWifiEnable(){
+            console.log('checkboxWifiEnable');
+            if($("#switchWifiEnable").is(":checked")){
+                console.log('Enable Internal Wifi');
+                data = "enable"
+            }else{
+                console.log('Disable Internal Wifi');
+                data = "disable"
+            }
+
+            var url = "/enable_internal_wifi/" + data;
+            $.post(url, {});
+        }
+
         function submit_wifi_hotspot_option(){
+            console.log('submit_wifi_hotspot_option');
+
             var device = $("#floatingWifiDevice option:selected").val();
             var channel = $("#floatingHotspotChannels option:selected").text();
             var ssid = $("#floatingHotspotSSID").val();
@@ -1573,6 +1635,24 @@
 
             data = "1;" + device + ";" + channel + ";" + ssid
             var url = "/set_wifi_hotspot_info/" + data;
+            $.post(url, {});
+        }
+
+        //Wifi Hotspot Setting
+        function submit_ext_eth_option(){
+            console.log('submit_ext_eth_option');
+            var method = $("#floatingExtEthMethod option:selected").val();
+
+            console.log('method = ' + method);
+            var ipv4 = $("#floatingIPv4").val();
+            var gateway = $("#floatingGateway").val();
+            var dns = $("#floatingDNS").val();
+            console.log('ipv4 = ' + ipv4);
+            console.log('gateway = ' + gateway);
+            console.log('dns = ' + dns);
+
+            data = method + ";" + ipv4 + ";" + gateway + ";" + dns
+            var url = "/set_ext_eth_info/" + data;
             $.post(url, {});
         }
 

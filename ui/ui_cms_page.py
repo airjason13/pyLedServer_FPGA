@@ -9,13 +9,15 @@ from PyQt5.QtWidgets import QWidget, QLabel, QGridLayout, QPushButton, QLineEdit
 
 from astral_hashmap import City_Map
 from global_def import log, icled_type, sleep_mode, frame_brightness_alog, MIN_FRAME_BRIGHTNESS, MAX_FRAME_BRIGHTNESS, \
-    MIN_FRAME_GAMMA, MAX_FRAME_GAMMA
+    MIN_FRAME_GAMMA, MAX_FRAME_GAMMA, root_dir
 from media_engine.media_engine import MediaEngine
 from qt_ui_style.button_qss import QFont_Style_Default, \
     QFont_Style_Size_L, QFont_Style_Size_M
 
 
 class CMSPage(QWidget):
+    CMS_MODE_DEFAULT = 0
+    CMS_MODE_CUSTOM = 1
     def __init__(self, _main_window, _frame: QWidget, _name: str, media_engine: MediaEngine, **kwargs):
         super(CMSPage, self).__init__()
         log.debug("CMS Page Init")
@@ -30,6 +32,12 @@ class CMSPage(QWidget):
         self.grid_layout = None
         self.browser_process = None
 
+        self.cms_mode_label = None
+        self.cms_mode_combobox = None
+        self.cms_mode_list = ["Default", "Custom"]
+        self.cms_custom_url_label = None
+        self.cms_custom_url = None
+        self.cms_custom_url_lineedit = None
 
         self.x_padding = 4
         self.y_padding = 29
@@ -106,6 +114,23 @@ class CMSPage(QWidget):
         self.name_label.setText(self.name + "\n" + "Status: Standby")
         self.name_label.setFont(QFont(QFont_Style_Default, QFont_Style_Size_L))
 
+        self.cms_mode_label = QLabel(self.widget)
+        self.cms_mode_label.setText("CMS Mode:")
+        self.cms_mode_label.setFont(QFont(QFont_Style_Default, QFont_Style_Size_L))
+        self.cms_mode_combobox = QComboBox(self.widget)
+        self.cms_mode_combobox.setFont(QFont(QFont_Style_Default, QFont_Style_Size_L))
+        self.cms_mode_combobox.addItems(self.cms_mode_list)
+
+        self.cms_mode_combobox.setCurrentIndex(self.get_current_cms_mode())
+        self.cms_custom_url = self.get_cms_custom_url()
+
+        self.cms_custom_url_label = QLabel(self.widget)
+        self.cms_custom_url_label.setText("Custom CMS Url:")
+        self.cms_custom_url_label.setFont(QFont(QFont_Style_Default, QFont_Style_Size_L))
+        self.cms_custom_url_lineedit = QLineEdit(self.widget)
+        self.cms_custom_url_lineedit.setFont(QFont(QFont_Style_Default, QFont_Style_Size_L))
+        self.cms_custom_url_lineedit.setText(self.get_cms_custom_url())
+
         self.cms_start_btn = QPushButton(self.widget)
         self.cms_start_btn.setText("Start CMS")
         # self.cms_start_btn.setFixedSize(256, 128)
@@ -164,9 +189,13 @@ class CMSPage(QWidget):
 
         self.grid_layout = QGridLayout()
         self.grid_layout.addWidget(self.name_label, 0, 0, 1, 4)
-        self.grid_layout.addWidget(self.media_control_panel, 1, 0, 1, 10)
-        self.grid_layout.addWidget(self.media_crop_panel, 2, 0, 5, 2)
-        self.grid_layout.addWidget(self.video_params_setting_widget, 2, 2, 5, 8)
+        self.grid_layout.addWidget(self.cms_mode_label, 0, 5, 1, 1)
+        self.grid_layout.addWidget(self.cms_mode_combobox, 0, 6, 1, 1)
+        self.grid_layout.addWidget(self.cms_custom_url_label, 1, 5, 1, 1)
+        self.grid_layout.addWidget(self.cms_custom_url_lineedit, 1, 6, 1, 6)
+        self.grid_layout.addWidget(self.media_control_panel, 2, 0, 1, 10)
+        self.grid_layout.addWidget(self.media_crop_panel, 3, 0, 5, 2)
+        self.grid_layout.addWidget(self.video_params_setting_widget, 3, 2, 5, 8)
         self.setLayout(self.grid_layout)
         log.debug("CMS Page init_ui end")
 
@@ -526,3 +555,42 @@ class CMSPage(QWidget):
 
         if self.media_engine.led_video_params.get_output_fps() != int(self.output_fps_lineedit.text()):
             self.media_engine.led_video_params.set_output_fps(int(self.output_fps_lineedit.text()))
+
+
+    def init_cms_mode_url_config(self):
+        led_config_dir = os.path.join(root_dir, 'led_config')
+        if os.path.exists(os.path.join(led_config_dir, "cms_mode_url.dat")) is False:
+            with open(os.path.join(led_config_dir, "cms_mode_url.dat"), "w") as f:
+                f.write("cms_mode=0\n")
+                f.write("cms_url=https://www.gis.com.tw\n")
+                f.truncate()
+                f.flush()
+                os.popen("sync")
+
+    def get_current_cms_mode(self):
+        led_config_dir = os.path.join(root_dir, 'led_config')
+        if os.path.exists(os.path.join(led_config_dir, "cms_mode_url.dat")) is False:
+            self.init_cms_mode_url_config()
+
+        with open(os.path.join(led_config_dir, "cms_mode_url.dat"), "r") as f:
+            lines = f.readlines()
+
+        for line in lines:
+            if line.startswith("1"):
+                return self.CMS_MODE_CUSTOM
+        return self.CMS_MODE_DEFAULT
+
+    def get_cms_custom_url(self):
+        url = "https://www.google.com"
+        led_config_dir = os.path.join(root_dir, 'led_config')
+        if os.path.exists(os.path.join(led_config_dir, "cms_mode_url.dat")) is False:
+            self.init_cms_mode_url_config()
+
+        with open(os.path.join(led_config_dir, "cms_mode_url.dat"), "r") as f:
+            lines = f.readlines()
+
+        for line in lines:
+            if "cms_url" in line:
+                url = line.strip().split("cms_url=")[0]
+        log.debug("cms custom url : %s", url)
+        return url

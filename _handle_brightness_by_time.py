@@ -108,7 +108,7 @@ def is_sleep_time(self, now, light_start_time, light_end_time):
 
 
 def check_brightness_by_date_timer(self):
-    log.debug("")
+    # log.debug("")
     if jholiday.today_is_holiday_or_not() is True:
         log.debug("holiday, set brightness 0")
         self.media_engine.led_video_params.set_led_brightness(0)
@@ -141,8 +141,8 @@ def check_brightness_by_date_timer(self):
     light_start_time = None
     light_end_time = None
 
-    log.debug("get_sleep_mode_enable : %d",
-    self.media_engine.led_video_params.get_sleep_mode_enable())
+    # log.debug("get_sleep_mode_enable : %d",
+    # self.media_engine.led_video_params.get_sleep_mode_enable())
     if self.media_engine.led_video_params.get_sleep_mode_enable() == 1:
         # log.debug("Sleep Mode is True")
         # sleep start ==> train start

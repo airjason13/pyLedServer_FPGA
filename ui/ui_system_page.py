@@ -41,6 +41,20 @@ class SystemPage(QWidget):
         self.groupbox_hotspot_settings = None
         self.groupbox_hotspot_settings_gridlayout = None
 
+        self.groupbox_ext_eth_settings = None
+        self.groupbox_ext_eth_settings_gridlayout = None
+
+        self.label_ext_eth_method = None
+        self.ext_eth_ipv4_method_list = ["STATIC", "DHCP"]
+        self.combobox_ext_eth_dhcp_enable = None
+        self.label_ext_eth_static_ip = None
+        self.lineedit_ext_eth_static_ip = None
+        self.label_ext_eth_gateway = None
+        self.lineedit_ext_eth_gateway = None
+        self.label_ext_eth_dns = None
+        self.lineedit_ext_eth_dns = None
+        self.btn_set_ext_eth = None
+
         self.label_wireless_bands = None
 
         self.device_map = {}
@@ -157,8 +171,57 @@ class SystemPage(QWidget):
 
         self.groupbox_hotspot_settings.setLayout(self.groupbox_hotspot_settings_gridlayout)
 
+        ''' Ext ETH Hotspot Settings '''
+        self.groupbox_ext_eth_settings = QGroupBox("EXT ETH Settings")
+        self.groupbox_ext_eth_settings_gridlayout = QGridLayout()
+
+        self.label_ext_eth_method = QLabel(self.groupbox_ext_eth_settings)
+        self.label_ext_eth_method.setText("Set DHCP or Static: ")
+        self.combobox_ext_eth_dhcp_enable = QComboBox(self.groupbox_ext_eth_settings)
+        self.combobox_ext_eth_dhcp_enable.addItems(self.ext_eth_ipv4_method_list)
+        config_dhcp_enable = self.get_ext_eth_dhcp_enable()
+        s_static_ip, s_gateway, s_dns = self.get_ext_eth_nm_info()
+        if config_dhcp_enable is True:
+            self.combobox_ext_eth_dhcp_enable.setCurrentIndex(1)
+        else:
+            self.combobox_ext_eth_dhcp_enable.setCurrentIndex(0)
+
+
+
+        self.label_ext_eth_static_ip = QLabel(self.groupbox_ext_eth_settings)
+        self.label_ext_eth_static_ip.setText("Static IP:")
+        self.lineedit_ext_eth_static_ip = QLineEdit(self.groupbox_ext_eth_settings)
+        self.lineedit_ext_eth_static_ip.setText(s_static_ip)
+
+        self.label_ext_eth_gateway = QLabel(self.groupbox_ext_eth_settings)
+        self.label_ext_eth_gateway.setText("Gateway:")
+        self.lineedit_ext_eth_gateway = QLineEdit(self.groupbox_ext_eth_settings)
+        self.lineedit_ext_eth_gateway.setText(s_gateway)
+
+        self.label_ext_eth_dns = QLabel(self.groupbox_ext_eth_settings)
+        self.label_ext_eth_dns.setText("DNS:")
+        self.lineedit_ext_eth_dns = QLineEdit(self.groupbox_ext_eth_settings)
+        self.lineedit_ext_eth_dns.setText(s_dns)
+
+        self.btn_set_ext_eth = QPushButton(self.groupbox_ext_eth_settings)
+        self.btn_set_ext_eth.setText("Set EXT ETH")
+        self.btn_set_ext_eth.clicked.connect(self.btn_set_ext_eth_clicked)
+
+        self.groupbox_ext_eth_settings_gridlayout.addWidget(self.label_ext_eth_method, 1, 0)
+        self.groupbox_ext_eth_settings_gridlayout.addWidget(self.combobox_ext_eth_dhcp_enable, 1, 1)
+        self.groupbox_ext_eth_settings_gridlayout.addWidget(self.label_ext_eth_static_ip, 2, 0)
+        self.groupbox_ext_eth_settings_gridlayout.addWidget(self.lineedit_ext_eth_static_ip, 2, 1)
+        self.groupbox_ext_eth_settings_gridlayout.addWidget(self.label_ext_eth_gateway, 3, 0)
+        self.groupbox_ext_eth_settings_gridlayout.addWidget(self.lineedit_ext_eth_gateway, 3, 1)
+        self.groupbox_ext_eth_settings_gridlayout.addWidget(self.label_ext_eth_dns, 4, 0)
+        self.groupbox_ext_eth_settings_gridlayout.addWidget(self.lineedit_ext_eth_dns, 4, 1)
+        self.groupbox_ext_eth_settings_gridlayout.addWidget(self.btn_set_ext_eth, 5, 1)
+        self.groupbox_ext_eth_settings.setLayout(self.groupbox_ext_eth_settings_gridlayout)
+
+
         self.grid_layout =  QGridLayout()
         self.grid_layout.addWidget(self.groupbox_hotspot_settings, 0, 0)
+        self.grid_layout.addWidget(self.groupbox_ext_eth_settings, 1, 0)
         self.setLayout(self.grid_layout)
 
         self.setFont(QFont(QFont_Style_Default, QFont_Style_Size_L))
@@ -298,6 +361,37 @@ class SystemPage(QWidget):
                                  target_ssid
                                  )
 
+    def btn_set_ext_eth_clicked(self):
+        led_config_dir = os.path.join(root_dir, 'led_config')
+        if self.ext_eth_ipv4_method_list[self.combobox_ext_eth_dhcp_enable.currentIndex()] == "DHCP":
+            with open(os.path.join(led_config_dir, "ext_eth_setting.dat"), "w") as f:
+                f.write("static_ip:xxx.xxx.xxx.xxx/24\n")
+                f.write("gateway:xxx.xxx.xxx.xxx\n")
+                f.write("dns:xxx.xxx.xxx.xxx\n")
+                f.truncate()
+                f.flush()
+                os.popen("sync")
+        else:
+            with open(os.path.join(led_config_dir, "ext_eth_setting.dat"), "w") as f:
+                if "/" not in self.lineedit_ext_eth_static_ip.text():
+                    self.lineedit_ext_eth_static_ip.setText(self.lineedit_ext_eth_static_ip.text() + "/24")
+                f.write("static_ip:{}\n".format(self.lineedit_ext_eth_static_ip.text()))
+                f.write("gateway:{}\n".format(self.lineedit_ext_eth_gateway.text()))
+                f.write("dns:{}\n".format(self.lineedit_ext_eth_dns.text()))
+                f.truncate()
+                f.flush()
+                os.popen("sync")
+
+        s_static_ip, s_gateway, s_dns = self.get_ext_eth_nm_info()
+        self.lineedit_ext_eth_static_ip.setText(s_static_ip)
+        self.lineedit_ext_eth_gateway.setText(s_gateway)
+        self.lineedit_ext_eth_dns.setText(s_dns)
+        try:
+            os.popen("setup_enp1_nm.sh")
+        except Exception as e:
+            log.debug(e)
+
+
     def modify_wifi_hotspot(self, device, bands, channels, ssid):
         log.debug("device: %s", device)
         log.debug("bands: %s", bands)
@@ -400,3 +494,52 @@ class SystemPage(QWidget):
             log.debug(e)
         return ""
 
+    def get_ext_eth_dhcp_enable(self):
+        led_config_dir = os.path.join(root_dir, 'led_config')
+        if os.path.exists(os.path.join(led_config_dir, "ext_eth_setting.dat")) is False:
+            with open(os.path.join(led_config_dir, "ext_eth_setting.dat"), "w") as f:
+                f.write("static_ip:xxx.xxx.xxx.xxx/24\n")
+                f.write("gateway:xxx.xxx.xxx.xxx\n")
+                f.write("dns:xxx.xxx.xxx.xxx\n")
+                f.truncate()
+                f.flush()
+                os.popen("sync")
+        with open(os.path.join(led_config_dir, "ext_eth_setting.dat"), "r") as f:
+            lines = f.readlines()
+        f.close()
+
+        for line in lines:
+            if "x" in line:
+                # dhcp mode
+                return True
+
+        # static mode
+        return False
+
+    def get_ext_eth_nm_info(self):
+        s_static_ip = ""
+        s_gateway = ""
+        s_dns = ""
+        led_config_dir = os.path.join(root_dir, 'led_config')
+        if os.path.exists(os.path.join(led_config_dir, "ext_eth_setting.dat")) is False:
+            with open(os.path.join(led_config_dir, "ext_eth_setting.dat"), "w") as f:
+                f.write("static_ip:xxx.xxx.xxx.xxx/24\n")
+                f.write("gateway:xxx.xxx.xxx.xxx\n")
+                f.write("dns:xxx.xxx.xxx.xxx\n")
+                f.truncate()
+                f.flush()
+                os.popen("sync")
+        with open(os.path.join(led_config_dir, "ext_eth_setting.dat"), "r") as f:
+            lines = f.readlines()
+        f.close()
+
+        for line in lines:
+            if "static_ip" in line:
+                s_static_ip = line.strip().split(":")[1]
+            elif "gateway" in line:
+                s_gateway = line.strip().split(":")[1]
+            elif "dns" in line:
+                s_dns = line.strip().split(":")[1]
+
+        log.debug("s_static_ip = %s, s_gateway=%s, s_dns=%s", s_static_ip, s_gateway, s_dns)
+        return s_static_ip, s_gateway, s_dns

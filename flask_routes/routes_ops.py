@@ -9,6 +9,7 @@ from global_def import log, internal_media_folder, PlaylistFolder, play_type, ro
 led_params_config_folder_name = "led_config"
 led_params_config_file_name = "led_parameters"
 led_reboot_config_file_name = "reboot_config"
+ext_eth_config_file_name = "ext_eth_setting.dat"
 
 mp4_extends = internal_media_folder + "/*.mp4"
 jpeg_extends = internal_media_folder + "/*.jpeg"
@@ -610,3 +611,53 @@ def get_sleep_end_time_default():
 def get_internal_wifi_mode_default():
     internal_wifi_mode = "Enable"
     return internal_wifi_mode
+
+def init_ext_eth_config_file():
+    root_dir = os.path.dirname(sys.modules['__main__'].__file__)
+    led_config_dir = os.path.join(root_dir, led_params_config_folder_name)
+    with open(os.path.join(led_config_dir, "ext_eth_setting.dat"), "w") as f:
+        f.write("static_ip:xxx.xxx.xxx.xxx/24\n")
+        f.write("gateway:xxx.xxx.xxx.xxx\n")
+        f.write("dns:xxx.xxx.xxx.xxx\n")
+        f.truncate()
+        f.flush()
+        os.popen("sync")
+
+def get_ext_eth_info_default():
+    root_dir = os.path.dirname(sys.modules['__main__'].__file__)
+    led_config_dir = os.path.join(root_dir, led_params_config_folder_name)
+    ext_eth_info_maps = {}
+
+    if os.path.exists(os.path.join(led_config_dir, ext_eth_config_file_name)) is False:
+        init_ext_eth_config_file()
+
+    with open(os.path.join(led_config_dir, ext_eth_config_file_name), "r") as f:
+        lines = f.readlines()
+
+    for line in lines:
+        if line.startswith("static_ip"):
+            ext_eth_info_maps["static_ip"] = line.strip().split(":")[1].split("/")[0]
+        elif line.startswith("gateway"):
+            ext_eth_info_maps["gateway"] = line.strip().split(":")[1]
+        elif line.startswith("dns"):
+            ext_eth_info_maps["dns"] = line.strip().split(":")[1]
+
+    return ext_eth_info_maps
+
+def get_ext_eth_method_default():
+    root_dir = os.path.dirname(sys.modules['__main__'].__file__)
+    led_config_dir = os.path.join(root_dir, led_params_config_folder_name)
+    ext_eth_info_maps = {}
+
+    if os.path.exists(os.path.join(led_config_dir, ext_eth_config_file_name)) is False:
+        init_ext_eth_config_file()
+
+    with open(os.path.join(led_config_dir, ext_eth_config_file_name), "r") as f:
+        lines = f.readlines()
+
+    for line in lines:
+        if "xxx" in line:
+            return "DHCP"
+
+
+    return "STATIC"

@@ -7,7 +7,8 @@ from flask_routes.routes_ops import get_sleep_mode_default, get_brightness_mode_
     get_audio_enable_default, get_preview_enable_default, get_media_crop_values_default, get_hdmi_crop_values_default, \
     get_wifi_devices_default, get_wifi_bands_default, get_wifi_channels_default, get_wifi_bands_channels_default, \
     get_wifi_bands_channels_tuple, get_internal_wifi_ssid_default, get_ext_wifi_ssid_default, \
-    get_sleep_end_time_default, get_sleep_start_time_default, get_internal_wifi_mode_default
+    get_sleep_end_time_default, get_sleep_start_time_default, get_internal_wifi_mode_default, get_ext_eth_info_default, \
+    get_ext_eth_method_default
 from global_def import log, internal_media_folder, PlaylistFolder, play_type, ThumbnailFileFolder
 from flask import render_template, send_from_directory, Response, request, redirect, url_for
 import hashlib
@@ -420,6 +421,20 @@ def set_wifi_hotspot_info(data):
     status_code = Response(status=200)
     return status_code
 
+@app.route('/enable_internal_wifi/<data>', methods=['POST'])
+def enable_internal_wifi(data):
+    log.debug("enable_internal_wifi data :%s" + data)
+    send_message(enable_internal_wifi=data)
+    status_code = Response(status=200)
+    return status_code
+
+
+@app.route('/set_ext_eth_info/<data>', methods=['POST'])
+def set_ext_eth_info(data):
+    log.debug("set_ext_eth_info data :%s" + data)
+    send_message(set_ext_eth_info=data)
+    status_code = Response(status=200)
+    return status_code
 
 class BrightnessAlgoForm(Form):
     style = {'class': 'ourClasses', 'style': 'font-size:24px;color:white', }
@@ -560,16 +575,16 @@ class LaunchTypeForm(Form):
         render_kw=style,
     )
 
-    '''wifi_channels_switcher = RadioField(
-        label="Wifi Hotspot Channels",
-        id="wifi_bands_switcher",
+    ext_eth_method_switcher = RadioField(
+        label="Ext Eth Method",
+        id="ext_eth_method_switcher",
         choices=[
-            ('1', '1'),
-            ('2', '2')
-        ],
-        default=get_wifi_channels_default(),
+                ("DHCP", "DHCP"),
+                ("STATIC", "STATIC")
+            ],
+        default=get_ext_eth_method_default(),
         render_kw=style,
-    )'''
+    )
 
     # single file list
     single_file_selectfield_style = {'class': 'ourClasses',
@@ -640,6 +655,7 @@ def refresh_template(sleep_start_time=None):
     sleep_start_time = get_sleep_start_time_default()
     sleep_end_time = get_sleep_end_time_default()
 
+
     return render_template("index.html", title="GIS TLED", files=maps, sw_version=Version,
                            form=brightness_algo_form, brightnessvalues=brightnessvalues,
                            playlist_nest_dict=playlist_nest_dict, default_play_form=default_play_form,
@@ -648,7 +664,7 @@ def refresh_template(sleep_start_time=None):
                            preview_enable=preview_enable, media_crop_values=media_crop_values,
                            sleep_start_time=sleep_start_time, sleep_end_time=sleep_end_time,
                            hdmi_crop_values=hdmi_crop_values, internal_wifi_ssid=get_internal_wifi_ssid_default(),
-                           external_wifi_ssid=get_ext_wifi_ssid_default())
+                           external_wifi_ssid=get_ext_wifi_ssid_default(), ext_eth_info_maps=get_ext_eth_info_default())
 
 
 @app.route("/")
