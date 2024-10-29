@@ -1,4 +1,6 @@
 import os
+import platform
+import shutil
 import signal
 import subprocess
 import time
@@ -38,6 +40,7 @@ class CMSPage(QWidget):
         self.cms_custom_url_label = None
         self.cms_custom_url = None
         self.cms_custom_url_lineedit = None
+        self.cms_mode_comfirm_btn = None
 
         self.x_padding = 4
         self.y_padding = 29
@@ -131,6 +134,11 @@ class CMSPage(QWidget):
         self.cms_custom_url_lineedit.setFont(QFont(QFont_Style_Default, QFont_Style_Size_L))
         self.cms_custom_url_lineedit.setText(self.get_cms_custom_url())
 
+        self.cms_mode_comfirm_btn = QPushButton(self.widget)
+        self.cms_mode_comfirm_btn.setText("Set CMS Mode")
+        self.cms_mode_comfirm_btn.clicked.connect(self.cms_mode_comfirm_btn_clicked)
+        self.cms_mode_comfirm_btn.setFont(QFont(QFont_Style_Default, QFont_Style_Size_L))
+
         self.cms_start_btn = QPushButton(self.widget)
         self.cms_start_btn.setText("Start CMS")
         # self.cms_start_btn.setFixedSize(256, 128)
@@ -190,7 +198,8 @@ class CMSPage(QWidget):
         self.grid_layout = QGridLayout()
         self.grid_layout.addWidget(self.name_label, 0, 0, 1, 4)
         self.grid_layout.addWidget(self.cms_mode_label, 0, 5, 1, 1)
-        self.grid_layout.addWidget(self.cms_mode_combobox, 0, 6, 1, 1)
+        self.grid_layout.addWidget(self.cms_mode_combobox, 0, 6, 1, 2)
+        self.grid_layout.addWidget(self.cms_mode_comfirm_btn, 0, 8, 1, 2)
         self.grid_layout.addWidget(self.cms_custom_url_label, 1, 5, 1, 1)
         self.grid_layout.addWidget(self.cms_custom_url_lineedit, 1, 6, 1, 6)
         self.grid_layout.addWidget(self.media_control_panel, 2, 0, 1, 10)
@@ -202,7 +211,10 @@ class CMSPage(QWidget):
     def cms_start_btn_clicked(self):
         log.debug("cms_start_btn_clicked!")
         subprocess.Popen("pkill chromium", shell=True)
-        self.launch_chromium()
+        if self.get_current_cms_mode() == self.CMS_MODE_CUSTOM:
+            self.launch_chromium_custom()
+        else:
+            self.launch_chromium()
         time.sleep(5)  # self.launch_chromium()
         self.media_engine.resume_playing()
         self.media_engine.stop_play()
@@ -224,6 +236,27 @@ class CMSPage(QWidget):
 
         except Exception as e:
             log.error(e)
+
+    def launch_chromium_custom(self):
+        log.debug("")
+        if platform.machine() in ('arm', 'arm64', 'aarch64'):
+            led_config_dir = os.path.join(root_dir, 'led_config')
+            os.popen("chmod +x {}/speedup_chromium_custom.sh".format(led_config_dir))
+            os.popen("chmod +x {}/chromium_custom.sh".format(led_config_dir))
+            shutil.copyfile(led_config_dir + "/speedup_chromium_custom.sh", "/usr/bin/speedup_chromium_custom.sh")
+            shutil.copyfile(led_config_dir + "/chromium_custom.sh", "/usr/bin/chromium_custom.sh")
+            os.popen("chmod +x /usr/bin/speedup_chromium_custom.sh")
+            os.popen("chmod +x /usr/bin/chromium_custom.sh")
+            os.popen("sync")
+            try:
+                if self.browser_process is not None:
+                    os.kill(self.browser_process.pid, signal.SIGTERM)
+                    self.browser_process = None
+                open_chromium_cmd = "speedup_chromium_custom.sh {} &".format(self.get_cms_custom_url())
+                self.browser_process = subprocess.Popen(open_chromium_cmd, shell=True)
+                log.debug("self.browser_process.pid = %d", self.browser_process.pid)
+            except Exception as e:
+                log.error(e)
 
     def launch_chromium(self):
         try:
@@ -562,7 +595,7 @@ class CMSPage(QWidget):
         if os.path.exists(os.path.join(led_config_dir, "cms_mode_url.dat")) is False:
             with open(os.path.join(led_config_dir, "cms_mode_url.dat"), "w") as f:
                 f.write("cms_mode=0\n")
-                f.write("cms_url=https://www.gis.com.tw\n")
+                f.write("https://www.gis.com.tw\n")
                 f.truncate()
                 f.flush()
                 os.popen("sync")
@@ -576,8 +609,10 @@ class CMSPage(QWidget):
             lines = f.readlines()
 
         for line in lines:
-            if line.startswith("1"):
-                return self.CMS_MODE_CUSTOM
+            if line.startswith("cms_mode="):
+                tmp_cms_mode = line.strip().split("=")[1]
+                if str(tmp_cms_mode) != "0":
+                    return self.CMS_MODE_CUSTOM
         return self.CMS_MODE_DEFAULT
 
     def get_cms_custom_url(self):
@@ -590,7 +625,18 @@ class CMSPage(QWidget):
             lines = f.readlines()
 
         for line in lines:
-            if "cms_url" in line:
-                url = line.strip().split("cms_url=")[0]
+            if "http" in line:
+                url = line.strip()
         log.debug("cms custom url : %s", url)
         return url
+
+    def cms_mode_comfirm_btn_clicked(self):
+        led_config_dir = os.path.join(root_dir, 'led_config')
+
+        with open(os.path.join(led_config_dir, "cms_mode_url.dat"), "w") as f:
+            f.write("cms_mode=" + str(self.cms_mode_combobox.currentIndex()) + "\n")
+            f.write(self.cms_custom_url_lineedit.text() + "\n")
+            f.truncate()
+            f.flush()
+            os.popen("sync")
+
