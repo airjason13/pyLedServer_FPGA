@@ -387,7 +387,7 @@ class SystemPage(QWidget):
         self.lineedit_ext_eth_gateway.setText(s_gateway)
         self.lineedit_ext_eth_dns.setText(s_dns)
         try:
-            os.popen("setup_enp1_nm.sh")
+            os.popen("setup_enp1_nm.sh &")
         except Exception as e:
             log.debug(e)
 
@@ -439,7 +439,7 @@ class SystemPage(QWidget):
                 chmod_cmd = "chmod +x /usr/bin/setup_wlan0_hotspot.sh"
                 os.popen(chmod_cmd)
 
-                exec_cmd = "setup_wlan0_hotspot.sh"
+                exec_cmd = "setup_wlan0_hotspot.sh &"
                 os.popen(exec_cmd)
                 time.sleep(2)
                 log.debug("setup_wlan0_hotspot ok")
