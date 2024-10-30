@@ -10,6 +10,7 @@ led_params_config_folder_name = "led_config"
 led_params_config_file_name = "led_parameters"
 led_reboot_config_file_name = "reboot_config"
 ext_eth_config_file_name = "ext_eth_setting.dat"
+cms_config_file_name = "cms_mode_url.dat"
 
 mp4_extends = internal_media_folder + "/*.mp4"
 jpeg_extends = internal_media_folder + "/*.jpeg"
@@ -647,7 +648,6 @@ def get_ext_eth_info_default():
 def get_ext_eth_method_default():
     root_dir = os.path.dirname(sys.modules['__main__'].__file__)
     led_config_dir = os.path.join(root_dir, led_params_config_folder_name)
-    ext_eth_info_maps = {}
 
     if os.path.exists(os.path.join(led_config_dir, ext_eth_config_file_name)) is False:
         init_ext_eth_config_file()
@@ -661,3 +661,51 @@ def get_ext_eth_method_default():
 
 
     return "STATIC"
+
+def init_cms_config_file():
+    root_dir = os.path.dirname(sys.modules['__main__'].__file__)
+    led_config_dir = os.path.join(root_dir, led_params_config_folder_name)
+    with open(os.path.join(led_config_dir, cms_config_file_name), "w") as f:
+        f.write("cms_mode=0\n")
+        f.write("http://www.gis.com.tw\n")
+
+        f.truncate()
+        f.flush()
+        os.popen("sync")
+
+def get_cms_mode_default():
+    log.debug("get_cms_mode_default")
+
+    led_config_dir = os.path.join(root_dir, led_params_config_folder_name)
+
+    if os.path.exists(os.path.join(led_config_dir, cms_config_file_name)) is False:
+        init_cms_config_file()
+
+    with open(os.path.join(led_config_dir, cms_config_file_name), "r") as f:
+        lines = f.readlines()
+
+    for line in lines:
+        log.debug("test line : %s", line)
+        if line.startswith("cms_mode"):
+            log.debug("test line : %s", line.strip().split("cms_mode=")[1] )
+            if line.strip().split("cms_mode=")[1] == "0":
+                return "Default"
+
+    return "Custom"
+
+def get_cms_url_default():
+
+    led_config_dir = os.path.join(root_dir, led_params_config_folder_name)
+    cms_info_maps = {}
+
+    if os.path.exists(os.path.join(led_config_dir, cms_config_file_name)) is False:
+        init_cms_config_file()
+
+    with open(os.path.join(led_config_dir, cms_config_file_name), "r") as f:
+        lines = f.readlines()
+
+    for line in lines:
+        if line.startswith("http"):
+            cms_info_maps["custom_url"] = line.strip()
+
+    return cms_info_maps

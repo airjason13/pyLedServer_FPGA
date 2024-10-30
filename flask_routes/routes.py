@@ -8,7 +8,7 @@ from flask_routes.routes_ops import get_sleep_mode_default, get_brightness_mode_
     get_wifi_devices_default, get_wifi_bands_default, get_wifi_channels_default, get_wifi_bands_channels_default, \
     get_wifi_bands_channels_tuple, get_internal_wifi_ssid_default, get_ext_wifi_ssid_default, \
     get_sleep_end_time_default, get_sleep_start_time_default, get_internal_wifi_mode_default, get_ext_eth_info_default, \
-    get_ext_eth_method_default
+    get_ext_eth_method_default, get_cms_url_default, get_cms_mode_default
 from global_def import log, internal_media_folder, PlaylistFolder, play_type, ThumbnailFileFolder
 from flask import render_template, send_from_directory, Response, request, redirect, url_for
 import hashlib
@@ -436,6 +436,13 @@ def set_ext_eth_info(data):
     status_code = Response(status=200)
     return status_code
 
+@app.route('/set_cms_info/<data>', methods=['POST'])
+def set_cms_info(data):
+    log.debug("set_cms_info data :%s", data)
+    send_message(set_cms_info=data)
+    status_code = Response(status=200)
+    return status_code
+
 class BrightnessAlgoForm(Form):
     style = {'class': 'ourClasses', 'style': 'font-size:24px;color:white', }
     brightness_mode_switcher = RadioField(
@@ -523,6 +530,18 @@ class LaunchTypeForm(Form):
         default=get_icled_type_default(),
         render_kw=style,
     )
+
+    cms_mode_switcher = RadioField(
+        label="CMS Mode",
+        id="cms_mode_switcher",
+        choices=[
+            ("Default", "Default"),
+            ("Custom", "Custom")
+        ],
+        default=get_cms_mode_default(),
+        render_kw=style,
+    )
+
     output = os.popen("nmcli --get-values GENERAL.DEVICE,GENERAL.TYPE device show | sed '/^wifi/!{h;d;};x'").read()
     devs = output.strip().split("\n")
 
@@ -586,6 +605,8 @@ class LaunchTypeForm(Form):
         render_kw=style,
     )
 
+
+
     # single file list
     single_file_selectfield_style = {'class': 'ourClasses',
                                      'style': 'font-size:24px;color:black;size:320px;width:300px', }
@@ -629,7 +650,7 @@ def refresh_template(sleep_start_time=None):
     default_play_form.launch_type_switcher.data = get_default_play_mode_default()
     default_play_form.icled_type_switcher.data = get_icled_type_default()
     default_play_form.wifi_bands_channels_switcher.data = get_wifi_bands_channels_default()
-    
+    default_play_form.cms_mode_switcher.data = get_cms_mode_default()
 
     default_play_form.single_file_selectfiled.choices = get_file_list()
     default_play_form.playlist_selectfield.choices = get_playlist_list()
@@ -664,7 +685,8 @@ def refresh_template(sleep_start_time=None):
                            preview_enable=preview_enable, media_crop_values=media_crop_values,
                            sleep_start_time=sleep_start_time, sleep_end_time=sleep_end_time,
                            hdmi_crop_values=hdmi_crop_values, internal_wifi_ssid=get_internal_wifi_ssid_default(),
-                           external_wifi_ssid=get_ext_wifi_ssid_default(), ext_eth_info_maps=get_ext_eth_info_default())
+                           external_wifi_ssid=get_ext_wifi_ssid_default(), ext_eth_info_maps=get_ext_eth_info_default(),
+                           cms_info_maps=get_cms_url_default())
 
 
 @app.route("/")

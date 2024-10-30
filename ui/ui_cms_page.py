@@ -20,6 +20,7 @@ from qt_ui_style.button_qss import QFont_Style_Default, \
 class CMSPage(QWidget):
     CMS_MODE_DEFAULT = 0
     CMS_MODE_CUSTOM = 1
+    DEFAULT_CMS_URL = "https://www.gis.com.tw"
     def __init__(self, _main_window, _frame: QWidget, _name: str, media_engine: MediaEngine, **kwargs):
         super(CMSPage, self).__init__()
         log.debug("CMS Page Init")

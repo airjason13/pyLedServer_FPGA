@@ -362,6 +362,39 @@ def set_ext_eth_info(self, data):
 
     page.btn_set_ext_eth.click()
 
+def set_cms_info(self, data):
+    log.debug("data = %s", data)
+    tmp_data = data.strip().split(";")
+    cms_mode = tmp_data[0]
+    tmp_cms_url = tmp_data[1]
+    log.debug("tmp_cms_url : %s", tmp_cms_url)
+    cms_url = ""
+    if tmp_data[1].startswith("https:"): #  in tmp_cms_url:
+        log.debug("A")
+        cms_url = "https://" + tmp_cms_url.strip().split("~~")[1]
+    elif tmp_data[1].startswith("http:"): # "http:" in tmp_cms_url:
+        log.debug("B")
+        cms_url = "http://" + tmp_cms_url.strip().split("~~")[1]
+    log.debug("cms_url : %s", cms_url)
+    target_page = None
+    for page in self.right_frame_page_list:
+        if page.name == "CMS":
+            target_page = page
+            break
+    if target_page is not None:
+        log.debug("target_page name: %s", target_page.name)
+    else:
+        log.error("Page Name Error!")
+
+    if "Custom" in cms_mode:
+        page.cms_mode_combobox.setCurrentIndex(1)
+        page.cms_custom_url_lineedit.setText(cms_url)
+
+    else:
+        page.cms_mode_combobox.setCurrentIndex(0)
+        page.cms_custom_url_lineedit.setText(page.DEFAULT_CMS_URL)
+
+    page.cms_mode_comfirm_btn.click()
 
 
 cmd_function_map = {
@@ -391,6 +424,7 @@ cmd_function_map = {
     "set_wifi_hotspot_info": set_wifi_hotspot_info,
     "enable_internal_wifi": enable_internal_wifi,
     "set_ext_eth_info": set_ext_eth_info,
+    "set_cms_info": set_cms_info,
 }
 
 """ handle the command from LocalServer"""

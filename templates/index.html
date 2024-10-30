@@ -234,11 +234,20 @@
                     Wifi Hotspot
                 </button>
             </td>
-             <td>
+            <td>
                 <button data-bs-toggle="modal" data-bs-target="#id_ext_eth_setting" class="item">
                     EXT ETH Setting
                 </button>
             </td>
+        </tr>
+
+        <tr>
+            <td>
+                <button data-bs-toggle="modal" data-bs-target="#id_cms_mode" class="item">
+                    CMS Mode
+                </button>
+            </td>
+
         </tr>
 
 
@@ -738,6 +747,43 @@
             <div class="modal-footer">
                 <div class="d-grid gap-2 d-md-block">
                     <button type="button" id="SetExtEthInfo" data-bs-dismiss="modal"  class="btn btn-danger" onclick="submit_ext_eth_option()">Set</button>
+                </div>
+            </div>
+        </div>
+        </div>
+    </div>
+
+    <!-- CMS Setting Modal -->
+    <div class="modal fade" id="id_cms_mode" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="cms_mode" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable ">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="cms_mode">CMS</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body">
+                <div class="form-floating mb-2">
+                <select class="form-select" id="floatingCMSMode" onchange="onchangeCMSMode()">
+	                <option value={{default_play_form.cms_mode_switcher.data}} selected disabled>{{default_play_form.cms_mode_switcher.data}}</option>
+                    {% for k,v in default_play_form.cms_mode_switcher.choices %}
+                        <option value="{{k}}">{{v}}</option>
+	                {% endfor %}
+
+                    </select>
+                    <label for="floatingCMSMode">CMS Mode</label>
+                </div>
+
+                <div class="form-floating mb-2">
+                    <input type="text" class="form-control" id="floatingCMSUrl"  value={{ cms_info_maps.custom_url }}>
+                    <label for="floatingCMSUrl">Custom CMS Url</label>
+                </div>
+
+            </div>
+
+            <div class="modal-footer">
+                <div class="d-grid gap-2 d-md-block">
+                    <button type="button" id="SetCMSMode" data-bs-dismiss="modal"  class="btn btn-danger" onclick="submit_cms_mode()">Set</button>
                 </div>
             </div>
         </div>
@@ -1636,9 +1682,19 @@
             data = "1;" + device + ";" + channel + ";" + ssid
             var url = "/set_wifi_hotspot_info/" + data;
             $.post(url, {});
+
+            Swal.fire({
+                    icon: 'success',
+                    title: 'Wifi Hotspot Setting',
+                    showConfirmButton: false
+                })
+            setTimeout(function(){
+                Swal.close();
+                window.location.reload();
+            }, 1600);
         }
 
-        //Wifi Hotspot Setting
+        //Ext Eth Setting
         function submit_ext_eth_option(){
             console.log('submit_ext_eth_option');
             var method = $("#floatingExtEthMethod option:selected").val();
@@ -1654,6 +1710,40 @@
             data = method + ";" + ipv4 + ";" + gateway + ";" + dns
             var url = "/set_ext_eth_info/" + data;
             $.post(url, {});
+            Swal.fire({
+                    icon: 'success',
+                    title: 'Ext ETH Setting',
+                    showConfirmButton: false
+                })
+            setTimeout(function(){
+                Swal.close();
+                window.location.reload();
+            }, 1600);
+        }
+
+        //CMS Mode Setting
+        function submit_cms_mode(){
+            console.log('submit_cms_mode');
+            var mode = $("#floatingCMSMode option:selected").val();
+
+            var custom_cms_url = $("#floatingCMSUrl").val();
+            custom_cms_url = custom_cms_url.replaceAll('https://', 'https:~~')
+            custom_cms_url = custom_cms_url.replaceAll('http://', 'http:~~')
+            console.log('mode = ' + mode);
+            console.log('custom_cms_url = ' + custom_cms_url);
+            data = mode + ";" + custom_cms_url
+            var url = "/set_cms_info/" + data;
+            $.post(url, {});
+
+            Swal.fire({
+                    icon: 'success',
+                    title: 'CMS Mode:' + mode,
+                    showConfirmButton: false
+                })
+            setTimeout(function(){
+                Swal.close();
+                window.location.reload();
+            }, 1600);
         }
 
         // Default Mode Setting
