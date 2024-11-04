@@ -2,6 +2,7 @@ import enum
 import os
 import platform
 import re
+import shutil
 import signal
 import subprocess
 import time
@@ -31,6 +32,7 @@ from media_engine.linux_ipc_pyapi_sem import *
 class MediaEngine(QObject):
     signal_media_play_status_changed = pyqtSignal(int, str)
     hdmi_play_status_changed = pyqtSignal(int, str)
+    cms_play_status_changed = pyqtSignal(int, str)
     signal_media_engine_status_changed = pyqtSignal(int, str)
 
     def __init__(self):
@@ -204,6 +206,10 @@ class MediaEngine(QObject):
         if "/dev/video" in playing_src:
             self.hdmi_play_status_changed.emit(status, playing_src)
             self.signal_media_engine_status_changed.emit(status, "HDMI-In")
+        elif "CMS" in playing_src:
+            log.debug("")
+            self.cms_play_status_changed.emit(status, "CMS")
+            self.signal_media_engine_status_changed.emit(status, "CMS")
         else:
             self.signal_media_play_status_changed.emit(status, playing_src)
             self.signal_media_engine_status_changed.emit(status, "Media File")
@@ -506,6 +512,9 @@ class MediaEngine(QObject):
 
     def install_hdmi_play_status_changed_slot(self, slot_func):
         self.hdmi_play_status_changed.connect(slot_func)
+
+    def install_cms_play_status_changed_slot(self, slot_func):
+        self.cms_play_status_changed.connect(slot_func)
 
     def hdmi_in_play(self, video_src, **kwargs):
         self.hdmi_active_width = kwargs.get('active_width')
@@ -1470,6 +1479,17 @@ class PlayCMSWorker(QObject):
         subprocess.Popen("pkill -9 -f show_ffmpeg_shared_memory", shell=True)
         time.sleep(1)
 
+        if platform.machine() in ('arm', 'arm64', 'aarch64'):
+
+            if os.path.isfile("/usr/bin/cms_check_ext_eth.sh") is False:
+                led_config_dir = os.path.join(root_dir, 'led_config')
+                shutil.copyfile(led_config_dir + "/cms_check_ext_eth.sh", "/usr/bin/cms_check_ext_eth.sh")
+                os.popen("chmod +x /usr/bin/cms_check_ext_eth.sh")
+                os.popen("sync")
+            os.popen("cms_check_ext_eth.sh &")
+
+
+
         while True:
             self.worker_status = 1
             if self.play_status != PlayStatus.Stop:
@@ -1629,7 +1649,7 @@ class PlayCMSWorker(QObject):
         self.shm_sem.sem_close(sem_read_flag)
         self.shm_sem.sem_unlink(self.media_engine.shm_sem_read_uri)
 
-        self.play_status_change(PlayStatus.Stop, "")
+        self.play_status_change(PlayStatus.Stop, "CMS")
         self.worker_status = 0
         self.pysignal_cms_play_finished.emit()
         self.ff_process.kill()
@@ -1637,6 +1657,8 @@ class PlayCMSWorker(QObject):
         if self.agent_process is not None:
             self.agent_process.kill()
             self.agent_process = None
+
+        os.popen("pkill -f cms_check_ext_eth.sh")
         log.debug("play CMS worker finished")
 
     def stop(self):

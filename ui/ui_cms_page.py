@@ -109,6 +109,16 @@ class CMSPage(QWidget):
         self.video_params_setting_layout = None
 
         self.init_ui()
+
+        led_config_dir = os.path.join(root_dir, 'led_config')
+
+        if platform.machine() in ('arm', 'arm64', 'aarch64'):
+            shutil.copyfile(led_config_dir + "/cms_check_ext_eth.sh", "/usr/bin/cms_check_ext_eth.sh")
+            os.popen("chmod +x /usr/bin/cms_check_ext_eth.sh")
+            os.popen("sync")
+
+        self.media_engine.install_cms_play_status_changed_slot(self.cms_play_status_changed)
+        os.popen("pkill -f cms_check_ext_eth.sh")
         log.debug("CMS Page")
 
 
@@ -211,6 +221,7 @@ class CMSPage(QWidget):
 
     def cms_start_btn_clicked(self):
         log.debug("cms_start_btn_clicked!")
+
         subprocess.Popen("pkill chromium", shell=True)
         if self.get_current_cms_mode() == self.CMS_MODE_CUSTOM:
             self.launch_chromium_custom()
@@ -260,7 +271,16 @@ class CMSPage(QWidget):
                 log.error(e)
 
     def launch_chromium(self):
+
         try:
+            if platform.machine() in ('arm', 'arm64', 'aarch64'):
+                led_config_dir = os.path.join(root_dir, 'led_config')
+                os.popen("chmod +x {}/chromium.sh".format(led_config_dir))
+
+                shutil.copyfile(led_config_dir + "/chromium.sh", "/usr/bin/chromium.sh")
+                os.popen("chmod +x /usr/bin/chromium.sh")
+                os.popen("sync")
+
             if self.browser_process is not None:
                 os.kill(self.browser_process.pid, signal.SIGTERM)
                 self.browser_process = None
@@ -640,4 +660,9 @@ class CMSPage(QWidget):
             f.truncate()
             f.flush()
             os.popen("sync")
+
+    def cms_play_status_changed(self, status: int, tag: str):
+        log.debug("status : %d", status)
+        log.debug("tag : %s", tag)
+
 
