@@ -66,12 +66,15 @@ class PlayingPreviewWindow(QWidget):
 
     def refresh_image(self, np_image):
         # log.debug("")
-        qt_img = self.convert_ffmpeg_qt(np_image)
-        if self.preview_label.width() != self.image_display_width or self.preview_label.height() != self.image_display_height:
-            self.preview_label.setFixedSize(self.image_display_width,self.image_display_height)
-            self.preview_info_label.setText("Res:{}x{}".format(self.image_display_width, self.image_display_height))
-        # self.preview_label.setFixedWidth(qt_img.width())
-        self.preview_label.setPixmap(qt_img)
+        try:
+            qt_img = self.convert_ffmpeg_qt(np_image)
+            if self.preview_label.width() != self.image_display_width or self.preview_label.height() != self.image_display_height:
+                self.preview_label.setFixedSize(self.image_display_width,self.image_display_height)
+                self.preview_info_label.setText("Res:{}x{}".format(self.image_display_width, self.image_display_height))
+            # self.preview_label.setFixedWidth(qt_img.width())
+            self.preview_label.setPixmap(qt_img)
+        except Exception as e:
+            log.debug("Error in refresh_image: %s", e, exc_info=True)
 
     def convert_ffmpeg_qt(self, ffmpeg_img):
         """Convert from an opencv image to QPixmap"""

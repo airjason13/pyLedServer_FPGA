@@ -208,11 +208,7 @@ class MainUi(QMainWindow):
                 btn.click()
                 break
         file_uri = internal_media_folder + '/' + self.default_launch_params_str
-        res = self.media_engine.get_video_resolution(file_uri)
-        if res is not None:
-            _active_width, _active_height = res
-
-        self.media_engine.single_play(file_uri, active_width=_active_width, active_height=_active_height)
+        self.media_engine.single_play(file_uri)
 
     def demo_start_playlist(self):
         log.debug("demo_start_playlist")

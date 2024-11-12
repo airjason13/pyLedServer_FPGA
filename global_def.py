@@ -11,6 +11,7 @@ root_dir = os.path.dirname(sys.modules['__main__'].__file__)
 LD_PATH = root_dir + "/ext_binaries/"
 
 FPGA_START_ID = 2
+VIDEO_BACKEND = "ffmpeg" # Using ffmpeg for video backend.(ffmpeg/gstreamer)
 
 if platform.machine() in ('arm', 'arm64', 'aarch64'):
     if "pi5" in platform.node():  # pi5

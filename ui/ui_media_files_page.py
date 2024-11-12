@@ -776,18 +776,9 @@ class MediaFilesPage(QWidget):
             # selected_file_name = selected_widget.text(0)
             select_file_uri = self.internal_media_folder[0] + "/" + selected_widget.text(0)
             self.select_current_file_uri = select_file_uri
-            self.media_active_width = 0
-            self.media_active_height = 0
             self.media_engine.resume_playing()
             self.media_engine.stop_play()
-            resolution = self.media_engine.get_video_resolution(self.select_current_file_uri)
-            log.debug("resolution : %s", resolution)
-            if resolution is not None:
-                self.media_active_width, self.media_active_height = resolution
-
-            self.media_engine.single_play(self.select_current_file_uri,
-                                          active_width=self.media_active_width,
-                                          active_height=self.media_active_height)
+            self.media_engine.single_play(self.select_current_file_uri)
             '''w, h = get_led_config_from_file_uri("led_wall_resolution",
                                                 "led_wall_width", "led_wall_height")
             log.debug("w : %s, h : %s", w, h)
@@ -919,9 +910,7 @@ class MediaFilesPage(QWidget):
             if self.media_engine.play_single_file_worker is None:
                 if self.select_current_file_uri:
                     if os.path.exists(self.select_current_file_uri):
-                        self.media_engine.single_play(self.select_current_file_uri,
-                                                      active_width=self.media_active_width,
-                                                      active_height=self.media_active_height)
+                        self.media_engine.single_play(self.select_current_file_uri)
 
     def sound_btn_clicked(self):
         log.debug("")
