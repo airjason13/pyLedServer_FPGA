@@ -74,7 +74,12 @@ do
 		sleep 5
 		uhubctl -l 1-1 -a 1
 		sleep 2
-		setup_enp1_nm.sh &
+		echo 0 > /sys/bus/usb/devices/1-1/authorized
+    sleep 2
+    echo 1 > /sys/bus/usb/devices/1-1/authorized
+
+		# setup_enp1_nm.sh &
+		pkill -f main.py
 		sleep 2
 	  continue
 	fi
@@ -88,7 +93,7 @@ do
 		echo "Internet network ok"
 	else
 		NETWORK_FAIL_COUNT=$((NETWORK_FAIL_COUNT+1))
-		echo "EXT_ETH_FAIL_COUNT:"$NETWORK_FAIL_COUNT > $EXT_ETH_FAIL_COUNT_LOG_FILE_URI
+		echo "EXT_ETH_FAIL_COUNT:"$NETWORK_FAIL_COUNT: $(date) >> $EXT_ETH_FAIL_COUNT_LOG_FILE_URI
 		
 		echo 0 > sudo tee /sys/us/usb/devices/1-1/authorized
 		echo "Cannot Ping DNS ready to power cycle USB port"
@@ -96,10 +101,15 @@ do
 		sleep 5
 		uhubctl -l 1-1 -a 1 
 		sleep 2
-		setup_enp1_nm.sh &
+		echo 0 > /sys/bus/usb/devices/1-1/authorized
+    sleep 2
+    echo 1 > /sys/bus/usb/devices/1-1/authorized
+
+		# setup_enp1_nm.sh &
+		pkill -f main.py
 		sleep 2
 	fi
-	sleep 60
+	sleep 30
 done
 
 

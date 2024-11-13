@@ -135,5 +135,15 @@ class UiSystemSoftware(QWidget):
                 if "max_temp" in line:
                     max_temperature = line.strip().split(";")[0].split(":")[1]
                     max_temperature_time = line.strip().split(";")[1].split(":")[1]
+        else:
+            temp_str = os.popen("vcgencmd measure_temp").read()
+
+            temperature_now = temp_str.strip().split("=")[1].split(".")[0]
+            with open(self.temperature_log_file_uri, "w") as f:
+                data = "max_temp:{};time:{}".format(temperature_now, max_temperature_time)
+                f.write(data)
+                f.truncate()
+                f.close()
+                os.system('sync')
 
         return max_temperature, max_temperature_time
