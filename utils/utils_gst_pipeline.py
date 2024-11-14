@@ -4,6 +4,7 @@ def get_gstreamer_cmd_for_media(video_uri: str, **kwargs):
     width = kwargs.get("width", 1280)
     height = kwargs.get("height", 720)
     target_fps = kwargs.get("target_fps", "24/1")
+    image_period = kwargs.get("image_period")
     c_width = kwargs.get("c_width")
     c_height = kwargs.get("c_height")
     c_pos_x = kwargs.get("c_pos_x", 0)
