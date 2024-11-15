@@ -49,11 +49,11 @@ def get_gstreamer_cmd_for_media(video_uri: str, **kwargs):
         pipeline_str = (
             f"filesrc location={video_uri} ! "
             f"{'jpegdec' if video_uri.endswith(('.jpeg', '.jpg')) else 'pngdec'} ! "
-            "imagefreeze ! videoscale ! "
-            f"video/x-raw,width={width},height={height},framerate={target_fps} ! "
-            "videorate ! videoconvert ! video/x-raw,format=RGB ! "
-            "appsink name=appsink_sink"
+            f"videoconvert ! imagefreeze !  {filter_chain} !"
+            f"videorate ! video/x-raw,framerate={target_fps} ! "
+            f"appsink name=appsink_sink"
         )
+
     else:
         pipeline_str = (
             f"ximagesrc display-name={video_uri} use-damage=0 ! "
