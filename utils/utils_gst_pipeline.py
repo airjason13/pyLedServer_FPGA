@@ -1,4 +1,7 @@
 from global_def import log
+from threading import Timer, Lock
+import time
+import threading
 
 def get_gstreamer_cmd_for_media(video_uri: str, **kwargs):
     width = kwargs.get("width", 1280)
@@ -59,3 +62,71 @@ def get_gstreamer_cmd_for_media(video_uri: str, **kwargs):
         )
 
     return pipeline_str
+
+class gstreamer_image_period_event:
+    def __init__(self, duration: int):
+        self.total_duration = duration
+        self.remaining_time = duration
+        self.is_running = False
+        self.is_paused = False
+        self.timeout_flag = False
+        self.lock = threading.Lock()
+
+    def start(self):
+        self.is_running = True
+        self.is_paused = False
+        self.timeout_flag = False
+        self.remaining_time = self.total_duration
+        threading.Thread(target=self._run).start()
+
+    def _run(self):
+        start_time = time.monotonic()
+        while self.is_running and not self.timeout_flag:
+            with self.lock:
+                if self.is_paused:
+                    start_time = time.monotonic()  # Reset start time during pause
+                    continue
+
+            elapsed = time.monotonic() - start_time
+            with self.lock:
+                self.remaining_time = self.total_duration - elapsed
+
+                if self.remaining_time <= 0:
+                    self.timeout_flag = True
+                    self.is_running = False
+                    log.debug("GStreamer image period timeout!")
+                    return
+
+            time.sleep(0.1)
+
+    def pause(self):
+        with self.lock:
+            if self.is_running and not self.is_paused:
+                self.is_paused = True
+                log.debug(f"Timer paused with {self.remaining_time:.2f}s remaining.")
+
+    def resume(self):
+        with self.lock:
+            if self.is_running and self.is_paused:
+                self.is_paused = False
+                self.total_duration = self.remaining_time  # Adjust duration to remaining time
+                log.debug("Timer resumed.")
+
+    def stop(self):
+        with self.lock:
+            self.is_running = False
+            self.is_paused = False
+            self.remaining_time = 0
+            self.timeout_flag = False
+            log.debug("Timer stopped.")
+
+    def reset_timer(self, new_duration: int):
+        with self.lock:
+            self.total_duration = new_duration
+            self.remaining_time = new_duration
+            self.timeout_flag = False
+            log.debug(f"Timer reset to {new_duration}s.")
+
+    def is_timed_out(self):
+        with self.lock:
+            return self.timeout_flag

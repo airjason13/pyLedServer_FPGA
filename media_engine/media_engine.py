@@ -20,7 +20,7 @@ from ext_qt_widgets.playing_preview_widget import PlayingPreviewWindow
 from media_engine.media_engine_def import PlayStatus, RepeatOption
 from media_engine.sound_device import SoundDevices, mute_audio_sinks
 from utils.utils_ffmpy import get_ffmpeg_cmd_for_media, get_media_resolution_from_ffmpeg
-from utils.utils_gst_pipeline import get_gstreamer_cmd_for_media
+from utils.utils_gst_pipeline import get_gstreamer_cmd_for_media, gstreamer_image_period_event
 from utils.utils_file_access import get_file_list_in_playlist
 from utils.utils_system import get_eth_interface
 from media_configs.video_params import VideoParams
@@ -708,6 +708,7 @@ class PlayPlaylistWorker(QObject):
         self.image_period_timer = 20
         self.gst_appsink = None
         self.gst_pipeline = None
+        self.gst_image_period_event = None
         self.shm_sem = None
         self.shm = None
         self.agent_process = None
@@ -842,6 +843,9 @@ class PlayPlaylistWorker(QObject):
             self.play_status_change(PlayStatus.Playing, self.files_in_playlist[self.file_index])
             self.gst_pipeline.set_state(Gst.State.PLAYING)
 
+            # Create GStreamer image period event
+            self.create_gst_image_period_event(self.files_in_playlist[self.file_index])
+
             # Main loop to check for playback status and handle errors/stream end
             while not self.force_stop:
 
@@ -850,8 +854,19 @@ class PlayPlaylistWorker(QObject):
                     break
 
                 # Check for any errors or end-of-stream events
-                msg = bus.timed_pop_filtered(100 * Gst.MSECOND, Gst.MessageType.ERROR | Gst.MessageType.EOS)
+                msg = bus.timed_pop_filtered(100 * Gst.MSECOND, Gst.MessageType.ERROR | Gst.MessageType.EOS | Gst.MessageType.STATE_CHANGED)
                 if msg:
+
+                    if msg.type == Gst.MessageType.STATE_CHANGED:
+                        old_state, new_state, pending_state = msg.parse_state_changed()
+                        #log.debug("old_state:%s , new_state:%s , pending_state:%s", old_state, new_state, pending_state)
+                        if new_state == Gst.State.PAUSED:
+                            if self.gst_image_period_event:
+                                self.gst_image_period_event.pause()
+                        elif new_state == Gst.State.PLAYING:
+                            if self.gst_image_period_event:
+                                self.gst_image_period_event.resume()
+
                     if msg.type == Gst.MessageType.EOS:
                         log.debug('End of stream')
                         if self.play_status == PlayStatus.Playing:
@@ -906,6 +921,12 @@ class PlayPlaylistWorker(QObject):
                     self.gst_pipeline.set_state(Gst.State.NULL)
                     return Gst.FlowReturn.EOS  # End processing
 
+                # Check if image period is timeout
+                if self.gst_image_period_event:
+                    if self.gst_image_period_event.is_timed_out():
+                        log.debug("image period is timeout")
+                        return Gst.FlowReturn.EOS
+
                 if not self.media_ipc.wait_sem_write_access():
                     pass
                 else:
@@ -916,18 +937,27 @@ class PlayPlaylistWorker(QObject):
 
         return Gst.FlowReturn.OK
 
-    def get_playlist_next_valid_file(self):
-        attempt_count = 0
-        playlist_len = len(self.files_in_playlist)
-        while attempt_count < playlist_len:
-            self.file_index = (self.file_index + 1) % playlist_len
-            attempt_count += 1
-            if os.path.isfile(self.files_in_playlist[self.file_index]):
-                return self.file_index  # Return the index if a valid file is found
-        return None
+    def create_gst_image_period_event(self ,file_url):
+        static_image_extensions = (".jpeg", ".jpg", ".png")
+        # Check if the current file is a static image
+        if file_url.lower().endswith(static_image_extensions):
+            # If the event is already active, just restart the timer
+            if self.gst_image_period_event:
+                self.gst_image_period_event.reset_timer(self.image_period_timer)
+            else:
+                # Create a new event if it does not exist
+                self.gst_image_period_event = gstreamer_image_period_event(self.image_period_timer)
+            self.gst_image_period_event.start()
+        else:
+            # Stop and clear the event if the current file is not a static image
+            self.terminate_gst_image_period_event()
 
-    def is_playlist_end(self):
-        return self.file_index == len(self.files_in_playlist)
+
+    def terminate_gst_image_period_event(self):
+        if self.gst_image_period_event:
+            self.gst_image_period_event.stop()
+            self.gst_image_period_event = None
+
 
     def start_ffmpeg_stream(self):
 
@@ -1070,6 +1100,7 @@ class PlayPlaylistWorker(QObject):
         self.media_ipc.terminate_agent_process()
         self.media_ipc.cleanup_ipc_resources()
         self.pysignal_playlist_play_finished.emit()
+        self.terminate_gst_image_period_event()
         self.worker_status = 0
 
         log.debug("play playlist worker finished")
@@ -1079,6 +1110,20 @@ class PlayPlaylistWorker(QObject):
 
     def get_worker_status(self):
         return self.worker_status
+
+    def get_playlist_next_valid_file(self):
+        file_index = 0
+        attempt_count = 0
+        playlist_len = len(self.files_in_playlist)
+        while attempt_count < playlist_len:
+            file_index = (self.file_index + 1) % playlist_len
+            attempt_count += 1
+            if os.path.isfile(self.files_in_playlist[file_index]):
+                return file_index  # Return the index if a valid file is found
+        return None
+
+    def is_playlist_end(self):
+        return self.file_index == len(self.files_in_playlist)
 
 class PlaySingleFileWorker(QObject):
     pysignal_single_file_play_status_change = pyqtSignal(int, str)
