@@ -1729,6 +1729,7 @@
             var custom_cms_url = $("#floatingCMSUrl").val();
             custom_cms_url = custom_cms_url.replaceAll('https://', 'https:~~')
             custom_cms_url = custom_cms_url.replaceAll('http://', 'http:~~')
+            custom_cms_url = custom_cms_url.replaceAll('/', ']]')
             console.log('mode = ' + mode);
             console.log('custom_cms_url = ' + custom_cms_url);
             data = mode + ";" + custom_cms_url

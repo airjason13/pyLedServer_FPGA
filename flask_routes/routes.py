@@ -437,8 +437,10 @@ def set_ext_eth_info(data):
     return status_code
 
 @app.route('/set_cms_info/<data>', methods=['POST'])
-def set_cms_info(data):
+def set_cms_info(data: str):
     log.debug("set_cms_info data :%s", data)
+    data=data.replace("]]","/")
+    log.debug("after replacement, data:%s", data)
     send_message(set_cms_info=data)
     status_code = Response(status=200)
     return status_code
