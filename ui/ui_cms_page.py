@@ -110,12 +110,12 @@ class CMSPage(QWidget):
 
         self.init_ui()
 
-        led_config_dir = os.path.join(root_dir, 'led_config')
+        scripts_dir = os.path.join(root_dir, 'scripts')
 
         if platform.machine() in ('arm', 'arm64', 'aarch64'):
-            shutil.copyfile(led_config_dir + "/cms_check_ext_eth.sh", "/usr/bin/cms_check_ext_eth.sh")
+            shutil.copyfile(scripts_dir + "/cms_check_ext_eth.sh", "/usr/bin/cms_check_ext_eth.sh")
             os.popen("chmod +x /usr/bin/cms_check_ext_eth.sh")
-            shutil.copyfile(led_config_dir + "/refresh_chromium.sh", "/usr/bin/refresh_chromium.sh")
+            shutil.copyfile(scripts_dir + "/refresh_chromium.sh", "/usr/bin/refresh_chromium.sh")
             os.popen("chmod +x /usr/bin/refresh_chromium.sh")
             os.popen("sync")
 
@@ -254,11 +254,11 @@ class CMSPage(QWidget):
     def launch_chromium_custom(self):
         log.debug("")
         if platform.machine() in ('arm', 'arm64', 'aarch64'):
-            led_config_dir = os.path.join(root_dir, 'led_config')
-            os.popen("chmod +x {}/speedup_chromium_custom.sh".format(led_config_dir))
-            os.popen("chmod +x {}/chromium_custom.sh".format(led_config_dir))
-            shutil.copyfile(led_config_dir + "/speedup_chromium_custom.sh", "/usr/bin/speedup_chromium_custom.sh")
-            shutil.copyfile(led_config_dir + "/chromium_custom.sh", "/usr/bin/chromium_custom.sh")
+            scripts_dir = os.path.join(root_dir, 'scripts')
+            os.popen("chmod +x {}/speedup_chromium_custom.sh".format(scripts_dir))
+            os.popen("chmod +x {}/chromium_custom.sh".format(scripts_dir))
+            shutil.copyfile(scripts_dir + "/speedup_chromium_custom.sh", "/usr/bin/speedup_chromium_custom.sh")
+            shutil.copyfile(scripts_dir + "/chromium_custom.sh", "/usr/bin/chromium_custom.sh")
             os.popen("chmod +x /usr/bin/speedup_chromium_custom.sh")
             os.popen("chmod +x /usr/bin/chromium_custom.sh")
             os.popen("sync")
