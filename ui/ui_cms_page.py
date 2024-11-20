@@ -115,6 +115,8 @@ class CMSPage(QWidget):
         if platform.machine() in ('arm', 'arm64', 'aarch64'):
             shutil.copyfile(led_config_dir + "/cms_check_ext_eth.sh", "/usr/bin/cms_check_ext_eth.sh")
             os.popen("chmod +x /usr/bin/cms_check_ext_eth.sh")
+            shutil.copyfile(led_config_dir + "/refresh_chromium.sh", "/usr/bin/refresh_chromium.sh")
+            os.popen("chmod +x /usr/bin/refresh_chromium.sh")
             os.popen("sync")
 
         self.media_engine.install_cms_play_status_changed_slot(self.cms_play_status_changed)

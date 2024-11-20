@@ -15,6 +15,12 @@ sleep 1
 sync
 # kill_server_by_time.sh &
 
+pkill -f refresh_chromium.sh 
+sleep 1
+
+refresh_chromium.sh &
+
+
 xdotool mousemove 1280 720
 
 echo $APP_URL

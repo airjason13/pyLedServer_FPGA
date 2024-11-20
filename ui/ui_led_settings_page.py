@@ -306,8 +306,8 @@ class LedSettingsPage(QWidget):
 
     def file_changed(self, path):
         self.signal_file_changed.emit(path)
-        print('file_changed')
-        print('self.portStyleList = ', self.portStyleList)
+        # print('file_changed')
+        # print('self.portStyleList = ', self.portStyleList)
         with open("led_config/dataFPGA.json", "r") as jsonFile:
             self.data = json.load(jsonFile)
 

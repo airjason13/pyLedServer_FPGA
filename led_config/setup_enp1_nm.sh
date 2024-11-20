@@ -52,15 +52,15 @@ done < "$info_file_uri"
 
 # step 3: check data 
 DATA_OK=true
-if [[ ${#STATIC_IP} -lt 6 ]];then
+if [[ "$STATIC_IP" =~ ^x* ]];then
 	echo STATIC_IP LEN:${#STATIC_IP}
 	DATA_OK=false
 fi
-if [[ ${#GATEWAY} -lt 6 ]];then
+if [[ "$GATEWAY" =~ ^x* ]];then
 	echo GATEWAY LEN:${#GATEWAY}
 	DATA_OK=false
 fi
-if [[ ${#DNS} -lt 6 ]];then
+if [[ "$DNS" =~ ^x* ]];then
 	echo STATIC_IP LEN:${#DNS}
 	DATA_OK=false
 fi
@@ -71,12 +71,15 @@ if [[ $DATA_OK =~ false ]];then
 	# let it go with dhcp
 	nmcli con add type ethernet ifname $EXT_ETH_ADAPTER con-name $NM_NAME
 	nmcli con mod $NM_NAME ipv4.method auto
-	#ifconfig $EXT_ETH_ADAPTER down
-	#sleep 1
-	#ifconfig $EXT_ETH_ADAPTER up
+
 	nmcli con up $NM_NAME
 	exit	
 fi
+
+pkill -f ffmpeg
+
+route del default 
+sleep 2
 
 # nmcli con del enp1s0u1u3
 nmcli con add type ethernet ifname $EXT_ETH_ADAPTER con-name $NM_NAME
