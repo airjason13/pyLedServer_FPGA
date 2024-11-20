@@ -68,18 +68,30 @@ fi
 # DATA_OK=false
 if [[ $DATA_OK =~ false ]];then
 	echo DATA_OK:$DATA_OK
+	pkill -f ffmpeg
+
+	echo "route flush"
+	# route del default 
+	ip route flush 0/0
+	sleep 2
+	echo "route flush end"
 	# let it go with dhcp
 	nmcli con add type ethernet ifname $EXT_ETH_ADAPTER con-name $NM_NAME
 	nmcli con mod $NM_NAME ipv4.method auto
 
 	nmcli con up $NM_NAME
+	
+	
 	exit	
 fi
 
-pkill -f ffmpeg
+# pkill -f ffmpeg
 
-route del default 
+echo "route flush"
+# route del default 
+ip route flush 0/0
 sleep 2
+echo "route flush end"
 
 # nmcli con del enp1s0u1u3
 nmcli con add type ethernet ifname $EXT_ETH_ADAPTER con-name $NM_NAME
@@ -88,3 +100,4 @@ nmcli con mod $NM_NAME ipv4.gateway $GATEWAY
 nmcli con mod $NM_NAME ipv4.dns "$DNS"
 nmcli con mod $NM_NAME ipv4.method manual
 nmcli con up $NM_NAME
+

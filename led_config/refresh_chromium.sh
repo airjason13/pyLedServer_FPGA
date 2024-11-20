@@ -9,7 +9,7 @@ do
 	xdotool windowactivate $(xdotool search --title http)
 	xdotool mousemove 1280 720
 	COUNT=$((COUNT+1))
-	echo $COUNT >> /home/root/refresh_chromium_count.dat
+	echo refresh_chromium $COUNT times @ $(date) > /home/root/refresh_chromium_count.dat
 	sleep 300
 
 done
