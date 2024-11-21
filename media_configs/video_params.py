@@ -4,7 +4,7 @@ import sys
 from PyQt5.QtCore import QObject, pyqtSignal
 
 from ext_qt_widgets.system_file_watcher import FileWatcher
-from global_def import log, frame_brightness_alog
+from global_def import log, frame_brightness_alog, HdmiChSwitchOption
 
 
 class VideoParams(QObject):
@@ -47,11 +47,13 @@ class VideoParams(QObject):
             self.hdmi_in_start_x = 0
             self.hdmi_in_crop_h = 0
             self.hdmi_in_crop_w = 0
+
             self.output_frame_width = 640
             self.output_frame_height = 480
             self.output_fps = 24
             self.play_with_audio = 0
             self.play_with_preview = 0
+            self.hdmi_ch_switch = 0
             self.sync_video_param()
 
     def install_video_params_changed_slot(self, slot):
@@ -91,6 +93,7 @@ class VideoParams(QObject):
             "output_fps=24\n",
             "play_with_audio=0\n",
             "play_with_preview=0\n",
+            "hdmi_ch_switch=0\n"
         ]
         config_file = open(self.video_params_file_uri, 'w')
         config_file.writelines(content_lines)
@@ -166,11 +169,58 @@ class VideoParams(QObject):
                 self.play_with_audio = int(tmp[1])
             elif tmp[0] == "play_with_preview":
                 self.play_with_preview = int(tmp[1])
+            elif tmp[0] == "hdmi_ch_switch":
+                self.hdmi_ch_switch = int(tmp[1])
 
 
     def check_video_param_file_valid(self):
-        ''' Not Implemented yet'''
-        log.debug("Need To be implemented")
+        required_keys = [
+            "led_brightness",
+            "led_gamma",
+            "icled_type",
+            "led_r_gain",
+            "led_g_gain",
+            "led_b_gain",
+            "frame_brightness_algorithm",
+            "sleep_mode_enable",
+            "target_city_index",
+            "day_mode_frame_brightness",
+            "night_mode_frame_brightness",
+            "sleep_mode_frame_brightness",
+            "image_period",
+            "hdmi_in_start_x",
+            "hdmi_in_start_y",
+            "hdmi_in_crop_w",
+            "hdmi_in_crop_h",
+            "media_file_start_x",
+            "media_file_start_y",
+            "media_file_crop_w",
+            "media_file_crop_h",
+            "output_frame_width",
+            "output_frame_height",
+            "output_fps",
+            "play_with_audio",
+            "play_with_preview",
+            "hdmi_ch_switch"
+        ]
+
+        # Open the configuration file in read mode and load its contents
+        with open(self.video_params_file_uri, 'r') as config_file:
+            content_lines = config_file.readlines()
+
+        # Extract the keys (parameter names) from the file
+        existing_keys = [line.split("=")[0] for line in content_lines]
+
+        # Find the missing keys by comparing existing keys with the required keys
+        missing_keys = set(required_keys) - set(existing_keys)
+        if missing_keys:
+            # If there are missing keys, open the file in append mode and add the missing parameters
+            with open(self.video_params_file_uri, 'a') as config_file:
+                for key in missing_keys:
+                    config_file.write(f"{key}=0\n")  # Write default value (0) for the missing keys
+            os.system('sync')
+            log.debug(f"Added missing parameters: {missing_keys}")
+            return False
         return True
 
     def sync_video_param_from_file_watcher(self):
@@ -205,6 +255,7 @@ class VideoParams(QObject):
         params_output_fps = 'output_fps=' + str(self.output_fps) + '\n'
         params_play_with_audio = 'play_with_audio=' + str(self.play_with_audio) + '\n'
         params_play_with_preview = 'play_with_preview=' + str(self.play_with_preview) + '\n'
+        params_hdmi_ch_switch = 'hdmi_ch_switch=' + str(self.hdmi_ch_switch) + '\n'
         content_lines = [
             params_led_brightness,
             params_led_gamma,
@@ -232,6 +283,7 @@ class VideoParams(QObject):
             params_output_fps,
             params_play_with_audio,
             params_play_with_preview,
+            params_hdmi_ch_switch,
         ]
 
         log.debug("content_lines :%s", content_lines)
@@ -461,5 +513,11 @@ class VideoParams(QObject):
     def get_play_with_preview(self):
         return self.play_with_preview
 
+    def set_hdmi_ch_switch(self, channel):
+        if self.hdmi_ch_switch != channel:
+            self.hdmi_ch_switch = channel
+            self.sync_video_param()
 
+    def get_hdmi_ch_switch(self):
+        return self.hdmi_ch_switch
 

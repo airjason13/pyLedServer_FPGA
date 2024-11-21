@@ -34,16 +34,16 @@ def get_gstreamer_cmd_for_media(video_uri: str, **kwargs):
             f"v4l2src device={video_uri} ! videoconvert ! {filter_chain} "
             f"! videorate ! video/x-raw,framerate={target_fps} ! appsink name=appsink_sink"
         )
-        if audio_on:
-            pipeline_str += f" alsasrc device={audio_sink} ! audioconvert ! audioresample ! autoaudiosink"
+        #if audio_on:
+        #    pipeline_str += f" alsasrc device={audio_sink} ! audioconvert ! audioresample ! autoaudiosink"
 
     elif video_uri.endswith(".mp4"):
         pipeline_str = (
             f"filesrc location={video_uri} ! decodebin name=demux "
             f"demux. ! queue ! videoconvert ! {filter_chain} ! videorate ! video/x-raw,framerate={target_fps} ! appsink name=appsink_sink"
         )
-        if audio_on:
-            pipeline_str += f" demux. ! queue ! audioconvert ! audioresample ! {audio_sink}"
+        #if audio_on:
+        #    pipeline_str += f" demux. ! queue ! audioconvert ! audioresample ! {audio_sink}"
 
     elif video_uri.endswith((".jpeg", ".jpg", ".png")):
         pipeline_str = (

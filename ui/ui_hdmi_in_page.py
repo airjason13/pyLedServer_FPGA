@@ -11,6 +11,7 @@ from subprocess import Popen, PIPE
 
 import media_configs.video_params
 from astral_hashmap import City_Map
+from ext_dev.usb_video import UsbVideo
 from media_engine.media_engine import MediaEngine, Playing_HDMI_in_worker
 from media_configs.video_params import VideoParams
 from media_engine.media_engine_def import PlayStatus
@@ -24,11 +25,19 @@ import signal
 import os
 import platform
 
-
 class HDMIInPage(QWidget):
 
     def __init__(self, _main_window, _frame: QWidget, _name, media_engine: MediaEngine, **kwargs):
         super(HDMIInPage, self).__init__(**kwargs)
+
+        self.main_windows = _main_window
+        self.frame = _frame
+        self.media_engine = media_engine
+        self.video_device = TC358743.get_video_device(self)
+        self.widget = QWidget(self.frame)
+        self.name = _name
+        self.layout = None
+
         self.video_adj_br_ga_btn = None
         self.output_fps_lineedit = None
         self.output_fps_label = None
@@ -96,17 +105,13 @@ class HDMIInPage(QWidget):
         self.sound_control_btn = None
         self.preview_control_btn = None
         self.adj_ctrl_param_btn = None
+        self.channel_switch_type_label = None
+        self.channel_switch_type_combobox = None
+
         self.hdmi_in_layout = None
         self.hdmi_in_widget = None
-        self.main_windows = _main_window
-        self.frame = _frame
-        self.media_engine = media_engine
-        self.video_device = TC358743.get_video_device(self)
-        self.widget = QWidget(self.frame)
-        self.name = _name
         self.prev_hdmi_info = None
-        self.label_name = None
-        self.layout = None
+
         self.measurement_tc358743 = None
         self.streamingStatus = False
         self.streamStateMutex = QMutex()
@@ -116,7 +121,7 @@ class HDMIInPage(QWidget):
         self.init_ui()
         self.media_engine.install_hdmi_play_status_changed_slot(self.media_play_status_changed)
 
-        self.measurement_tc358743 = True
+        self.hdmi_measurement_active(True)
         self.check_tc358743_interval = 1000
         self.check_tc358743_timer = QTimer(self)
         self.check_tc358743_timer.timeout.connect(self.check_tc358743_timer_event)
@@ -128,10 +133,22 @@ class HDMIInPage(QWidget):
         except Exception as e:
             log.debug(e)
 
+        # tc358743 init
         self.tc358743 = TC358743()
         self.tc358743.signal_refresh_tc358743_param.connect(self.refresh_tc358743_param)
         self.tc358743.get_tc358743_dv_timing()
+
+        # usb device init
+        self.usb_video_capture = UsbVideo()
+        self.usb_video_devices_matching = self.usb_video_capture.find_usb_devices(HdmiChSwitchDeviceMap)
+
+        if self.usb_video_devices_matching:
+            log.debug("Matching Devices Found:")
+            for device in self.usb_video_devices_matching:
+                log.debug(device)
+
         subprocess.Popen("pkill -9 -f ffmpeg", shell=True)
+
         # install media_engine.video_params video_params_changed slot
         self.media_engine.led_video_params.install_video_params_changed_slot(self.hdmi_video_params_changed)
 
@@ -383,6 +400,19 @@ class HDMIInPage(QWidget):
         self.output_fps_lineedit.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
         self.output_fps_lineedit.setText(str(self.media_engine.led_video_params.get_output_fps()))
 
+        self.channel_switch_type_label = QLabel(self.video_params_setting_widget)
+        self.channel_switch_type_label.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
+        self.channel_switch_type_label.setText("Channel Switch:")
+        self.channel_switch_type_combobox = QComboBox(self.video_params_setting_widget)
+        self.channel_switch_type_combobox.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
+        for str_type in HdmiChSwitchOption:
+            if '.' in str(str_type):
+                self.channel_switch_type_combobox.addItem(str(str_type).split(".")[1])
+            else:
+                self.channel_switch_type_combobox.addItem(str(str_type))
+        self.channel_switch_type_combobox.setCurrentIndex(int(self.media_engine.led_video_params.get_hdmi_ch_switch()))
+        self.channel_switch_type_combobox.currentIndexChanged.connect(self.on_channel_switch_changed)
+
         self.video_adj_br_ga_btn = QPushButton("Adjust Brightness Parameter", self.video_params_setting_widget)
         self.video_adj_br_ga_btn.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
         self.video_adj_br_ga_btn.clicked.connect(self.adj_video_br_ga_param)
@@ -420,6 +450,8 @@ class HDMIInPage(QWidget):
         self.video_params_setting_layout.addWidget(self.output_frame_height_lineedit, 1, 9)
         self.video_params_setting_layout.addWidget(self.output_fps_label, 2, 8)
         self.video_params_setting_layout.addWidget(self.output_fps_lineedit, 2, 9)
+        self.video_params_setting_layout.addWidget(self.channel_switch_type_label, 3, 8)
+        self.video_params_setting_layout.addWidget(self.channel_switch_type_combobox, 3, 9)
 
         self.video_params_setting_layout.addWidget(self.video_adj_br_ga_btn, 4, 2, 1, 8)
 
@@ -527,6 +559,10 @@ class HDMIInPage(QWidget):
         self.hdmi_in_layout.addWidget(self.hdmi_info_group_box)
         self.hdmi_info_group_box.setLayout(info_widget_layout)
 
+    def on_channel_switch_changed(self, index):
+        log.debug(f"Channel switch changed to: {index}")
+        self.media_engine.led_video_params.set_hdmi_ch_switch(index)
+
     def media_play_status_changed(self, status: int, src: str):
         if status == PlayStatus.Playing:
             self.play_action_btn.setText("Pause")
@@ -554,20 +590,26 @@ class HDMIInPage(QWidget):
                                                active_height=int(self.tc358743.hdmi_height),
                                                )
                 self.streamingStatus = True
-            self.measurement_tc358743 = True
+            self.hdmi_measurement_active(True)
         self.streamStateMutex.unlock()
 
-    def stop_streaming(self, MeasurementEnable: False):
+    def stop_streaming(self):
         self.streamStateMutex.lock()
         self.streamingStatus = False
-        self.measurement_tc358743 = MeasurementEnable
         self.media_engine.stop_play()
-        self.refresh_tc358743_param(False, self.tc358743.hdmi_width, self.tc358743.hdmi_height, self.tc358743.hdmi_fps)
+        self.refresh_tc358743_param( self.tc358743.hdmi_width, self.tc358743.hdmi_height, self.tc358743.hdmi_fps)
         self.update_process_info()
         self.streamStateMutex.unlock()
 
+    def hdmi_measurement_active(self, enable: bool):
+        self.measurement_tc358743 = enable
+
+    def check_hdmi_measurement(self):
+        return self.measurement_tc358743
+
     def stop_btn_clicked(self):
-        self.stop_streaming(False)
+        self.hdmi_measurement_active(False)
+        self.stop_streaming()
 
     def pause_btn_clicked(self):
         if PlayStatus.Playing == self.media_engine.playing_status:
@@ -585,7 +627,7 @@ class HDMIInPage(QWidget):
             # log.debug("Not in hdmi-in page")
             self.prev_hdmi_info = None
             self.streamingStatus = False
-            self.measurement_tc358743 = True
+            self.hdmi_measurement_active(True)
             self.streamStateMutex.unlock()
             return
 
@@ -602,7 +644,7 @@ class HDMIInPage(QWidget):
                     current_hdmi_info != self.prev_hdmi_info):
 
                 if (current_hdmi_connected is True and
-                        self.measurement_tc358743 is True):
+                        self.check_hdmi_measurement() is True):
 
                     if self.tc358743.set_tc358743_dv_bt_timing() is True:
                         if self.media_engine.play_hdmi_in_worker is None:
@@ -613,13 +655,15 @@ class HDMIInPage(QWidget):
                         hdmi_info_list = list(current_hdmi_info)
                         hdmi_info_list[0] = False
                         current_hdmi_info = tuple(hdmi_info_list)
-                        self.stop_streaming(True)
+                        self.hdmi_measurement_active(True)
+                        self.stop_streaming()
                         subprocess.Popen("pkill -9 -f ffmpeg", shell=True)
 
                 else:
                     if self.tc358743.hdmi_connected is True:
                         if current_hdmi_connected is False:
-                            self.stop_streaming(True)
+                            self.hdmi_measurement_active(True)
+                            self.stop_streaming()
                             subprocess.Popen("pkill -9 -f ffmpeg", shell=True)
                             self.tc358743.reinit_tc358743_dv_timing()
                             self.preview_label.setText("HDMI-in Signal Lost")
@@ -634,12 +678,11 @@ class HDMIInPage(QWidget):
             self.check_tc358743_timer.start(self.check_tc358743_interval)
             self.streamingStatus = False
             self.prev_hdmi_info = None
-            self.measurement_tc358743 = True
+            self.hdmi_measurement_active(True)
             self.streamStateMutex.unlock()
             log.debug("restart check_tc358743_timer")
 
-    def refresh_tc358743_param(self, connected=False, width="NA", height="NA", fps="NA"):
-
+    def refresh_tc358743_param(self, width="NA", height="NA", fps="NA"):
         self.hdmi_out_info_width_res_label.setText(str(self.media_engine.output_streaming_width))
         self.hdmi_out_info_height_res_label.setText(str(self.media_engine.output_streaming_height))
         self.hdmi_out_info_fps_res_label.setText(str(self.media_engine.output_streaming_fps))

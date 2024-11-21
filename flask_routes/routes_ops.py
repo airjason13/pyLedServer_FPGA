@@ -52,6 +52,7 @@ def init_video_params():
         "output_fps=24\n",
         "play_with_audio=0\n",
         "play_with_preview=0\n",
+        "hdmi_ch_switch=0\n"
     ]
     root_dir = os.path.dirname(sys.modules['__main__'].__file__)
     led_config_dir = os.path.join(root_dir, led_params_config_folder_name)
