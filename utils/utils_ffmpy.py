@@ -40,9 +40,9 @@ def get_ffmpeg_cmd_for_media(video_uri: str, **kwargs):
 
         ff = ffmpy.FFmpeg(
             inputs={video_uri: None},
-            outputs={
-                pipe_sink: ["-loglevel", "error", "-vf", filter_params, "-r", target_fps, "-pix_fmt", "rgb24", "-f",
-                            "rawvideo"],
+            outputs = {
+                pipe_sink: [
+                    "-loglevel", "error","-vf", f"fps={target_fps},{filter_params}","-pix_fmt", "rgb24","-f", "rawvideo"],
                 # audio_sink: ["-f", "alsa"]
             }
         )
