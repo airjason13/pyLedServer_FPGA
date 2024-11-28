@@ -1,32 +1,68 @@
 import subprocess
+from sqlite3 import connect
 
 from global_def import *
-from dataclasses import dataclass
-from typing import List,Dict
 
-class UsbVideo:
-    def __init__(self):
-        self.connected_devices = []
+class VideoCaptureCard:
 
-    def find_usb_devices(self, device_map):
-        matching_devices = []
+    def __init__(self, **kwargs):
+        super(VideoCaptureCard, self).__init__(**kwargs)
+        self.connected = None
+        self.width = 640
+        self.height = 480
+        self.fps = 30
+
+        self.default_hdmi_usb_ch_device = None
+        self.hdmi_connected = None
+        self.video_device = None
+
+        current_video_device = self.find_video_device(HdmiChSwitchDeviceMap.GoFanCo_Prophecy.description)
+        if current_video_device:
+            self.set_usb_hdmi_connected_status(True)
+            self.update_video_device(current_video_device)
+            self.set_video_out_timing(current_video_device, self.width, self.height, self.fps)
+
+    def set_video_out_timing(self, device, width, height, fps):
         try:
-            result = subprocess.run(["lsusb"], capture_output=True, text=True, check=True)
-            usb_lines = result.stdout.splitlines()
-            self.connected_devices.clear()
-            for line in usb_lines:
-                parts = line.split()
-                if len(parts) >= 6:
-                    vendor_product = parts[5]
-                    vendor_id, product_id = vendor_product.split(":")
-                    self.connected_devices.append(UsbDeviceInfo(vendor_id=vendor_id, product_id=product_id, description=""))
+            subprocess.run(
+                ['v4l2-ctl', f'--device={device}', f'--set-fmt-video=width={width},height={height},pixelformat=MJPG'],
+                check=True)
+            subprocess.run(['v4l2-ctl', f'--device={device}', f'--set-parm={fps}'], check=True)
+            log.debug(f"Video output timing set: device={device}, width={width}, height={height}, fps={fps}")
+        except subprocess.CalledProcessError as e:
+            log.debug(f"Failed to set video output timing: {e}")
 
-            for device in self.connected_devices:
-                for predefined_device in device_map.values():
-                    if (device.vendor_id == predefined_device.vendor_id and
-                            device.product_id == predefined_device.product_id):
-                        matching_devices.append(predefined_device)
-        except Exception as e:
-            print(f"Error reading USB devices: {e}")
+    def find_video_device(self, describe):
+        result = subprocess.run(['v4l2-ctl', '--list-devices'], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                text=True)
+        output = result.stdout.split('\n')
 
-        return matching_devices
+        device_index = -1
+        for i, line in enumerate(output):
+            if describe in line:
+                device_index = i
+                break
+
+        if device_index != -1 and device_index + 1 < len(output):
+            device_info = output[device_index + 1].strip()
+            if '/dev/video' in device_info:
+                return device_info.split()[0]
+
+        return None
+
+    def update_video_device(self, video_device):
+        self.video_device = video_device
+
+    def get_video_device(self):
+        return self.video_device
+
+    def set_usb_hdmi_connected_status(self,status):
+        self.hdmi_connected = status
+
+    def get_usb_hdmi_connected_status(self):
+        return self.hdmi_connected
+
+    def get_usb_hdmi_info(self):
+        connected  = self.find_video_device(HdmiChSwitchDeviceMap.GoFanCo_Prophecy.description)
+        self.set_usb_hdmi_connected_status(True if connected else False)
+        return self.hdmi_connected , self.width , self.height ,self.fps

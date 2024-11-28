@@ -1,5 +1,7 @@
 import time
 import subprocess
+from time import sleep
+
 from PyQt5 import QtGui
 from PyQt5 import QtWidgets
 from PyQt5.QtCore import QObject, Qt, QSize, QTimer, pyqtSlot, QMutex
@@ -11,7 +13,7 @@ from subprocess import Popen, PIPE
 
 import media_configs.video_params
 from astral_hashmap import City_Map
-from ext_dev.usb_video import UsbVideo
+from ext_dev.usb_video import  VideoCaptureCard
 from media_engine.media_engine import MediaEngine, Playing_HDMI_in_worker
 from media_configs.video_params import VideoParams
 from media_engine.media_engine_def import PlayStatus
@@ -30,10 +32,11 @@ class HDMIInPage(QWidget):
     def __init__(self, _main_window, _frame: QWidget, _name, media_engine: MediaEngine, **kwargs):
         super(HDMIInPage, self).__init__(**kwargs)
 
+
         self.main_windows = _main_window
         self.frame = _frame
         self.media_engine = media_engine
-        self.video_device = TC358743.get_video_device(self)
+        self.video_device = None
         self.widget = QWidget(self.frame)
         self.name = _name
         self.layout = None
@@ -105,52 +108,68 @@ class HDMIInPage(QWidget):
         self.sound_control_btn = None
         self.preview_control_btn = None
         self.adj_ctrl_param_btn = None
+        self.channel_switch = None
         self.channel_switch_type_label = None
         self.channel_switch_type_combobox = None
 
+        self.hdmi_device = None
         self.hdmi_in_layout = None
         self.hdmi_in_widget = None
         self.prev_hdmi_info = None
 
-        self.measurement_tc358743 = None
+        self.hdmi_measurement = None
         self.streamingStatus = False
+        self.check_hdmi_in_interval = None
+        self.check_hdmi_in_timer =None
+
         self.streamStateMutex = QMutex()
 
         log.debug("start hdmi-in page")
-
         self.init_ui()
+        self.init_hdmi_device()
+        # install media_engine.video_params video_params_changed slot
         self.media_engine.install_hdmi_play_status_changed_slot(self.media_play_status_changed)
+        self.media_engine.led_video_params.install_video_params_changed_slot(self.hdmi_video_params_changed)
 
-        self.hdmi_measurement_active(True)
-        self.check_tc358743_interval = 1000
-        self.check_tc358743_timer = QTimer(self)
-        self.check_tc358743_timer.timeout.connect(self.check_tc358743_timer_event)
-        if platform.machine() in ('arm', 'arm64', 'aarch64'):  # Venom add for script not found
-            ensure_edid_validity(self)
+    def init_hdmi_device(self):
+        self.streamingStatus = False
+        self.prev_hdmi_info = None
 
-        try:
-            self.check_tc358743_timer.start(self.check_tc358743_interval)
-        except Exception as e:
-            log.debug(e)
+        # HDMI device initialization
+        if self.check_hdmi_in_timer:
+            self.check_hdmi_in_timer.stop()
 
-        # tc358743 init
-        self.tc358743 = TC358743()
-        self.tc358743.signal_refresh_tc358743_param.connect(self.refresh_tc358743_param)
-        self.tc358743.get_tc358743_dv_timing()
-
-        # usb device init
-        self.usb_video_capture = UsbVideo()
-        self.usb_video_devices_matching = self.usb_video_capture.find_usb_devices(HdmiChSwitchDeviceMap)
-
-        if self.usb_video_devices_matching:
-            log.debug("Matching Devices Found:")
-            for device in self.usb_video_devices_matching:
-                log.debug(device)
+        if self.channel_switch == HdmiChSwitchOption.default.value:
+            # tc358743 init
+            self.check_hdmi_in_timer = self.init_timer(1000, self.check_tc358743_event)
+            self.hdmi_device = TC358743()
+            self.video_device = self.hdmi_device.get_video_device()
+            self.hdmi_device.signal_refresh_tc358743_param.connect(self.refresh_hdmi_param)
+            self.hdmi_device.get_tc358743_dv_timing()
+            if platform.machine() in ('arm', 'arm64', 'aarch64'):  # Venom add for script not found
+                ensure_edid_validity(self)
+            try:
+                self.check_hdmi_in_timer.start(self.check_hdmi_in_interval)
+            except Exception as e:
+                log.debug(e)
+        else:
+            # usb device init
+            self.check_hdmi_in_timer = self.init_timer(1000, self.check_video_capture_event)
+            self.hdmi_device = VideoCaptureCard()
+            self.video_device = self.hdmi_device.get_video_device()
+            try:
+                self.check_hdmi_in_timer.start(self.check_hdmi_in_interval)
+            except Exception as e:
+                log.debug(e)
 
         subprocess.Popen("pkill -9 -f ffmpeg", shell=True)
+        self.hdmi_measurement_active(True)
 
-        # install media_engine.video_params video_params_changed slot
-        self.media_engine.led_video_params.install_video_params_changed_slot(self.hdmi_video_params_changed)
+    def init_timer(self, interval, callback):
+        timer = QTimer(self)
+        timer.timeout.connect(callback)
+        timer.start(interval)
+        return timer
 
     def init_ui(self):
         # Initialize the main HDMI input widget and layout
@@ -170,7 +189,7 @@ class HDMIInPage(QWidget):
         # setup video params widget
         self.setup_video_params_widget()
 
-        # Place hdmi_ctrl_frame and video_params_setting_widget side by side in a horizontal layout."
+        # Place hdmi_ctrl_frame and video_params_setting_widget side by side in a horizontal layout.
         hdmi_ctrl_and_video_params_layout = QHBoxLayout()
         hdmi_ctrl_and_video_params_layout.addWidget(self.hdmi_ctrl_frame)
         hdmi_ctrl_and_video_params_layout.addWidget(self.video_params_setting_widget)
@@ -410,7 +429,8 @@ class HDMIInPage(QWidget):
                 self.channel_switch_type_combobox.addItem(str(str_type).split(".")[1])
             else:
                 self.channel_switch_type_combobox.addItem(str(str_type))
-        self.channel_switch_type_combobox.setCurrentIndex(int(self.media_engine.led_video_params.get_hdmi_ch_switch()))
+        self.channel_switch = int(self.media_engine.led_video_params.get_hdmi_ch_switch())
+        self.channel_switch_type_combobox.setCurrentIndex(self.channel_switch)
         self.channel_switch_type_combobox.currentIndexChanged.connect(self.on_channel_switch_changed)
 
         self.video_adj_br_ga_btn = QPushButton("Adjust Brightness Parameter", self.video_params_setting_widget)
@@ -561,7 +581,10 @@ class HDMIInPage(QWidget):
 
     def on_channel_switch_changed(self, index):
         log.debug(f"Channel switch changed to: {index}")
+        self.reset_hdmi_state(measurement_active=False)
         self.media_engine.led_video_params.set_hdmi_ch_switch(index)
+        self.channel_switch = index
+        self.init_hdmi_device()
 
     def media_play_status_changed(self, status: int, src: str):
         if status == PlayStatus.Playing:
@@ -586,30 +609,34 @@ class HDMIInPage(QWidget):
             if self.media_engine.play_hdmi_in_worker is None:
                 log.debug("Start streaming")
                 self.media_engine.hdmi_in_play(self.video_device,
-                                               active_width=int(self.tc358743.hdmi_width),
-                                               active_height=int(self.tc358743.hdmi_height),
+                                               active_width=int(self.hdmi_device.width),
+                                               active_height=int(self.hdmi_device.height),
                                                )
                 self.streamingStatus = True
             self.hdmi_measurement_active(True)
         self.streamStateMutex.unlock()
 
+    def reset_hdmi_state(self, measurement_active=True):
+        self.hdmi_measurement_active(measurement_active)
+        self.stop_streaming()
+        subprocess.Popen("pkill -9 -f ffmpeg", shell=True)
+
     def stop_streaming(self):
         self.streamStateMutex.lock()
         self.streamingStatus = False
         self.media_engine.stop_play()
-        self.refresh_tc358743_param( self.tc358743.hdmi_width, self.tc358743.hdmi_height, self.tc358743.hdmi_fps)
+        self.refresh_hdmi_param(self.hdmi_device.connected,self.hdmi_device.width, self.hdmi_device.height, self.hdmi_device.fps)
         self.update_process_info()
         self.streamStateMutex.unlock()
 
     def hdmi_measurement_active(self, enable: bool):
-        self.measurement_tc358743 = enable
+        self.hdmi_measurement = enable
 
     def check_hdmi_measurement(self):
-        return self.measurement_tc358743
+        return self.hdmi_measurement
 
     def stop_btn_clicked(self):
-        self.hdmi_measurement_active(False)
-        self.stop_streaming()
+        self.reset_hdmi_state(measurement_active=False)
 
     def pause_btn_clicked(self):
         if PlayStatus.Playing == self.media_engine.playing_status:
@@ -620,7 +647,7 @@ class HDMIInPage(QWidget):
               PlayStatus.Initial == self.media_engine.playing_status):
             self.start_streaming()
 
-    def check_tc358743_timer_event(self):
+    def check_video_capture_event(self):
         # log.debug("enter check_tc358743_timer")
         self.streamStateMutex.lock()
         if self.main_windows.right_frame_page_index != Page.HDMI_IN.value:
@@ -633,56 +660,93 @@ class HDMIInPage(QWidget):
 
         self.streamStateMutex.unlock()
 
-        current_hdmi_info = self.tc358743.get_tc358743_hdmi_info()
+        current_hdmi_info = self.hdmi_device.get_usb_hdmi_info()
 
-        (current_hdmi_connected, current_hdmi_hdmi_width,
-         current_hdmi_height, current_hdmi_hdmi_fps) = current_hdmi_info
+        (current_hdmi_in_connected, current_hdmi_in_width,
+         current_hdmi_in_height, current_hdmi_in_fps) = current_hdmi_info
+        try:
+            if (self.prev_hdmi_info is None or
+                    current_hdmi_info != self.prev_hdmi_info):
+
+                if (current_hdmi_in_connected is True and
+                        self.check_hdmi_measurement() is True):
+
+                    if self.check_hdmi_measurement() is True:
+                        if self.media_engine.play_hdmi_in_worker is None:
+                            self.handle_VideoCapture_StreamStart()
+                            self.streamingStatus = True
+                            self.preview_label.setText("HDMI-in connected")
+                else:
+                    if self.hdmi_device.connected is True:
+                        if current_hdmi_in_connected is False:
+                            self.reset_hdmi_state()
+                            self.preview_label.setText("HDMI-in Signal Lost")
+
+            self.prev_hdmi_info = current_hdmi_info
+            (self.hdmi_device.connected, self.hdmi_device.width,
+             self.hdmi_device.height, self.hdmi_device.fps) = current_hdmi_info
+
+        except Exception as e:
+            log.debug(e)
+            self.init_hdmi_device()
+            self.streamStateMutex.unlock()
+            log.debug("restart check_video_capture_event")
+        return
+
+    def check_tc358743_event(self):
+        # log.debug("enter check_tc358743_timer")
+        self.streamStateMutex.lock()
+        if self.main_windows.right_frame_page_index != Page.HDMI_IN.value:
+            # log.debug("Not in hdmi-in page")
+            self.prev_hdmi_info = None
+            self.streamingStatus = False
+            self.hdmi_measurement_active(True)
+            self.streamStateMutex.unlock()
+            return
+
+        self.streamStateMutex.unlock()
+
+        current_hdmi_info = self.hdmi_device.get_tc358743_hdmi_info()
+
+        (current_hdmi_in_connected, current_hdmi_in_width,
+         current_hdmi_in_height, current_hdmi_in_fps) = current_hdmi_info
 
         try:
 
             if (self.prev_hdmi_info is None or
                     current_hdmi_info != self.prev_hdmi_info):
 
-                if (current_hdmi_connected is True and
+                if (current_hdmi_in_connected is True and
                         self.check_hdmi_measurement() is True):
 
-                    if self.tc358743.set_tc358743_dv_bt_timing() is True:
+                    if self.hdmi_device.set_tc358743_dv_bt_timing() is True:
                         if self.media_engine.play_hdmi_in_worker is None:
-                            self.handleHdmiStreamStart()
+                            self.handle_tc358743_StreamStart()
                             self.streamingStatus = True
                             self.preview_label.setText("HDMI-in connected")
                     else:
                         hdmi_info_list = list(current_hdmi_info)
                         hdmi_info_list[0] = False
                         current_hdmi_info = tuple(hdmi_info_list)
-                        self.hdmi_measurement_active(True)
-                        self.stop_streaming()
-                        subprocess.Popen("pkill -9 -f ffmpeg", shell=True)
-
+                        self.reset_hdmi_state()
                 else:
-                    if self.tc358743.hdmi_connected is True:
-                        if current_hdmi_connected is False:
-                            self.hdmi_measurement_active(True)
-                            self.stop_streaming()
-                            subprocess.Popen("pkill -9 -f ffmpeg", shell=True)
-                            self.tc358743.reinit_tc358743_dv_timing()
+                    if self.hdmi_device.connected is True:
+                        if current_hdmi_in_connected is False:
+                            self.reset_hdmi_state()
+                            self.hdmi_device.reinit_tc358743_dv_timing()
                             self.preview_label.setText("HDMI-in Signal Lost")
 
             self.prev_hdmi_info = current_hdmi_info
-            (self.tc358743.hdmi_connected, self.tc358743.hdmi_width,
-             self.tc358743.hdmi_height, self.tc358743.hdmi_fps) = current_hdmi_info
+            (self.hdmi_device.connected, self.hdmi_device.width,
+             self.hdmi_device.height, self.hdmi_device.fps) = current_hdmi_info
 
         except Exception as e:
             log.debug(e)
-            self.check_tc358743_timer.stop()
-            self.check_tc358743_timer.start(self.check_tc358743_interval)
-            self.streamingStatus = False
-            self.prev_hdmi_info = None
-            self.hdmi_measurement_active(True)
+            self.init_hdmi_device()
             self.streamStateMutex.unlock()
             log.debug("restart check_tc358743_timer")
 
-    def refresh_tc358743_param(self, width="NA", height="NA", fps="NA"):
+    def refresh_hdmi_param(self, connect="", width="NA", height="NA", fps="NA"):
         self.hdmi_out_info_width_res_label.setText(str(self.media_engine.output_streaming_width))
         self.hdmi_out_info_height_res_label.setText(str(self.media_engine.output_streaming_height))
         self.hdmi_out_info_fps_res_label.setText(str(self.media_engine.output_streaming_fps))
@@ -691,11 +755,11 @@ class HDMIInPage(QWidget):
         self.hdmi_in_info_height_res_label.setText(str(height))
         self.hdmi_in_info_fps_res_label.setText(str(fps))
 
-    def handleHdmiStreamStart(self):
+    def handle_tc358743_StreamStart(self):
 
         self.streamStateMutex.lock()
 
-        log.debug("handleHdmiStreamStart")
+        log.debug("handle_tc358743_StreamStart")
 
         if self.streamingStatus is True:
             self.streamStateMutex.unlock()
@@ -726,14 +790,56 @@ class HDMIInPage(QWidget):
         if p.stdout:
             subprocess.run(["pkill", "-9", "-f", "arecord"])
 
-        if self.tc358743.set_tc358743_dv_bt_timing() is True:
-            self.tc358743.reinit_tc358743_dv_timing()
+        if self.hdmi_device.set_tc358743_dv_bt_timing() is True:
+            self.hdmi_device.reinit_tc358743_dv_timing()
             self.media_engine.hdmi_in_play(self.video_device,
-                                           active_width=int(self.tc358743.hdmi_width),
-                                           active_height=int(self.tc358743.hdmi_height),
+                                           active_width=int(self.hdmi_device.width),
+                                           active_height=int(self.hdmi_device.height),
                                            )
         self.streamStateMutex.unlock()
 
+    def handle_VideoCapture_StreamStart(self):
+
+        self.streamStateMutex.lock()
+
+        log.debug("handle_VideoCapture_StreamStart")
+
+        if self.streamingStatus is True:
+            self.streamStateMutex.unlock()
+            return
+
+        self.media_engine.stop_play()
+        # find any ffmpeg process
+        p = subprocess.run(["pgrep", "ffmpeg"],
+                           capture_output=True, text=True)
+        if p.stdout:
+            subprocess.run(["pkill", "-9", "-f", "ffmpeg"])
+
+        # find any show_ffmpeg_shared_memory process
+        p = subprocess.run(["pgrep", "show_ffmpeg_shared_memory"],
+                           capture_output=True, text=True)
+        if p.stdout:
+            subprocess.run(["pkill", "-9", "-f", "show_ffmpeg_shared_memory"])
+
+        # find any ffprobe process
+        p = subprocess.run(["pgrep", "ffprobe"],
+                           capture_output=True, text=True)
+        if p.stdout:
+            subprocess.run(["pkill", "-9", "-f", "ffprobe"])
+
+        # find any arecord process
+        p = subprocess.run(["pgrep", "arecord"],
+                           capture_output=True, text=True)
+        if p.stdout:
+            subprocess.run(["pkill", "-9", "-f", "arecord"])
+
+        self.refresh_hdmi_param(self.hdmi_device.connected,self.hdmi_device.width, self.hdmi_device.height, self.hdmi_device.fps)
+
+        self.media_engine.hdmi_in_play(self.video_device,
+                                       active_width=int(self.hdmi_device.width),
+                                       active_height=int(self.hdmi_device.height),
+                                       )
+        self.streamStateMutex.unlock()
     def sound_btn_clicked(self):
         log.debug("")
         if self.sound_control_btn.isChecked():

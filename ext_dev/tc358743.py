@@ -14,23 +14,24 @@ class TC358743(QObject):
     def __init__(self, **kwargs):
         super(TC358743, self).__init__(**kwargs)
 
-        self.hdmi_connected = None
-        self.hdmi_width = None
-        self.hdmi_height = None
-        self.hdmi_fps = None
+        self.connected = None
+        self.width = None
+        self.height = None
+        self.fps = None
+
         self.res_set_dv_bt_timing = False
-        self.video_device = self.get_video_device(self)
+        self.video_device = self.get_video_device()
         if platform.machine() in ('arm', 'arm64', 'aarch64'):
             self.check_hdmi_status_mutex = QMutex()
         else:
             self.check_hdmi_status_mutex = None
-        self.hdmi_connected, self.hdmi_width, self.hdmi_height, self.hdmi_fps = self.get_tc358743_dv_timing()
+        self.connected, self.width, self.height, self.fps = self.get_tc358743_dv_timing()
         self.res_set_dv_bt_timing = self.set_tc358743_dv_bt_timing()
 
     def reinit_tc358743_dv_timing(self):
         # log.debug("")
-        self.hdmi_connected, self.hdmi_width, self.hdmi_height, self.hdmi_fps = self.get_tc358743_dv_timing()
-        self.signal_refresh_tc358743_param.emit(self.hdmi_connected, self.hdmi_width, self.hdmi_height, self.hdmi_fps)
+        self.connected, self.width, self.height, self.fps = self.get_tc358743_dv_timing()
+        self.signal_refresh_tc358743_param.emit(self.connected, self.width, self.height, self.fps)
 
     def check_hdmi_status_lock(self):
         if self.check_hdmi_status_mutex is not None:
@@ -41,7 +42,7 @@ class TC358743(QObject):
             self.check_hdmi_status_mutex.unlock()
 
     def x86_get_video_timing(self):
-        video_device = self.get_video_device(self)
+        video_device = self.get_video_device()
         connected = False
         width = 0
         height = 0
@@ -160,8 +161,8 @@ class TC358743(QObject):
 
         return connected, width, height, fps
 
-    @staticmethod
-    def get_video_device(cls):
+
+    def get_video_device(self):
         preferred_video = "/dev/video0" if platform.machine() in ('arm', 'arm64', 'aarch64') else "/dev/video2"
         if os.path.exists(preferred_video):
             return preferred_video
@@ -169,4 +170,4 @@ class TC358743(QObject):
             return None
 
     def get_current_timing_info(self):
-        return self.hdmi_connected, self.hdmi_width, self.hdmi_height, self.hdmi_fps
+        return self.connected, self.width, self.height, self.fps

@@ -45,6 +45,7 @@ class MediaEngine(QObject):
 
     def __init__(self):
         super(MediaEngine, self).__init__()
+        self.video_backend = VIDEO_BACKEND
         self.media_active_height = None
         self.media_active_width = None
         self.ffprobe_process = None
@@ -64,7 +65,6 @@ class MediaEngine(QObject):
         self.play_hdmi_in_worker = None
         self.play_cms_thread = None
         self.play_cms_worker = None
-
 
         log.debug("")
 
@@ -329,7 +329,7 @@ class MediaEngine(QObject):
 
         if self.play_single_file_worker is not None:
             self.play_single_file_worker.stop()
-            self.play_single_file_worker.terminate_pipeline(backend=VIDEO_BACKEND)
+            self.play_single_file_worker.terminate_pipeline(self.video_backend)
             time.sleep(1)
             try:
                 if self.play_single_file_thread is not None:
@@ -351,7 +351,7 @@ class MediaEngine(QObject):
 
         if self.play_playlist_worker is not None:
             self.play_playlist_worker.stop()
-            self.play_playlist_worker.terminate_pipeline(backend=VIDEO_BACKEND)
+            self.play_playlist_worker.terminate_pipeline(self.video_backend)
             time.sleep(1)
             try:
                 if self.play_playlist_thread is not None:
@@ -374,7 +374,7 @@ class MediaEngine(QObject):
         if self.play_hdmi_in_worker is not None:
             self.resume_playing()
             self.play_hdmi_in_worker.stop()
-            self.play_hdmi_in_worker.terminate_pipeline(backend=VIDEO_BACKEND)
+            self.play_hdmi_in_worker.terminate_pipeline(self.video_backend)
             time.sleep(1)
             try:
                 if self.play_hdmi_in_thread is not None:
@@ -436,6 +436,10 @@ class MediaEngine(QObject):
         self.hdmi_play_status_changed.connect(slot_func)
 
     def hdmi_in_play(self, video_src, **kwargs):
+
+        if video_src is None:
+            return
+
         self.media_active_width = kwargs.get('active_width')
         self.media_active_height = kwargs.get('active_height')
         self.play_hdmi_in_thread = QThread()
@@ -458,9 +462,9 @@ class MediaEngine(QObject):
             try:
                 self.playing_status = PlayStatus.Pausing
 
-                if VIDEO_BACKEND == "ffmpeg":
+                if self.video_backend == VideoBackendType.FFMPEG.value:
                     if self.ff_process is not None:
-                        sub_ff_process = self.find_child("ffmpeg", self.ff_process.pid)
+                        sub_ff_process = self.find_child(VideoBackendType.FFMPEG.value, self.ff_process.pid)
                         if sub_ff_process:
                             sub_ff_process.suspend()
                         else:
@@ -486,9 +490,9 @@ class MediaEngine(QObject):
             log.debug("enter resume_play!\n")
             try:
                 self.playing_status = PlayStatus.Playing
-                if VIDEO_BACKEND == "ffmpeg":
+                if self.video_backend == VideoBackendType.FFMPEG.value:
                     if self.ff_process is not None:
-                        sub_ff_process = self.find_child("ffmpeg", self.ff_process.pid)
+                        sub_ff_process = self.find_child(VideoBackendType.FFMPEG.value, self.ff_process.pid)
                         if sub_ff_process:
                             sub_ff_process.resume()
                         else:
@@ -522,9 +526,10 @@ class MediaEngine(QObject):
                 return child
         return None
 
-    def get_media_resolution(self, file_uri='',backend='ffmpeg'):
+    def get_media_resolution(self, file_uri, backend):
         resolution = None
-        if backend== 'ffmpeg':
+
+        if backend== VideoBackendType.FFMPEG.value:
             try:
                 ffmpeg_cmd = ['ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=width,height',
                               '-of', 'csv=s=x:p=0', file_uri]
@@ -742,9 +747,9 @@ class PlayPlaylistWorker(QObject):
         log.debug("self.playing_source : %s", self.playing_source)
         self.pysignal_playlist_play_status_change.emit(self.play_status, self.playing_source)
 
-    def terminate_pipeline(self,backend='ffmpeg'):
+    def terminate_pipeline(self, backend):
         """Terminates playback pipeline based on backend (ffmpeg or GStreamer)."""
-        if backend == 'ffmpeg':
+        if backend == VideoBackendType.FFMPEG.value:
             if self.ff_process is not None:
                 self.ff_process.kill()
             self.ff_process = None
@@ -766,7 +771,7 @@ class PlayPlaylistWorker(QObject):
             # Fetch the video resolution for the current file in the playlist
             resolution = self.media_engine.get_media_resolution(
                 file_uri=self.files_in_playlist[self.file_index],
-                backend=VIDEO_BACKEND
+                backend=self.media_engine.video_backend
             )
 
             # Update active media width and height if resolution is obtained
@@ -852,7 +857,7 @@ class PlayPlaylistWorker(QObject):
 
                     if msg.type == Gst.MessageType.STATE_CHANGED:
                         old_state, new_state, pending_state = msg.parse_state_changed()
-                        #log.debug("old_state:%s , new_state:%s , pending_state:%s", old_state, new_state, pending_state)
+                        # log.debug("old_state:%s , new_state:%s , pending_state:%s", old_state, new_state, pending_state)
                         if new_state == Gst.State.PAUSED:
                             if self.gst_image_period_event:
                                 self.gst_image_period_event.pause()
@@ -863,7 +868,7 @@ class PlayPlaylistWorker(QObject):
                     if msg.type == Gst.MessageType.EOS:
                         log.debug('End of stream')
                         if self.play_status == PlayStatus.Playing:
-                            self.terminate_pipeline(backend=VIDEO_BACKEND)
+                            self.terminate_pipeline(self.media_engine.video_backend)
 
                             if self.media_engine.repeat_option == RepeatOption.Repeat_None:
                                 if self.is_playlist_end():
@@ -968,7 +973,7 @@ class PlayPlaylistWorker(QObject):
             # Fetch the video resolution for the current file in the playlist
             resolution = self.media_engine.get_media_resolution(
                 file_uri=self.files_in_playlist[self.file_index],
-                backend=VIDEO_BACKEND
+                backend=self.media_engine.video_backend
             )
 
             # Update active media width and height if resolution is obtained
@@ -1078,7 +1083,7 @@ class PlayPlaylistWorker(QObject):
         self.worker_status = 1
         # Initialize shared memory and agent preview for media player
         if self.media_ipc.initialize_ipc_resources():
-            if VIDEO_BACKEND == "ffmpeg":
+            if self.media_engine.video_backend == VideoBackendType.FFMPEG.value:
                 self.start_ffmpeg_stream()
             else:
                 self.start_GStreamer_stream()
@@ -1087,7 +1092,7 @@ class PlayPlaylistWorker(QObject):
 
         # Cleanup after playback ends
         self.play_status_change(PlayStatus.Stop, "")
-        self.terminate_pipeline(backend=VIDEO_BACKEND)
+        self.terminate_pipeline(self.media_engine.video_backend)
         self.media_ipc.terminate_agent_process()
         self.media_ipc.cleanup_ipc_resources()
         self.pysignal_playlist_play_finished.emit()
@@ -1160,9 +1165,9 @@ class PlaySingleFileWorker(QObject):
     def install_send_raw_frame_slot(self, slot_func):
         self.pysignal_send_raw_frame.connect(slot_func)
 
-    def terminate_pipeline(self,backend='ffmpeg'):
+    def terminate_pipeline(self, backend):
         """Terminates playback pipeline based on backend (ffmpeg or GStreamer)."""
-        if backend == 'ffmpeg':
+        if backend == VideoBackendType.FFMPEG.value:
             if self.ff_process is not None:
                 self.ff_process.kill()
             self.ff_process = None
@@ -1181,7 +1186,7 @@ class PlaySingleFileWorker(QObject):
         # Fetch the video resolution for the current file in the playlist
         resolution = self.media_engine.get_media_resolution(
             file_uri=self.file_uri,
-            backend=VIDEO_BACKEND
+            backend=self.media_engine.video_backend
         )
 
         # Update active media width and height if resolution is obtained
@@ -1329,7 +1334,7 @@ class PlaySingleFileWorker(QObject):
             # Fetch the video resolution for the current file in the playlist
             resolution = self.media_engine.get_media_resolution(
                 file_uri=self.file_uri,
-                backend=VIDEO_BACKEND
+                backend=self.media_engine.video_backend
             )
 
             # Update active media width and height if resolution is obtained
@@ -1428,7 +1433,7 @@ class PlaySingleFileWorker(QObject):
         if self.is_valid_file(self.file_uri):
             # Initialize shared memory and agent preview for media player
             if self.media_ipc.initialize_ipc_resources():
-                if VIDEO_BACKEND == "ffmpeg":
+                if self.media_engine.video_backend == VideoBackendType.FFMPEG.value:
                     self.start_ffmpeg_stream()
                 else:
                     self.start_GStreamer_stream()
@@ -1437,7 +1442,7 @@ class PlaySingleFileWorker(QObject):
 
         # Cleanup after playback ends
         self.play_status_change(PlayStatus.Stop, "")
-        self.terminate_pipeline(backend=VIDEO_BACKEND)
+        self.terminate_pipeline(self.media_engine.video_backend)
         self.media_ipc.terminate_agent_process()
         self.media_ipc.cleanup_ipc_resources()
         self.pysignal_single_file_play_finished.emit()
@@ -1519,9 +1524,9 @@ class Playing_HDMI_in_worker(QThread):
     def get_worker_status(self):
         return self.worker_status
 
-    def terminate_pipeline(self,backend='ffmpeg'):
+    def terminate_pipeline(self, backend):
         """Terminates playback pipeline based on backend (ffmpeg or GStreamer)."""
-        if backend == 'ffmpeg':
+        if backend == VideoBackendType.FFMPEG.value:
             if self.ff_process is not None:
                 self.ff_process.kill()
             self.ff_process = None
@@ -1748,7 +1753,8 @@ class Playing_HDMI_in_worker(QThread):
                 self.image_from_pipe = None
                 while self.ff_process.pid > 0:
                     self.image_from_pipe = self.ff_process.stdout.read(self.output_width * self.output_height * 3)
-                    if len(self.image_from_pipe) <= 0:
+                    #if len(self.image_from_pipe) <= 0:
+                    if not self.image_from_pipe:
                         log.debug("play end")
                         #self.media_ipc.terminate_agent_process()
                         break
@@ -1789,7 +1795,7 @@ class Playing_HDMI_in_worker(QThread):
 
         # Initialize shared memory and agent preview for media player
         if self.media_ipc.initialize_ipc_resources():
-            if VIDEO_BACKEND == "ffmpeg":
+            if self.media_engine.video_backend == VideoBackendType.FFMPEG.value:
                 self.start_ffmpeg_stream()
             else:
                 self.start_GStreamer_stream()
@@ -1798,7 +1804,7 @@ class Playing_HDMI_in_worker(QThread):
 
         # Cleanup after playback ends
         self.play_status_change(PlayStatus.Stop, self.video_src)
-        self.terminate_pipeline(backend=VIDEO_BACKEND)
+        self.terminate_pipeline(self.media_engine.video_backend)
         self.media_ipc.terminate_agent_process()
         self.media_ipc.cleanup_ipc_resources()
         self.pysignal_hdmi_play_finished.emit()
