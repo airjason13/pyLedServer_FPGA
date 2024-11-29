@@ -163,7 +163,7 @@ class TC358743(QObject):
 
 
     def get_video_device(self):
-        preferred_video = "/dev/video0" if platform.machine() in ('arm', 'arm64', 'aarch64') else "/dev/video0"
+        preferred_video = "/dev/video0" if platform.machine() in ('arm', 'arm64', 'aarch64') else "/dev/video10"
         if os.path.exists(preferred_video):
             return preferred_video
         else:

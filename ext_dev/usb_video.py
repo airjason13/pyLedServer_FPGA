@@ -8,9 +8,9 @@ class VideoCaptureCard:
     def __init__(self, **kwargs):
         super(VideoCaptureCard, self).__init__(**kwargs)
         self.connected = None
-        self.width = 640
-        self.height = 480
-        self.fps = 30
+        self.width = 1920
+        self.height = 1080
+        self.fps = 60
 
         self.default_hdmi_usb_ch_device = None
         self.hdmi_connected = None

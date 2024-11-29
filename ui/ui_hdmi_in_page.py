@@ -115,7 +115,7 @@ class HDMIInPage(QWidget):
         self.hdmi_device = None
         self.hdmi_in_layout = None
         self.hdmi_in_widget = None
-        self.prev_hdmi_info = None
+        self.hdmi_in_params = None
 
         self.hdmi_measurement = None
         self.streamingStatus = False
@@ -133,7 +133,7 @@ class HDMIInPage(QWidget):
 
     def init_hdmi_device(self):
         self.streamingStatus = False
-        self.prev_hdmi_info = None
+        self.hdmi_in_params = None
 
         # HDMI device initialization
         if self.check_hdmi_in_timer:
@@ -622,6 +622,7 @@ class HDMIInPage(QWidget):
 
     def stop_streaming(self):
         self.streamStateMutex.lock()
+        self.hdmi_in_params = None
         self.streamingStatus = False
         self.media_engine.stop_play()
         self.refresh_hdmi_param(self.hdmi_device.connected,self.hdmi_device.width, self.hdmi_device.height, self.hdmi_device.fps)
@@ -651,7 +652,7 @@ class HDMIInPage(QWidget):
         self.streamStateMutex.lock()
         if self.main_windows.right_frame_page_index != Page.HDMI_IN.value:
             # log.debug("Not in hdmi-in page")
-            self.prev_hdmi_info = None
+            self.hdmi_in_params = None
             self.streamingStatus = False
             self.hdmi_measurement_active(True)
             self.streamStateMutex.unlock()
@@ -663,25 +664,24 @@ class HDMIInPage(QWidget):
 
         (current_hdmi_in_connected, current_hdmi_in_width,
          current_hdmi_in_height, current_hdmi_in_fps) = current_hdmi_info
+
         try:
-            if (self.prev_hdmi_info is None or
-                    current_hdmi_info != self.prev_hdmi_info):
+            if (self.hdmi_in_params is None or
+                    current_hdmi_info != self.hdmi_in_params):
 
                 if (current_hdmi_in_connected is True and
                         self.check_hdmi_measurement() is True):
-
-                    if self.check_hdmi_measurement() is True:
-                        if self.media_engine.play_hdmi_in_worker is None:
-                            self.handle_VideoCapture_StreamStart()
-                            self.streamingStatus = True
-                            self.preview_label.setText("HDMI-in connected")
+                    if self.media_engine.play_hdmi_in_worker is None:
+                        self.handle_VideoCapture_StreamStart()
+                        self.streamingStatus = True
+                        self.preview_label.setText("HDMI-in connected")
                 else:
                     if self.hdmi_device.connected is True:
                         if current_hdmi_in_connected is False:
                             self.reset_hdmi_state()
                             self.preview_label.setText("HDMI-in Signal Lost")
 
-            self.prev_hdmi_info = current_hdmi_info
+            self.hdmi_in_params = current_hdmi_info
             (self.hdmi_device.connected, self.hdmi_device.width,
              self.hdmi_device.height, self.hdmi_device.fps) = current_hdmi_info
 
@@ -697,7 +697,7 @@ class HDMIInPage(QWidget):
         self.streamStateMutex.lock()
         if self.main_windows.right_frame_page_index != Page.HDMI_IN.value:
             # log.debug("Not in hdmi-in page")
-            self.prev_hdmi_info = None
+            self.hdmi_in_params = None
             self.streamingStatus = False
             self.hdmi_measurement_active(True)
             self.streamStateMutex.unlock()
@@ -712,8 +712,8 @@ class HDMIInPage(QWidget):
 
         try:
 
-            if (self.prev_hdmi_info is None or
-                    current_hdmi_info != self.prev_hdmi_info):
+            if (self.hdmi_in_params is None or
+                    current_hdmi_info != self.hdmi_in_params):
 
                 if (current_hdmi_in_connected is True and
                         self.check_hdmi_measurement() is True):
@@ -735,7 +735,7 @@ class HDMIInPage(QWidget):
                             self.hdmi_device.reinit_tc358743_dv_timing()
                             self.preview_label.setText("HDMI-in Signal Lost")
 
-            self.prev_hdmi_info = current_hdmi_info
+            self.hdmi_in_params = current_hdmi_info
             (self.hdmi_device.connected, self.hdmi_device.width,
              self.hdmi_device.height, self.hdmi_device.fps) = current_hdmi_info
 
@@ -758,7 +758,7 @@ class HDMIInPage(QWidget):
 
         self.streamStateMutex.lock()
 
-        log.debug("handle_tc358743_StreamStart")
+        log.debug("tc358743 streaming has started")
 
         if self.streamingStatus is True:
             self.streamStateMutex.unlock()
@@ -801,7 +801,7 @@ class HDMIInPage(QWidget):
 
         self.streamStateMutex.lock()
 
-        log.debug("handle_VideoCapture_StreamStart")
+        log.debug("Video capture streaming has started")
 
         if self.streamingStatus is True:
             self.streamStateMutex.unlock()
@@ -893,6 +893,8 @@ class HDMIInPage(QWidget):
         self.media_engine.led_video_params.set_hdmi_in_crop_h(int(self.hdmi_in_crop_h_lineedit.text()))
         self.media_engine.led_video_params.set_hdmi_in_start_x(int(self.hdmi_in_crop_x_lineedit.text()))
         self.media_engine.led_video_params.set_hdmi_in_start_y(int(self.hdmi_in_crop_y_lineedit.text()))
+        self.reset_hdmi_state()
+
 
     def hdmi_video_params_changed(self):
         log.debug("hdmi_video_params_changed")
