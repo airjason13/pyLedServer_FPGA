@@ -156,7 +156,6 @@ class HDMIInPage(QWidget):
             # usb device init
             self.check_hdmi_in_timer = self.init_timer(1000, self.check_video_capture_event)
             self.hdmi_device = VideoCaptureCard()
-            self.video_device = self.hdmi_device.get_video_device()
             try:
                 self.check_hdmi_in_timer.start(self.check_hdmi_in_interval)
             except Exception as e:
@@ -833,8 +832,11 @@ class HDMIInPage(QWidget):
         if p.stdout:
             subprocess.run(["pkill", "-9", "-f", "arecord"])
 
-        self.refresh_hdmi_param(self.hdmi_device.connected,self.hdmi_device.width, self.hdmi_device.height, self.hdmi_device.fps)
-
+        self.video_device = self.hdmi_device.get_video_device()
+        self.hdmi_device.set_video_out_timing(self.hdmi_device.get_video_device(),
+                                  self.hdmi_device.width, self.hdmi_device.height,self.hdmi_device.fps)
+        self.refresh_hdmi_param(self.hdmi_device.connected,
+                                self.hdmi_device.width, self.hdmi_device.height, self.hdmi_device.fps)
         self.media_engine.hdmi_in_play(self.video_device,
                                        active_width=int(self.hdmi_device.width),
                                        active_height=int(self.hdmi_device.height),

@@ -16,12 +16,6 @@ class VideoCaptureCard:
         self.hdmi_connected = None
         self.video_device = None
 
-        current_video_device = self.find_video_device(HdmiChSwitchDeviceMap.GoFanCo_Prophecy.description)
-        if current_video_device:
-            self.set_usb_hdmi_connected_status(True)
-            self.update_video_device(current_video_device)
-            self.set_video_out_timing(current_video_device, self.width, self.height, self.fps)
-
     def set_video_out_timing(self, device, width, height, fps):
         try:
             subprocess.run(
@@ -63,6 +57,8 @@ class VideoCaptureCard:
         return self.hdmi_connected
 
     def get_usb_hdmi_info(self):
-        connected  = self.find_video_device(HdmiChSwitchDeviceMap.GoFanCo_Prophecy.description)
+        current_video_device  = self.find_video_device(HdmiChSwitchDeviceMap.GoFanCo_Prophecy.description)
+        self.update_video_device(current_video_device)
+        connected = current_video_device
         self.set_usb_hdmi_connected_status(True if connected else False)
         return self.hdmi_connected , self.width , self.height ,self.fps
