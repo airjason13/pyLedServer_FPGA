@@ -40,7 +40,7 @@ Gst.init(None)
 class MediaEngine(QObject):
     signal_media_play_status_changed = pyqtSignal(int, str)
     hdmi_play_status_changed = pyqtSignal(int, str)
-
+    cms_play_status_changed = pyqtSignal(int, str)
     signal_media_engine_status_changed = pyqtSignal(int, str)
 
     def __init__(self):
@@ -65,6 +65,7 @@ class MediaEngine(QObject):
         self.play_hdmi_in_worker = None
         self.play_cms_thread = None
         self.play_cms_worker = None
+
 
         log.debug("")
 
@@ -187,6 +188,12 @@ class MediaEngine(QObject):
     def install_signal_media_play_status_changed_slot(self, slot_func):
         self.signal_media_play_status_changed.connect(slot_func)
 
+    def install_hdmi_play_status_changed_slot(self, slot_func):
+         self.hdmi_play_status_changed.connect(slot_func)
+
+    def install_cms_play_status_changed_slot(self, slot_func):
+        self.cms_play_status_changed.connect(slot_func)
+
     def set_output_streaming_resolution(self, w: int, h: int, fps: int):
         self.output_streaming_width = w
         self.output_streaming_height = h
@@ -206,15 +213,24 @@ class MediaEngine(QObject):
         log.debug("play_status_changed : status=%d", status)
         self.play_change_mutex.lock()
         self.playing_status = status
-
-        if "/dev/video" in playing_src:
-            self.hdmi_play_status_changed.emit(status, playing_src)
-            self.signal_media_engine_status_changed.emit(status, "HDMI-In")
-        else:
-            self.signal_media_play_status_changed.emit(status, playing_src)
-            self.signal_media_engine_status_changed.emit(status, "Media File")
-
-        self.play_change_mutex.unlock()
+        try:
+            if status == PlayStatus.Stop:
+                self.hdmi_play_status_changed.emit(status, "")
+                self.cms_play_status_changed.emit(status, "")
+                self.signal_media_play_status_changed.emit(status, "")
+                self.signal_media_engine_status_changed.emit(status, "STOP PLAY")
+            else :
+                if "/dev/video" in playing_src:
+                    self.hdmi_play_status_changed.emit(status, playing_src)
+                    self.signal_media_engine_status_changed.emit(status, "HDMI-In")
+                elif re.search(r":\d+\.\d+\+", playing_src):
+                    self.cms_play_status_changed.emit(status, playing_src)
+                    self.signal_media_engine_status_changed.emit(status, "CMS")
+                else:
+                    self.signal_media_play_status_changed.emit(status, playing_src)
+                    self.signal_media_engine_status_changed.emit(status, "Media File")
+        finally:
+            self.play_change_mutex.unlock()
 
     def preview_pixmap_changed(self, raw_image_np_array):
         if self.led_video_params.get_play_with_preview() == 0:
@@ -278,22 +294,21 @@ class MediaEngine(QObject):
         self.play_playlist_thread.start()
 
     def play_cms(self, window_width, window_height, window_x, window_y, **kwargs):
+
         log.debug("play_cms")
 
-
-        active_width = kwargs.get('active_width', 0)
-        active_height = kwargs.get('active_height', 0)
         c_width = 0
         c_height = 0
         c_pos_x = 0
         c_pos_y = 0
 
-        log.debug("active_width = %d", active_width)
-        log.debug("active_height = %d", active_height)
         log.debug("window_width = %d", window_width)
         log.debug("window_height = %d", window_height)
         log.debug("window_x = %d", window_x)
         log.debug("window_y = %d", window_y)
+
+        self.media_active_width = window_width
+        self.media_active_height = window_height
         # log.debug("self.led_video_params.get_media_file_crop_w() = %d", self.led_video_params.get_media_file_crop_w())
         # log.debug("self.led_video_params.get_media_file_crop_h() = %d", self.led_video_params.get_media_file_crop_h())
 
@@ -429,11 +444,8 @@ class MediaEngine(QObject):
 
         self.sound_device.stop_play()
         self.playing_preview_window.close_window()
-
+        self.play_status_changed(PlayStatus.Stop, "")
         log.debug("exit stop_play!\n")
-
-    def install_hdmi_play_status_changed_slot(self, slot_func):
-        self.hdmi_play_status_changed.connect(slot_func)
 
     def hdmi_in_play(self, video_src, **kwargs):
 
@@ -481,6 +493,8 @@ class MediaEngine(QObject):
                     self.play_status_changed(self.playing_status, self.play_single_file_worker.file_uri)
                 if self.play_playlist_thread is not None:
                    self.play_status_changed(self.playing_status, self.play_playlist_worker.files_in_playlist[self.play_playlist_worker.file_index])
+                if self.play_cms_worker is not None:
+                    self.play_status_changed(self.playing_status, self.play_cms_worker.video_src)
 
             except Exception as e:
                 log.debug(e)
@@ -510,6 +524,8 @@ class MediaEngine(QObject):
                 if self.play_playlist_thread is not None:
                     self.play_status_changed(self.playing_status, self.play_playlist_worker.files_in_playlist[
                         self.play_playlist_worker.file_index])
+                if self.play_cms_worker is not None:
+                    self.play_status_changed(self.playing_status, self.play_cms_worker.video_src)
 
             except Exception as e:
                 log.debug(e)
@@ -562,6 +578,13 @@ class MediaEngine(QObject):
         return resolution
 
     def get_hdmi_resolution(self):
+        # Evaluate whether to make modifications later @Hank
+        if (0 < self.media_active_width <= 4096 and
+                0 < self.media_active_height <= 3112):
+            return self.media_active_width, self.media_active_height
+        return None
+
+    def get_cms_resolution(self):
         # Evaluate whether to make modifications later @Hank
         if (0 < self.media_active_width <= 4096 and
                 0 < self.media_active_height <= 3112):
@@ -1692,7 +1715,7 @@ class Playing_HDMI_in_worker(QThread):
                 except Exception as e:
                     log.error(e)
 
-            # Fetch the video resolution for the current file in the playlist
+            # Fetch the video resolution from media engine
             resolution = self.media_engine.get_hdmi_resolution()
 
             # Update active media width and height if resolution is obtained
@@ -1823,16 +1846,15 @@ class PlayCMSWorker(QObject):
     def __init__(self, media_engine: MediaEngine, window_width, window_height, window_x, window_y,
                  c_width: int, c_height: int, c_pos_x: int, c_pos_y: int, ):
         super().__init__()
-        self.shm_sem = None
-        self.shm = None
-        self.agent_process = None
+
         self.media_engine = media_engine
+        self.media_ipc = MediaIpc(media_engine)
         self.video_params = self.media_engine.led_video_params
         self.force_stop = False
         self.worker_status = 0
         self.force_stop_mutex = QMutex()
         self.play_status = None
-        self.video_src = ":0.0+" + str(window_x) + "," + str(window_y)
+        self.video_src =  os.environ.get("DISPLAY", ":0.0")+ "+" + str(window_x) + "," + str(window_y)
         self.window_width = window_width
         self.window_height = window_height
 
@@ -1845,6 +1867,10 @@ class PlayCMSWorker(QObject):
         self.crop_visible_area_height = c_height
         self.crop_position_x = c_pos_x
         self.crop_position_y = c_pos_y
+        self.gst_appsink = None
+        self.gst_pipeline = None
+        self.media_active_height = None
+        self.media_active_width = None
         self.playing_source = None
         self.image_from_pipe = None
         self.raw_image = None
@@ -1870,79 +1896,52 @@ class PlayCMSWorker(QObject):
         log.debug("self.playing_source : %s", self.playing_source)
         self.pysignal_cms_play_status_change.emit(self.play_status, self.playing_source)
 
-    def run(self):
-        log.debug("cms go run!")
-        # try_wain_write_count_max = 5000
-        # if platform.machine() in ('arm', 'arm64', 'aarch64'):
-        #     try_wain_write_count_max = 500
-        try_wait_write_count = 0
-        self.media_engine.sync_output_streaming_resolution()  # venom for output resolution correction
-        subprocess.Popen("pkill -9 -f show_ffmpeg_shared_memory", shell=True)
-        time.sleep(1)
+    def start_ffmpeg_stream(self):
 
         while True:
-            self.worker_status = 1
             if self.play_status != PlayStatus.Stop:
                 try:
-                    ''' 如果 ffprocess 存在'''
                     if self.ff_process is not None:
-                        '''但是是暫停狀態, 則繼續播放?'''
                         if self.play_status == PlayStatus.Pausing:
-                            os.kill(self.ff_process.pid, signal.SIGCONT)
+                            os.kill(self.ff_process.pid, signal.SIGCONT)  # Continue process
                         else:
-                            os.kill(self.ff_process.pid, signal.SIGTERM)
+                            os.kill(self.ff_process.pid, signal.SIGTERM)  # Terminate process
                 except Exception as e:
                     log.error(e)
-            self.shm = None
-            while True:
-                log.debug("cms go!")
-                try:
-                    # find agent preview window pos
-                    line = os.popen("xdpyinfo | awk '/dimensions/{print $2}'").read()
-                    tmp = line.split("x")
-                    geo_w = int(tmp[0])
-                    geo_h = int(tmp[1])
 
-                    if self.output_width >= 1280 or self.output_height >= 720:
-                        preview_pos_x = geo_w - 640
-                        preview_pos_y = 320
-                    else:
-                        preview_pos_x = geo_w - self.output_width
-                        preview_pos_y = 320
-                        # handle raw socket agent
-                    os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (preview_pos_x, preview_pos_y)
-                    ld_path = root_dir + "/ext_binaries"
-                    agent_cmd = (
-                            "%s/ext_binaries/show_ffmpeg_shared_memory %s %d %d 0 "
-                            % (root_dir, ETH_DEV, self.output_width, self.output_height))
-                    log.debug("agent_cmd : %s", agent_cmd)
-                    time.sleep(1)
-                    self.agent_process = subprocess.Popen(agent_cmd, shell=True)
-                    log.debug("self.agent_process.pid : %d", self.agent_process.pid)
-                    time.sleep(1)
 
-                    self.shm = shared_memory.SharedMemory("posixsm", False, 0x400000)
-                except Exception as e:
-                    log.fatal(e)
-                    subprocess.Popen("pkill -9 -f show_ffmpeg_shared_memory", shell=True)
-                    time.sleep(1)
+            # Fetch the video resolution from media engine
+            resolution = self.media_engine.get_cms_resolution()
 
-                if self.shm is not None:
-                    break
-            self.shm_sem = LinuxIpcSemaphorePyapi()
-            # Init write sem
-            sem_write_flag = self.shm_sem.sem_open(self.media_engine.shm_sem_write_uri, os.O_CREAT, 0x666, 1)
-            if sem_write_flag == 0:
-                log.error("failed to create sem: %s", self.media_engine.shm_sem_write_uri)
-                return -1
+            # Update active media width and height if resolution is obtained
+            if resolution:
+                self.media_active_width, self.media_active_height = resolution
 
-            # Init the read sem
-            sem_read_flag = self.shm_sem.sem_open(self.media_engine.shm_sem_read_uri, os.O_CREAT, 0x666, 0)
-            if sem_read_flag == 0:
-                log.error("failed to create sem: %s", self.media_engine.shm_sem_read_uri)
-                return -1
+            # Debug output for active resolution
+            log.debug("Active resolution - Width: %d, Height: %d", self.media_active_width, self.media_active_height)
 
+            # Debug output for crop parameters
+            log.debug("Configured crop dimensions - Width: %d, Height: %d",
+                      self.video_params.get_cms_crop_w(),
+                      self.video_params.get_cms_crop_h())
+
+            # Configure cropping dimensions based on media and crop parameters
+            if (self.video_params.get_cms_crop_w() is not None and
+                    self.video_params.get_cms_crop_h() is not None and
+                    self.media_active_width and self.media_active_height):
+                self.crop_visible_area_width = min(self.video_params.get_cms_crop_w(), self.media_active_width)
+                self.crop_visible_area_height = min(self.video_params.get_cms_crop_h(), self.media_active_height)
+                self.crop_position_x = self.video_params.get_cms_start_x()
+                self.crop_position_y = self.video_params.get_cms_start_y()
+
+            # Debug output for final crop parameters
+            log.debug("Crop configuration - Width: %d, Height: %d, Position X: %d, Position Y: %d",
+                      self.crop_visible_area_width,
+                      self.crop_visible_area_height,
+                      self.crop_position_x,
+                      self.crop_position_y)
             audio_sink_str = 'default'
+
             if platform.machine() in ('arm', 'arm64', 'aarch64'):
                 if self.media_engine.headphone_sound is not None:
                     sink_card, sink_device = self.media_engine.headphone_sound
@@ -1951,7 +1950,7 @@ class PlayCMSWorker(QObject):
 
             ffmpeg_cmd = get_ffmpeg_cmd_for_media(self.video_src,
                                                   width=self.output_width, height=self.output_height,
-                                                  target_fps=target_fps_str, image_period=20,
+                                                  target_fps=target_fps_str,
                                                   c_width=self.crop_visible_area_width,
                                                   c_height=self.crop_visible_area_height,
                                                   c_pos_x=self.crop_position_x,
@@ -1959,7 +1958,9 @@ class PlayCMSWorker(QObject):
                                                   audio_sink=audio_sink_str,
                                                   audio_on=self.video_params.get_play_with_audio()
                                                   )
+
             log.debug("ffmpeg_cmd : %s", ffmpeg_cmd)
+
             try:
                 self.ff_process = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, bufsize=10 ** 8, shell=True)
                 self.media_engine.ff_process = self.ff_process
@@ -1967,16 +1968,15 @@ class PlayCMSWorker(QObject):
                 log.error(e)
             # write__flag_tmp = self.shm_sem.sem_post(sem_write_flag)
             if self.ff_process.pid > 0:
-                self.play_status_change(PlayStatus.Playing, "CMS")
+                self.play_status_change(PlayStatus.Playing, self.video_src)
                 self.image_from_pipe = None
                 while self.ff_process.pid > 0:
                     self.image_from_pipe = self.ff_process.stdout.read(self.output_width * self.output_height * 3)
-                    if len(self.image_from_pipe) <= 0:
+                    # if len(self.image_from_pipe) <= 0:
+                    if not self.image_from_pipe:
                         log.debug("play end")
-                        if self.agent_process is not None:
-                            self.agent_process.kill()
+                        # self.media_ipc.terminate_agent_process()
                         break
-
                     try:
                         self.raw_image = np.frombuffer(self.image_from_pipe, dtype='uint8')
                         self.raw_image = self.raw_image.reshape((self.output_height, self.output_width, 3))
@@ -1993,60 +1993,39 @@ class PlayCMSWorker(QObject):
                             os.kill(self.ff_process.pid, signal.SIGTERM)
                         break
 
-                    write_flag_tmp = self.shm_sem.sem_trywait(sem_write_flag)
-                    if write_flag_tmp == -1:
-                        try_wait_write_count += 1
-                        if try_wait_write_count > 500:
-                            try_wait_write_count = 0
-                            log.error("missing agent!")
-                            subprocess.Popen("pkill -f show_ffmpeg_shared_memory", shell=True)
-                            '''kill_agent_cmd = "sudo -S pkill -f show_ffmpeg_shared_memory"
-                            su_kill_agent_cmd = 'echo {} | '.format(SU_PWD) + kill_agent_cmd
-                            log.debug("su_kill_agent_cmd : %s", kill_agent_cmd)
-                            os.system(su_kill_agent_cmd)'''
-                            time.sleep(1)
-                            ld_path = root_dir + "/ext_binaries"
-                            agent_cmd = (
-                                    "%s/ext_binaries/show_ffmpeg_shared_memory %s %d %d 0 "
-                                    % (root_dir, ETH_DEV, self.output_width, self.output_height))
-                            log.debug("agent_cmd : %s", agent_cmd)
-                            subprocess.Popen(agent_cmd, shell=True)
-                            '''agent_cmd = (
-                                    "LD_LIBRARY_PATH=%s %s/ext_binaries/show_ffmpeg_shared_memory %s %s %d %d 0 &"
-                                    % (ld_path, root_dir, os.getlogin(), ETH_DEV, self.output_width, self.output_height))
-                            # su_agent_cmd = 'echo {} | sudo -S '.format(SU_PWD) + agent_cmd
-                            # os.system(su_agent_cmd)
-                            su_agent_cmd = agent_cmd
-                            os.system(su_agent_cmd)'''
-                        continue
+                    if not self.media_ipc.wait_sem_write_access():
+                        pass
                     else:
-                        try_wait_write_count = 0
+                        self.media_ipc.write_to_shared_memory(self.image_from_pipe)
 
-                    to_write = memoryview(self.image_from_pipe)
-                    self.shm._buf[:len(to_write)] = to_write[:]
-                    # post the read
-                    read_flag_tmp = self.shm_sem.sem_post(sem_read_flag)
-
-            log.debug("single play end")
+            log.debug("cms play end")
             # if self.media_engine.repeat_option == RepeatOption.Repeat_None:
             #     log.debug("stop play cause play end")
             #     break
             if self.force_stop is True:
                 break
+    def run(self):
+        log.debug("cms go run!")
 
-        self.shm_sem.sem_close(sem_write_flag)
-        self.shm_sem.sem_unlink(self.media_engine.shm_sem_write_uri)
-        self.shm_sem.sem_close(sem_read_flag)
-        self.shm_sem.sem_unlink(self.media_engine.shm_sem_read_uri)
+        self.media_engine.sync_output_streaming_resolution()  # venom for output resolution correction
+        self.worker_status = 1
 
+        # Initialize shared memory and agent preview for media player
+        if self.media_ipc.initialize_ipc_resources():
+            if self.media_engine.video_backend == VideoBackendType.FFMPEG.value:
+                self.start_ffmpeg_stream()
+            else:
+                self.start_GStreamer_stream()
+        else:
+            log.debug("initialize_ipc_resources failed")
+
+        # Cleanup after playback ends
         self.play_status_change(PlayStatus.Stop, "")
-        self.worker_status = 0
+        self.terminate_pipeline(self.media_engine.video_backend)
+        self.media_ipc.terminate_agent_process()
+        self.media_ipc.cleanup_ipc_resources()
         self.pysignal_cms_play_finished.emit()
-        self.ff_process.kill()
-        self.ff_process = None
-        if self.agent_process is not None:
-            self.agent_process.kill()
-            self.agent_process = None
+        self.worker_status = 0
         log.debug("play CMS worker finished")
 
     def stop(self):
@@ -2055,6 +2034,22 @@ class PlayCMSWorker(QObject):
     def get_worker_status(self):
         return self.worker_status
 
+    def terminate_pipeline(self, backend):
+        """Terminates playback pipeline based on backend (ffmpeg or GStreamer)."""
+        if backend == VideoBackendType.FFMPEG.value:
+            if self.ff_process is not None:
+                self.ff_process.kill()
+            self.ff_process = None
+            self.media_engine.ff_process = self.ff_process
+        else:
+            if self.gst_pipeline is not None:
+                self.gst_pipeline.set_state(Gst.State.NULL)
+                self.gst_pipeline = None
+                self.media_engine.gst_pipeline = self.gst_pipeline
+
+                if self.gst_appsink and self.gst_appsink.handler_is_connected(
+                        self.gst_appsink.connect('new-sample', self.process_gst_frame_sample)):
+                    self.gst_appsink.disconnect_by_func(self.process_gst_frame_sample)
 
 def test(self):
     log.debug("")

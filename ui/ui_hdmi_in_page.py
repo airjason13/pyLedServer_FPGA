@@ -127,7 +127,7 @@ class HDMIInPage(QWidget):
         log.debug("start hdmi-in page")
         self.init_ui()
         self.init_hdmi_device()
-        # install media_engine.video_params video_params_changed slot
+
         self.media_engine.install_hdmi_play_status_changed_slot(self.media_play_status_changed)
         self.media_engine.led_video_params.install_video_params_changed_slot(self.hdmi_video_params_changed)
 
@@ -586,18 +586,17 @@ class HDMIInPage(QWidget):
         self.init_hdmi_device()
 
     def media_play_status_changed(self, status: int, src: str):
-        if status == PlayStatus.Playing:
-            self.play_action_btn.setText("Pause")
-            self.hdmi_in_play_status_label.setText("Streaming")
-        elif status == PlayStatus.Pausing:
-            self.play_action_btn.setText("Resume")
-            self.hdmi_in_play_status_label.setText("Paused")
-        elif (status == PlayStatus.Stop or
-              status == PlayStatus.Initial):
-            self.hdmi_in_play_status_label.setText("Stopped")
-            self.play_action_btn.setText("Start Play")
-        else:
-            self.hdmi_in_play_status_label.setText("Non-Streaming")
+        status_map = {
+            PlayStatus.Playing: ("Pause", "Streaming"),
+            PlayStatus.Pausing: ("Resume", "Paused"),
+            PlayStatus.Stop: ("Start Play", "Stopped"),
+            PlayStatus.Initial: ("Start Play", "Stopped")
+        }
+
+        button_text, label_text = status_map.get(status, ("Start Play", "Non-Streaming"))
+        self.play_action_btn.setText(button_text)
+        self.hdmi_in_play_status_label.setText(label_text)
+
         self.update_process_info()
 
     def start_streaming(self):

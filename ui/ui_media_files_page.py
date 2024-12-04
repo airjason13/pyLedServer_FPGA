@@ -181,7 +181,7 @@ class MediaFilesPage(QWidget):
             self.external_file_watcher.install_folder_changed_slot(self.external_media_files_changed)
 
         # install media_engine.video_params video_params_changed slot
-        self.media_engine.led_video_params.install_video_params_changed_slot(self.video_params_changed)
+        self.media_engine.led_video_params.install_video_params_changed_slot(self.media_files_video_params_changed)
 
     def init_ui(self):
         self.media_files_tree_widget = CTreeWidget(self.frame)
@@ -884,15 +884,15 @@ class MediaFilesPage(QWidget):
     def media_play_status_changed(self, status: int, file_uri: str):
         log.debug("status : %d", status)
         log.debug("file_uri : %s", file_uri)
-        if status == PlayStatus.Playing:
-            self.play_pause_btn.setIcon(self.pause_icon)
-            '''if self.media_preview_widget is not None:
-                self.media_preview_widget.stop()
-                self.media_preview_widget.hide()'''
-        elif status == PlayStatus.Pausing:
-            self.play_pause_btn.setIcon(self.play_icon)
-        elif status == PlayStatus.Stop or status == PlayStatus.Initial:
-            self.play_pause_btn.setIcon(self.play_icon)
+
+        icon_map = {
+            PlayStatus.Playing: self.pause_icon,
+            PlayStatus.Pausing: self.play_icon,
+            PlayStatus.Stop: self.play_icon,
+            PlayStatus.Initial: self.play_icon
+        }
+
+        self.play_pause_btn.setIcon(icon_map.get(status, self.play_icon))
 
     def stop_btn_clicked(self):
         log.debug("")
@@ -1062,7 +1062,7 @@ class MediaFilesPage(QWidget):
         if self.media_engine.led_video_params.get_output_fps() != int(self.output_fps_lineedit.text()):
             self.media_engine.led_video_params.set_output_fps(int(self.output_fps_lineedit.text()))
 
-    def video_params_changed(self):
+    def media_files_video_params_changed(self):
         log.debug("video_params_changed")
 
         self.preview_control_btn.setIcon(QIcon(

@@ -222,6 +222,30 @@ def adjust_hdmi_crop(self, data):
                 log.debug("set hdmi_in_crop_h : %s", hdmi_in_crop_h)
                 self.media_engine.led_video_params.set_hdmi_in_crop_h(int(hdmi_in_crop_h))
 
+def adjust_cms_crop(self, data):
+    log.debug("data : %s", data)
+    s_data = data.split(";")
+    for s in s_data:
+        if 'cms_crop_start_x' in s:
+            cms_start_x = s.split(":")[1]
+            if int(cms_start_x) != self.media_engine.led_video_params.get_cms_start_x():
+                log.debug("set cms_start_x : %s", cms_start_x)
+                self.media_engine.led_video_params.set_cms_start_x(int(cms_start_x))
+        elif 'cms_crop_start_y' in s:
+            cms_start_y = s.split(":")[1]
+            if int(cms_start_y) != self.media_engine.led_video_params.get_cms_start_y():
+                log.debug("set cms_start_y : %s", cms_start_y)
+                self.media_engine.led_video_params.set_cms_start_y(int(cms_start_y))
+        elif 'cms_crop_w' in s:
+            cms_crop_w = s.split(":")[1]
+            if int(cms_crop_w) != self.media_engine.led_video_params.get_cms_crop_w():
+                log.debug("set cms_crop_w : %s",cms_crop_w)
+                self.media_engine.led_video_params.set_cms_crop_w(int(cms_crop_w))
+        elif 'cms_crop_h' in s:
+            cms_crop_h = s.split(":")[1]
+            if int(cms_crop_h) != self.media_engine.led_video_params.get_cms_crop_h():
+                log.debug("set cms_crop_h : %s", cms_crop_h)
+                self.media_engine.led_video_params.set_cms_crop_h(int(cms_crop_h))
 
 def play_single_file(self, data):
     log.debug("data : %s", data)
@@ -346,6 +370,7 @@ cmd_function_map = {
     "set_audio_preview_mode": adjust_audio_preview,
     "set_media_crop_values": adjust_media_crop,
     "set_hdmi_crop_values": adjust_hdmi_crop,
+    "set_cms_values": adjust_cms_crop,
     "set_wifi_hotspot_info": set_wifi_hotspot_info,
 }
 

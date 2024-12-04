@@ -2,6 +2,7 @@ import os
 import signal
 import subprocess
 import time
+from time import sleep
 
 from PyQt5.QtCore import QSize
 from PyQt5.QtGui import QFont, QIcon
@@ -11,6 +12,7 @@ from astral_hashmap import City_Map
 from global_def import log, icled_type, sleep_mode, frame_brightness_alog, MIN_FRAME_BRIGHTNESS, MAX_FRAME_BRIGHTNESS, \
     MIN_FRAME_GAMMA, MAX_FRAME_GAMMA
 from media_engine.media_engine import MediaEngine
+from media_engine.media_engine_def import PlayStatus
 from qt_ui_style.button_qss import QFont_Style_Default, \
     QFont_Style_Size_L, QFont_Style_Size_M
 
@@ -97,8 +99,46 @@ class CMSPage(QWidget):
         self.video_params_setting_layout = None
 
         self.init_ui()
+        self.media_engine.install_cms_play_status_changed_slot(self.cms_status_changed)
+        #self.media_engine.led_video_params.install_video_params_changed_slot(self.cms_video_params_changed)
         log.debug("CMS Page")
 
+    def cms_video_params_changed(self):
+        log.debug("video_params_changed")
+
+        self.preview_control_btn.setIcon(QIcon(
+            'materials/eyeOpenIcon.png' if self.media_engine.led_video_params.get_play_with_preview() == 1
+            else 'materials/eyeCloseIcon.png'))
+        self.sound_control_btn.setIcon(QIcon(
+            'materials/soundOnIcon.png' if self.media_engine.led_video_params.get_play_with_audio() == 1
+            else 'materials/soundOffIcon.png'))
+
+        self.video_brightness_lineedit.setText(str(self.media_engine.led_video_params.get_led_brightness()))
+        self.video_gamma_lineedit.setText(str(self.media_engine.led_video_params.get_led_gamma()))
+        self.brightness_algo_combobox.setCurrentIndex(self.media_engine.led_video_params.get_frame_brightness_algo())
+
+        self.sleep_mode_enable_combobox.setCurrentIndex(self.media_engine.led_video_params.get_sleep_mode_enable())
+        self.target_city_combobox.setCurrentIndex(self.media_engine.led_video_params.get_target_city_index())
+        self.day_mode_brightness_lineedit.setText(
+            str(self.media_engine.led_video_params.get_day_mode_frame_brightness()))
+        self.night_mode_brightness_lineedit.setText(
+            str(self.media_engine.led_video_params.get_night_mode_frame_brightness()))
+        self.sleep_mode_brightness_lineedit.setText(
+            str(self.media_engine.led_video_params.get_sleep_mode_frame_brightness()))
+
+        self.icled_type_combobox.setCurrentIndex(int(self.media_engine.led_video_params.get_icled_type()))
+        self.led_r_gain_lineedit.setText(str(self.media_engine.led_video_params.get_led_red_gain()))
+        self.led_g_gain_lineedit.setText(str(self.media_engine.led_video_params.get_led_green_gain()))
+        self.led_b_gain_lineedit.setText(str(self.media_engine.led_video_params.get_led_blue_gain()))
+
+        self.output_frame_width_lineedit.setText(str(self.media_engine.led_video_params.get_output_frame_width()))
+        self.output_frame_height_lineedit.setText(str(self.media_engine.led_video_params.get_output_frame_height()))
+        self.output_fps_lineedit.setText(str(self.media_engine.led_video_params.get_output_fps()))
+
+        self.video_crop_x_lineedit.setText(str(self.media_engine.led_video_params.get_media_file_start_x()))
+        self.video_crop_y_lineedit.setText(str(self.media_engine.led_video_params.get_media_file_start_y()))
+        self.video_crop_w_lineedit.setText(str(self.media_engine.led_video_params.get_media_file_crop_w()))
+        self.video_crop_h_lineedit.setText(str(self.media_engine.led_video_params.get_media_file_crop_h()))
 
     def init_ui(self):
         log.debug("CMS Page init_ui")
@@ -170,18 +210,47 @@ class CMSPage(QWidget):
         self.setLayout(self.grid_layout)
         log.debug("CMS Page init_ui end")
 
+    def cms_status_changed(self, status: int, src: str):
+        status_map = {
+            PlayStatus.Playing: ("Playing", "Pause CMS"),
+            PlayStatus.Pausing: ("Pausing", "Resume CMS"),
+            PlayStatus.Stop: ("Stopped", "Start CMS"),
+            PlayStatus.Initial: ("Standby", "Start CMS")
+        }
+
+        status_text, button_text = status_map.get(status, ("Unknown", ""))
+        self.name_label.setText(f"{self.name}\nStatus: {status_text}")
+        self.cms_start_btn.setText(button_text)
+
     def cms_start_btn_clicked(self):
+        if not self.media_engine.play_cms_worker:
+            self.media_engine.resume_playing()
+            self.media_engine.stop_play()
+        if PlayStatus.Playing == self.media_engine.playing_status:
+            self.media_engine.pause_playing()
+        elif PlayStatus.Pausing == self.media_engine.playing_status:
+            self.media_engine.resume_playing()
+        elif (PlayStatus.Stop == self.media_engine.playing_status or
+              PlayStatus.Initial == self.media_engine.playing_status):
+            self.start_streaming()
+
+    def start_streaming(self):
         log.debug("cms_start_btn_clicked!")
-        subprocess.Popen("pkill chromium", shell=True)
-        self.launch_chromium()
-        time.sleep(5)  # self.launch_chromium()
-        self.media_engine.resume_playing()
-        self.media_engine.stop_play()
-        if self.media_engine.play_cms_worker is None:
-            log.debug("Start streaming to led")
-            self.media_engine.play_cms(self.chromium_width, self.chromium_height,
-                                       self.chromium_pos_x + self.x_padding + 1,
-                                       self.chromium_pos_y + self.y_padding)
+        self.cms_start_btn.setEnabled(False)
+        try:
+            subprocess.Popen("pkill chromium", shell=True)
+            self.launch_chromium()
+            time.sleep(5)  # self.launch_chromium()
+            self.media_engine.resume_playing()
+            self.media_engine.stop_play()
+            if self.media_engine.play_cms_worker is None:
+                log.debug("Start streaming to led")
+                self.media_engine.play_cms(self.chromium_width, self.chromium_height,
+                                           self.chromium_pos_x + self.x_padding + 1,
+                                           self.chromium_pos_y + self.y_padding)
+        finally:
+            self.cms_start_btn.setEnabled(True)
+
 
     def cms_stop_btn_clicked(self):
         log.debug("cms_stop_btn_clicked!")
@@ -231,10 +300,10 @@ class CMSPage(QWidget):
         self.video_crop_w_lineedit = QLineEdit(self.media_crop_panel)
         self.video_crop_h_lineedit = QLineEdit(self.media_crop_panel)
 
-        self.video_crop_x_lineedit.setText(str(self.media_engine.led_video_params.get_media_file_start_x()))
-        self.video_crop_y_lineedit.setText(str(self.media_engine.led_video_params.get_media_file_start_y()))
-        self.video_crop_w_lineedit.setText(str(self.media_engine.led_video_params.get_media_file_crop_w()))
-        self.video_crop_h_lineedit.setText(str(self.media_engine.led_video_params.get_media_file_crop_h()))
+        self.video_crop_x_lineedit.setText(str(self.media_engine.led_video_params.get_cms_start_x()))
+        self.video_crop_y_lineedit.setText(str(self.media_engine.led_video_params.get_cms_start_y()))
+        self.video_crop_w_lineedit.setText(str(self.media_engine.led_video_params.get_cms_crop_w()))
+        self.video_crop_h_lineedit.setText(str(self.media_engine.led_video_params.get_cms_crop_h()))
 
         edits = [self.video_crop_x_lineedit, self.video_crop_y_lineedit, self.video_crop_w_lineedit,
                  self.video_crop_h_lineedit]
@@ -430,10 +499,10 @@ class CMSPage(QWidget):
         # self.video_params_setting_layout.addWidget(self.media_adj_crop_btn, 4, 0, 1, 2)
 
     def adj_media_ctrl_param(self):
-        self.media_engine.led_video_params.set_media_file_crop_w(int(self.video_crop_w_lineedit.text()))
-        self.media_engine.led_video_params.set_media_file_crop_h(int(self.video_crop_h_lineedit.text()))
-        self.media_engine.led_video_params.set_media_file_start_x(int(self.video_crop_x_lineedit.text()))
-        self.media_engine.led_video_params.set_media_file_start_y(int(self.video_crop_y_lineedit.text()))
+        self.media_engine.led_video_params.set_cms_crop_w(int(self.video_crop_w_lineedit.text()))
+        self.media_engine.led_video_params.set_cms_crop_h(int(self.video_crop_h_lineedit.text()))
+        self.media_engine.led_video_params.set_cms_start_x(int(self.video_crop_x_lineedit.text()))
+        self.media_engine.led_video_params.set_cms_start_y(int(self.video_crop_y_lineedit.text()))
 
     def adj_video_br_ga_param(self):
         if (int(self.video_brightness_lineedit.text()) < MIN_FRAME_BRIGHTNESS

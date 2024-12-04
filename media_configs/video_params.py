@@ -47,6 +47,10 @@ class VideoParams(QObject):
             self.hdmi_in_start_x = 0
             self.hdmi_in_crop_h = 0
             self.hdmi_in_crop_w = 0
+            self.cms_start_y = 0
+            self.cms_start_x = 0
+            self.cms_crop_h = 0
+            self.cms_crop_w = 0
 
             self.output_frame_width = 640
             self.output_frame_height = 480
@@ -88,6 +92,10 @@ class VideoParams(QObject):
             "media_file_start_y=0\n",
             "media_file_crop_w=0\n",
             "media_file_crop_h=0\n",
+            "cms_start_x=0\n",
+            "cms_start_y=0\n",
+            "cms_crop_w=0\n",
+            "cms_crop_h=0\n",
             "output_frame_width=640\n",
             "output_frame_height=480\n",
             "output_fps=24\n",
@@ -159,6 +167,14 @@ class VideoParams(QObject):
                 self.media_file_start_x = int(tmp[1])
             elif tmp[0] == "media_file_start_y":
                 self.media_file_start_y = int(tmp[1])
+            elif tmp[0] == "cms_crop_w":
+                self.cms_crop_w = int(tmp[1])
+            elif tmp[0] == "cms_crop_h":
+                self.cms_crop_h = int(tmp[1])
+            elif tmp[0] == "cms_start_x":
+                self.cms_start_x = int(tmp[1])
+            elif tmp[0] == "cms_start_y":
+                self.cms_start_y = int(tmp[1])
             elif tmp[0] == "output_frame_width":
                 self.output_frame_width = int(tmp[1])
             elif tmp[0] == "output_frame_height":
@@ -196,6 +212,10 @@ class VideoParams(QObject):
             "media_file_start_y",
             "media_file_crop_w",
             "media_file_crop_h",
+            "cms_start_x",
+            "cms_start_y",
+            "cms_crop_w",
+            "cms_crop_h",
             "output_frame_width",
             "output_frame_height",
             "output_fps",
@@ -250,6 +270,10 @@ class VideoParams(QObject):
         params_media_file_start_y = 'media_file_start_y=' + str(self.media_file_start_y) + '\n'
         params_media_file_crop_w = 'media_file_crop_w=' + str(self.media_file_crop_w) + '\n'
         params_media_file_crop_h = 'media_file_crop_h=' + str(self.media_file_crop_h) + '\n'
+        params_cms_start_x = "cms_start_x=" + str(self.cms_start_x) + '\n'
+        params_cms_start_y = 'cms_start_y=' + str(self.cms_start_y) + '\n'
+        params_cms_crop_w = 'cms_crop_w=' + str(self.cms_crop_w) + '\n'
+        params_cms_crop_h = 'cms_crop_h=' + str(self.cms_crop_h) + '\n'
         params_output_frame_width = 'output_frame_width=' + str(self.output_frame_width) + '\n'
         params_output_frame_height = 'output_frame_height=' + str(self.output_frame_height) + '\n'
         params_output_fps = 'output_fps=' + str(self.output_fps) + '\n'
@@ -278,6 +302,10 @@ class VideoParams(QObject):
             params_media_file_start_y,
             params_media_file_crop_w,
             params_media_file_crop_h,
+            params_cms_start_x,
+            params_cms_start_y,
+            params_cms_crop_w,
+            params_cms_crop_h,
             params_output_frame_width,
             params_output_frame_height,
             params_output_fps,
@@ -457,6 +485,38 @@ class VideoParams(QObject):
 
     def get_media_file_crop_w(self):
         return self.media_file_crop_w
+
+    def set_cms_start_y(self, start_y):
+        if self.cms_start_y != start_y:
+            self.cms_start_y = start_y
+            self.sync_video_param()
+
+    def get_cms_start_y(self):
+        return self.cms_start_y
+
+    def set_cms_start_x(self, start_x):
+        if self.cms_start_x != start_x:
+            self.cms_start_x = start_x
+            self.sync_video_param()
+
+    def get_cms_start_x(self):
+        return self.cms_start_x
+
+    def set_cms_crop_h(self, crop_h):
+        if self.cms_crop_h != crop_h:
+            self.cms_crop_h = crop_h
+            self.sync_video_param()
+
+    def get_cms_crop_h(self):
+        return self.cms_crop_h
+
+    def set_cms_crop_w(self, crop_w):
+        if self.cms_crop_w != crop_w:
+            self.cms_crop_w = crop_w
+            self.sync_video_param()
+
+    def get_cms_crop_w(self):
+        return self.cms_crop_w
 
     def set_output_frame_width(self, width):
         if self.output_frame_width != width:
