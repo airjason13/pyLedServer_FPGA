@@ -14,6 +14,11 @@ def get_gstreamer_cmd_for_media(video_uri: str, **kwargs):
     c_pos_y = kwargs.get("c_pos_y", 0)
     i_width = kwargs.get("i_width", width)
     i_height = kwargs.get("i_height", height)
+    window_width = kwargs.get("window_width", 640)
+    window_height = kwargs.get("window_height", 480)
+    window_x = kwargs.get("window_x", 0)
+    window_y = kwargs.get("window_y", 0)
+
     audio_sink = kwargs.get("audio_sink", "autoaudiosink")
     audio_on = kwargs.get("audio_on", True)
 
@@ -53,14 +58,15 @@ def get_gstreamer_cmd_for_media(video_uri: str, **kwargs):
             f"videorate ! video/x-raw,framerate={target_fps} ! "
             f"appsink name=appsink_sink"
         )
-
-    else:
+    else: # elif video_uri.endswith("CMS"):
         pipeline_str = (
-            f"ximagesrc display-name={video_uri} use-damage=0 ! "
-            f"video/x-raw,format=RGB,framerate={target_fps},width={width},height={height} "
-            f"! videoconvert ! {filter_chain} ! appsink name=appsink_sink"
+            f"ximagesrc display-name={video_uri} startx={window_x} starty={window_y} "
+            f"endx={window_x + window_width} endy={window_y + window_height} "
+            f"! queue "
+            f"! videoconvert "
+            f"! {filter_chain} "
+            f"! appsink name=appsink_sink"
         )
-
     return pipeline_str
 
 class gstreamer_image_period_event:

@@ -19,6 +19,8 @@ def get_ffmpeg_cmd_for_media(video_uri: str, **kwargs):
 
     window_width = kwargs.get("window_width", 640)
     window_height = kwargs.get("window_height", 480)
+    window_x = kwargs.get("window_x", 0)
+    window_y = kwargs.get("window_y", 0)
 
     target_fps = kwargs.get("target_fps", "24/1")
     c_width = kwargs.get("c_width")
@@ -89,6 +91,8 @@ def get_ffmpeg_cmd_for_media(video_uri: str, **kwargs):
             },
         )
     else: # elif video_uri.endswith("CMS"):
+
+        video_uri = f"{video_uri}+{window_x},{window_y}"
         ff = ffmpy.FFmpeg(
             inputs={
                 video_uri: ["-f", "x11grab", "-video_size", window_size_params]

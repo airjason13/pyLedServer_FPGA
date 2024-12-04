@@ -223,7 +223,7 @@ class MediaEngine(QObject):
                 if "/dev/video" in playing_src:
                     self.hdmi_play_status_changed.emit(status, playing_src)
                     self.signal_media_engine_status_changed.emit(status, "HDMI-In")
-                elif re.search(r":\d+\.\d+\+", playing_src):
+                elif re.search(r":\d", playing_src):
                     self.cms_play_status_changed.emit(status, playing_src)
                     self.signal_media_engine_status_changed.emit(status, "CMS")
                 else:
@@ -412,6 +412,7 @@ class MediaEngine(QObject):
         if self.play_cms_worker is not None:
             self.resume_playing()
             self.play_cms_worker.stop()
+            self.play_cms_worker.terminate_pipeline(self.video_backend)
             for i in range(5):
                 if self.ff_process is not None:
                     try:
@@ -434,7 +435,7 @@ class MediaEngine(QObject):
                         break
                     time.sleep(1)
 
-                log.debug("play_hdmi_in_thread is not None A2")
+                log.debug("play_play_cms_thread is not None A2")
                 self.play_cms_thread.wait()
                 self.play_cms_thread.exit(0)
             except Exception as e:
@@ -1854,9 +1855,11 @@ class PlayCMSWorker(QObject):
         self.worker_status = 0
         self.force_stop_mutex = QMutex()
         self.play_status = None
-        self.video_src =  os.environ.get("DISPLAY", ":0.0")+ "+" + str(window_x) + "," + str(window_y)
+        self.video_src = os.environ.get("DISPLAY", ":0.0")
         self.window_width = window_width
         self.window_height = window_height
+        self.window_x = window_x
+        self.window_y = window_y
 
         self.play_status_change(PlayStatus.Initial, "CMS")
         self.ff_process = self.media_engine.ff_process
@@ -1895,6 +1898,133 @@ class PlayCMSWorker(QObject):
         self.playing_source = src
         log.debug("self.playing_source : %s", self.playing_source)
         self.pysignal_cms_play_status_change.emit(self.play_status, self.playing_source)
+
+    def start_GStreamer_stream(self):
+        # Fetch the video resolution from media engine
+        resolution = self.media_engine.get_cms_resolution()
+
+        # Update active media width and height if resolution is obtained
+        if resolution:
+            self.media_active_width, self.media_active_height = resolution
+
+        # Debug output for active resolution
+        log.debug("Active resolution - Width: %d, Height: %d", self.media_active_width, self.media_active_height)
+
+        # Debug output for crop parameters
+        log.debug("Configured crop dimensions - Width: %d, Height: %d",
+                  self.video_params.get_cms_crop_w(),
+                  self.video_params.get_cms_crop_h())
+
+        # Configure cropping dimensions based on media and crop parameters
+        if (self.video_params.get_cms_crop_w() is not None and
+                self.video_params.get_cms_crop_h() is not None and
+                self.media_active_width and self.media_active_height):
+            self.crop_visible_area_width = min(self.video_params.get_cms_crop_w(), self.media_active_width)
+            self.crop_visible_area_height = min(self.video_params.get_cms_crop_h(), self.media_active_height)
+            self.crop_position_x = self.video_params.get_cms_start_x()
+            self.crop_position_y = self.video_params.get_cms_start_y()
+
+        # Debug output for final crop parameters
+        log.debug("Crop configuration - Width: %d, Height: %d, Position X: %d, Position Y: %d",
+                  self.crop_visible_area_width,
+                  self.crop_visible_area_height,
+                  self.crop_position_x,
+                  self.crop_position_y)
+
+        # Prepare audio and target frame rate settings
+        audio_sink_str = 'default'
+        if platform.machine() in ('arm', 'arm64', 'aarch64'):
+            if self.media_engine.headphone_sound is not None:
+                sink_card, sink_device = self.media_engine.headphone_sound
+                audio_sink_str = f'hw:{sink_card},{sink_device}'
+        target_fps_str = f"{self.output_fps}/1"
+
+        # Construct GStreamer pipeline command
+        gst_pipeline_str = get_gstreamer_cmd_for_media(
+            self.video_src,
+            width=self.output_width,
+            height=self.output_height,
+            target_fps=target_fps_str,
+            i_width=self.media_active_width,
+            i_height=self.media_active_height,
+            c_width=self.crop_visible_area_width,
+            c_height=self.crop_visible_area_height,
+            c_pos_x=self.crop_position_x,
+            c_pos_y=self.crop_position_y,
+            window_x=self.window_x,
+            window_y=self.window_y,
+            audio_sink=audio_sink_str,
+            audio_on=self.video_params.get_play_with_audio()
+        )
+        log.debug("gst-launch-1.0 %s", gst_pipeline_str)
+
+        # Parse and launch the GStreamer pipeline
+        self.gst_pipeline = Gst.parse_launch(gst_pipeline_str)
+        self.gst_appsink = self.gst_pipeline.get_by_name('appsink_sink')
+        self.gst_appsink.set_property('emit-signals', True)
+        self.gst_appsink.set_property('sync', True)
+        self.gst_appsink.connect('new-sample', self.process_gst_frame_sample)
+        self.media_engine.gst_pipeline = self.gst_pipeline
+
+        # Set the pipeline to PLAYING state and start monitoring bus messages
+        bus = self.gst_pipeline.get_bus()
+        self.play_status_change(PlayStatus.Playing, self.video_src)
+        self.gst_pipeline.set_state(Gst.State.PLAYING)
+
+        # Main loop to check for playback status and handle errors/stream end
+        while not self.force_stop:
+
+            if self.play_status == PlayStatus.Stop:
+                self.gst_pipeline.set_state(Gst.State.NULL)
+                break
+
+            # Check for any errors or end-of-stream events
+            msg = bus.timed_pop_filtered(100 * Gst.MSECOND, Gst.MessageType.ERROR | Gst.MessageType.EOS)
+            if msg:
+                if msg.type == Gst.MessageType.EOS:
+                    log.debug('End of stream, restarting...')
+                    break
+                elif msg.type == Gst.MessageType.ERROR:
+                    err, debug_info = msg.parse_error()
+                    log.error(f"Error received: {err}, {debug_info}")
+                    break
+        log.debug("GStreamer hdmi in play end")
+
+    def process_gst_frame_sample(self, sink=None):
+        # Retrieve the video frame sample
+        sample = sink.emit('pull-sample')
+        buf = sample.get_buffer()
+        result, self.image_from_pipe = buf.map(Gst.MapFlags.READ)
+
+        self.worker_status = 1
+
+        if result:
+            try:
+                # Convert video frame data to RGB and emit the updated frame
+                self.raw_image = np.frombuffer(self.image_from_pipe.data, dtype=np.uint8).reshape(
+                    (self.output_height, self.output_width, 3))
+                self.pysignal_refresh_image_pixmap.emit(self.raw_image)
+
+                if len(self.raw_image) <= 0:
+                    log.debug("play end")
+                    #self.media_ipc.terminate_agent_process()
+                    return Gst.FlowReturn.EOS
+
+                # Check if force stop is triggered
+                if self.force_stop:
+                    log.debug("self.force_stop is True, stopping gst_pipeline")
+                    self.gst_pipeline.set_state(Gst.State.NULL)
+                    return Gst.FlowReturn.EOS  # End processing
+
+                if not self.media_ipc.wait_sem_write_access():
+                    pass
+                else:
+                    self.media_ipc.write_to_shared_memory(self.image_from_pipe.data)
+
+            finally:
+                buf.unmap(self.image_from_pipe)  # Ensure buffer is released
+
+        return Gst.FlowReturn.OK
 
     def start_ffmpeg_stream(self):
 
@@ -1955,6 +2085,8 @@ class PlayCMSWorker(QObject):
                                                   c_height=self.crop_visible_area_height,
                                                   c_pos_x=self.crop_position_x,
                                                   c_pos_y=self.crop_position_y,
+                                                  window_x = self.window_x,
+                                                  window_y = self.window_y,
                                                   audio_sink=audio_sink_str,
                                                   audio_on=self.video_params.get_play_with_audio()
                                                   )
