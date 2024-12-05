@@ -215,20 +215,21 @@ class MediaEngine(QObject):
         self.playing_status = status
         try:
             if status == PlayStatus.Stop:
+                media_engine_msg = "Stop Playing"
                 self.hdmi_play_status_changed.emit(status, "")
                 self.cms_play_status_changed.emit(status, "")
                 self.signal_media_play_status_changed.emit(status, "")
-                self.signal_media_engine_status_changed.emit(status, "STOP PLAY")
             else :
                 if "/dev/video" in playing_src:
+                    media_engine_msg = "HDMI-In Playing"
                     self.hdmi_play_status_changed.emit(status, playing_src)
-                    self.signal_media_engine_status_changed.emit(status, "HDMI-In")
-                elif re.search(r":\d", playing_src):
+                elif re.search(r":\d", playing_src) and len(playing_src) <= 6:
+                    media_engine_msg = "CMS Playing"
                     self.cms_play_status_changed.emit(status, playing_src)
-                    self.signal_media_engine_status_changed.emit(status, "CMS")
                 else:
+                    media_engine_msg = "Media File Playing"
                     self.signal_media_play_status_changed.emit(status, playing_src)
-                    self.signal_media_engine_status_changed.emit(status, "Media File")
+            self.signal_media_engine_status_changed.emit(status, media_engine_msg)
         finally:
             self.play_change_mutex.unlock()
 
@@ -490,9 +491,9 @@ class MediaEngine(QObject):
                     mute_audio_sinks(True)
                 if self.play_hdmi_in_worker is not None:
                     self.play_status_changed(self.playing_status, self.play_hdmi_in_worker.video_src)
-                if self.play_single_file_thread is not None:
+                if self.play_single_file_worker is not None:
                     self.play_status_changed(self.playing_status, self.play_single_file_worker.file_uri)
-                if self.play_playlist_thread is not None:
+                if self.play_playlist_worker is not None:
                    self.play_status_changed(self.playing_status, self.play_playlist_worker.files_in_playlist[self.play_playlist_worker.file_index])
                 if self.play_cms_worker is not None:
                     self.play_status_changed(self.playing_status, self.play_cms_worker.video_src)
@@ -520,9 +521,9 @@ class MediaEngine(QObject):
                     mute_audio_sinks(False)
                 if self.play_hdmi_in_worker is not None:
                     self.play_status_changed(self.playing_status, self.play_hdmi_in_worker.video_src)
-                if self.play_single_file_thread is not None:
+                if self.play_single_file_worker is not None:
                     self.play_status_changed(self.playing_status, self.play_single_file_worker.file_uri)
-                if self.play_playlist_thread is not None:
+                if self.play_playlist_worker is not None:
                     self.play_status_changed(self.playing_status, self.play_playlist_worker.files_in_playlist[
                         self.play_playlist_worker.file_index])
                 if self.play_cms_worker is not None:

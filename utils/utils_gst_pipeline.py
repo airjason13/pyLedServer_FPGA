@@ -65,6 +65,7 @@ def get_gstreamer_cmd_for_media(video_uri: str, **kwargs):
             f"! queue "
             f"! videoconvert "
             f"! {filter_chain} "
+            f"! videorate ! video/x-raw,framerate={target_fps} "
             f"! appsink name=appsink_sink"
         )
     return pipeline_str
