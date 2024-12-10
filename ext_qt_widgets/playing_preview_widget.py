@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import QWidget, QGridLayout, QLabel, QFrame, QVBoxLayout, Q
 import time
 
 from global_def import log
-from qt_ui_style.button_qss import QFont_Style_Default, QFont_Style_Size_M
+from qt_ui_style.button_qss import QFont_Style_Default, QFont_Style_Size_M, QFont_Style_Size_S
 from utils.utils_file_access import get_led_config_from_file_uri, get_int_led_config_from_file_uri
 
 
@@ -33,6 +33,11 @@ class PlayingPreviewWindow(QWidget):
         self.live_icon_pixmap = QPixmap("materials/live_icon.png").scaledToWidth(48)
         # self.image_display_width, self.image_display_height = (
         #    get_int_led_config_from_file_uri("led_wall_resolution", "led_wall_width", "led_wall_height"))
+        self.preview_duration_label = None
+        self.play_start_time = None
+        self.paused_duration = None
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.update_play_duration)
         self.image_display_width = preview_width
         self.image_display_height = preview_height
         self.init_ui()
@@ -52,6 +57,9 @@ class PlayingPreviewWindow(QWidget):
         self.preview_info_label = QLabel()
         self.preview_info_label.setText("Res:WidthxHeight")
         self.preview_info_label.setFont(QFont(QFont_Style_Default, QFont_Style_Size_M))
+        self.preview_duration_label = QLabel("00:00")
+        self.preview_duration_label.setFont(QFont(QFont_Style_Default, QFont_Style_Size_S))
+
         self.live_icon_label = QLabel()
         self.live_icon_label.setPixmap(self.live_icon_pixmap)
 
@@ -62,6 +70,7 @@ class PlayingPreviewWindow(QWidget):
         layout_gridbox.addWidget(self.live_icon_label, 0, 0)
         layout_gridbox.addWidget(self.preview_info_label, 0, 1)
         layout_gridbox.addWidget(self.preview_label, 1, 0, 1, 2)
+        layout_gridbox.addWidget(self.preview_duration_label, 2, 0, 1, 2)
         self.layout.addWidget(layout_widget)
 
     def refresh_image(self, np_image):
@@ -102,3 +111,40 @@ class PlayingPreviewWindow(QWidget):
     def perform_close(self):
         super().close()
 
+    def start_playing(self):
+        if self.play_start_time is None:
+            self.play_start_time = time.time()
+        else:
+            self.play_start_time = time.time() - self.paused_duration
+        self.timer.start(1000)
+
+    def pause_playing(self):
+        if self.play_start_time:
+            self.timer.stop()
+            self.paused_duration += time.time() - self.play_start_time
+            self.play_start_time = None
+
+    def resume_playing(self):
+        if self.paused_duration > 0:
+            self.play_start_time = time.time() - self.paused_duration
+            self.timer.start(1000)
+
+    def stop_playing(self):
+        self.timer.stop()
+        self.play_start_time = None
+        self.paused_duration = 0
+        self.preview_duration_label.setText("00:00")
+
+    def update_play_duration(self):
+        if self.play_start_time:
+            elapsed_time = int(time.time() - self.play_start_time)
+            days, remainder = divmod(elapsed_time, 86400)
+            hours, remainder = divmod(remainder, 3600)
+            minutes, seconds = divmod(remainder, 60)
+
+            if days > 0:
+                self.preview_duration_label.setText(f"{days:02}:{hours:02}:{minutes:02}:{seconds:02}")
+            elif hours > 0:
+                self.preview_duration_label.setText(f"{hours:02}:{minutes:02}:{seconds:02}")
+            else:
+                self.preview_duration_label.setText(f"{minutes:02}:{seconds:02}")

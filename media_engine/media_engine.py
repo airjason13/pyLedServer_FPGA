@@ -7,6 +7,7 @@ import subprocess
 import time
 import atexit
 import select
+from random import sample
 from threading import Timer
 from time import sleep
 
@@ -219,16 +220,24 @@ class MediaEngine(QObject):
                 self.hdmi_play_status_changed.emit(status, "")
                 self.cms_play_status_changed.emit(status, "")
                 self.signal_media_play_status_changed.emit(status, "")
-            else :
-                if "/dev/video" in playing_src:
-                    media_engine_msg = "HDMI-In Playing"
-                    self.hdmi_play_status_changed.emit(status, playing_src)
-                elif re.search(r":\d", playing_src) and len(playing_src) <= 6:
-                    media_engine_msg = "CMS Playing"
-                    self.cms_play_status_changed.emit(status, playing_src)
-                else:
-                    media_engine_msg = "Media File Playing"
-                    self.signal_media_play_status_changed.emit(status, playing_src)
+                self.playing_preview_window.stop_playing()
+                self.signal_media_engine_status_changed.emit(status, media_engine_msg)
+                return
+            elif status == PlayStatus.Pausing:
+                self.playing_preview_window.pause_playing()
+            else:
+                self.playing_preview_window.start_playing()
+
+            if "/dev/video" in playing_src:
+                media_engine_msg = "HDMI-In Playing"
+                self.hdmi_play_status_changed.emit(status, playing_src)
+            elif re.search(r":\d", playing_src) and len(playing_src) <= 6:
+                media_engine_msg = "CMS Playing"
+                self.cms_play_status_changed.emit(status, playing_src)
+            else:
+                media_engine_msg = "Media File Playing"
+                self.signal_media_play_status_changed.emit(status, playing_src)
+
             self.signal_media_engine_status_changed.emit(status, media_engine_msg)
         finally:
             self.play_change_mutex.unlock()
@@ -544,40 +553,68 @@ class MediaEngine(QObject):
                 return child
         return None
 
-    def get_media_resolution(self, file_uri, backend):
+    def get_media_resolution_and_info(self, file_uri, backend):
+        width , height = None , None
         resolution = None
+        duration_in_seconds = None
 
-        if backend== VideoBackendType.FFMPEG.value:
+        if backend == VideoBackendType.FFMPEG.value:
             try:
-                ffmpeg_cmd = ['ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=width,height',
-                              '-of', 'csv=s=x:p=0', file_uri]
-                self.ffprobe_process = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                                   text=True)
-                output, error = self.ffprobe_process.communicate()
-                # log.debug("output : %s", output)
-                # log.debug("error : %s", error)
-                match = re.search(r'(\d{2,5})x(\d{2,5})', output)
-                if match:
-                    width, height = map(int, match.groups())
-                    if (0 < width <= 4096 and
-                            0 < height <= 3112):
-                        resolution = width, height
-            except Exception as e:
-                log.debug(f"Error processing video file: {str(e)}")
-            finally:
-                if self.ffprobe_process and self.ffprobe_process.poll() is None:
-                    self.ffprobe_process.kill()
-        else :
-            result = subprocess.run(['gst-discoverer-1.0', file_uri], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                    text=True)
-            match = re.search(r'Width:\s+(\d+)\s+Height:\s+(\d+)', result.stdout)
-            if match:
-                width, height = map(int, match.groups())
-                if (0 < width <= 4096 and
-                        0 < height <= 3112):
-                    resolution = width, height
+                ffmpeg_cmd = [
+                    'ffprobe', '-v', 'error', '-select_streams', 'v:0',
+                    '-show_entries', 'stream=width,height,duration', '-of', 'json', file_uri
+                ]
+                process = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                output, _ = process.communicate()
 
-        return resolution
+                # Extract resolution
+                width_height_match = re.search(r'"width":\s*(\d+),\s*"height":\s*(\d+)', output)
+                if width_height_match:
+                    width, height = map(int, width_height_match.groups())
+                    resolution = (width, height)
+
+                # Extract duration
+                # duration_match = re.search(r'"duration":\s*([\d.]+)', output)
+                duration_match = re.search(r'"duration"\s*:\s*"([\d.]+)"', output)
+                if duration_match:
+                    duration_in_seconds = float(duration_match.group(1))
+
+            except Exception as e:
+                log.debug(f"Error: {e}")
+        else:
+            try:
+                result = subprocess.run(
+                    ['gst-discoverer-1.0', file_uri], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+                )
+
+                # Extract resolution
+                width_height_match = re.search(r'Width:\s+(\d+)\s+Height:\s+(\d+)', result.stdout)
+                if width_height_match:
+                    width, height = map(int, width_height_match.groups())
+                    resolution = (width, height)
+
+                # Extract duration
+                duration_match = re.search(r'Duration:\s+([\d:.]+)', result.stdout)
+                if duration_match:
+                    time_parts = duration_match.group(1).split(":")
+                    if len(time_parts) == 3:  # HH:MM:SS
+                        hours, minutes, seconds = map(float, time_parts)
+                    elif len(time_parts) == 2:  # MM:SS
+                        hours = 0
+                        minutes, seconds = map(float, time_parts)
+                    else:
+                        hours = 0
+                        minutes = 0
+                        seconds = float(time_parts[0])
+                    duration_in_seconds = hours * 3600 + minutes * 60 + seconds
+
+            except Exception as e:
+                log.debug(f"Error: {e}")
+
+        if resolution:
+            if 0 < width <= 4096 and 0 < height <= 3112:
+                return resolution, duration_in_seconds
+        return None,None
 
     def get_hdmi_resolution(self):
         # Evaluate whether to make modifications later @Hank
@@ -732,7 +769,7 @@ class PlayPlaylistWorker(QObject):
         self.crop_visible_area_width = 0
         self.media_active_height = 0
         self.media_active_width = 0
-        self.image_period_timer = 5
+        self.image_period_timer = 20
         self.playlist_uri = playlist_uri
         self.video_params = self.media_engine.led_video_params
         self.force_stop = False
@@ -794,7 +831,7 @@ class PlayPlaylistWorker(QObject):
         while True:
 
             # Fetch the video resolution for the current file in the playlist
-            resolution = self.media_engine.get_media_resolution(
+            resolution , duration = self.media_engine.get_media_resolution_and_info(
                 file_uri=self.files_in_playlist[self.file_index],
                 backend=self.media_engine.video_backend
             )
@@ -996,7 +1033,7 @@ class PlayPlaylistWorker(QObject):
                     log.error(e)
 
             # Fetch the video resolution for the current file in the playlist
-            resolution = self.media_engine.get_media_resolution(
+            resolution , duration = self.media_engine.get_media_resolution_and_info(
                 file_uri=self.files_in_playlist[self.file_index],
                 backend=self.media_engine.video_backend
             )
@@ -1209,7 +1246,7 @@ class PlaySingleFileWorker(QObject):
 
     def start_GStreamer_stream(self):
         # Fetch the video resolution for the current file in the playlist
-        resolution = self.media_engine.get_media_resolution(
+        resolution , duration = self.media_engine.get_media_resolution_and_info(
             file_uri=self.file_uri,
             backend=self.media_engine.video_backend
         )
@@ -1357,7 +1394,7 @@ class PlaySingleFileWorker(QObject):
                     log.error(e)
 
             # Fetch the video resolution for the current file in the playlist
-            resolution = self.media_engine.get_media_resolution(
+            resolution , duration = self.media_engine.get_media_resolution_and_info(
                 file_uri=self.file_uri,
                 backend=self.media_engine.video_backend
             )

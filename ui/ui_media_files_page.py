@@ -7,7 +7,8 @@ import qdarkstyle
 from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QFont, QMouseEvent, QMovie, QPixmap, QIcon
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, \
-    QAbstractItemView, QTreeWidgetItem, QLabel, QFrame, QMenu, QAction, QGridLayout, QPushButton, QLineEdit, QComboBox
+    QAbstractItemView, QTreeWidgetItem, QLabel, QFrame, QMenu, QAction, QGridLayout, QPushButton, QLineEdit, QComboBox, \
+    QMessageBox
 
 from astral_hashmap import City_Map
 from media_engine.media_engine import MediaEngine
@@ -45,6 +46,7 @@ class MediaFilesPage(QWidget):
     TAG_Str_Popup_Menu_Add_to_New_Playlist = 'New Playlist'
     TAG_Str_Popup_Menu_Copy_To_Internal = 'Copy to Internal'
     TAG_Str_Popup_Menu_Remove_From_Playlist = 'Remove From Playlist'
+    TAG_Str_Popup_Menu_Detail = 'Info'
     TAG_Str_Splash_Mark = "/"
     TAG_Str_Playlist_Extension = '.playlist'
 
@@ -647,6 +649,8 @@ class MediaFilesPage(QWidget):
         pop_menu.addAction(play_act)
         del_act = QAction(self.TAG_Str_Popup_Menu_Delete, self)
         pop_menu.addAction(del_act)
+        detail_act = QAction(self.TAG_Str_Popup_Menu_Detail, self)
+        pop_menu.addAction(detail_act)
         pop_menu.addSeparator()
         add_to_playlist_menu = QMenu(self.TAG_Str_Popup_Menu_Add_to_Playlist)
         try:
@@ -784,6 +788,18 @@ class MediaFilesPage(QWidget):
             log.debug("w : %s, h : %s", w, h)
             get_ffmpeg_cmd_with_playing_media_file_("/home/venom/Videos/venom.jpeg", width=480, height=320,
                                                     target_fps="24/1", image_period=20)'''
+        elif q.text() == self.TAG_Str_Popup_Menu_Detail:
+            self.show_file_details()
+
+    def show_file_details(self):
+        selected_widget = self.media_files_tree_widget.itemAt(self.right_clicked_pos)
+        file_name = selected_widget.text(0)
+        file_uri = self.internal_media_folder[0] + self.TAG_Str_Splash_Mark + file_name
+        resolution , duration= self.media_engine.get_media_resolution_and_info(file_uri,self.media_engine.video_backend)
+        format_duration = format_file_duration(duration)
+        width, height = resolution
+        details = f"FileName: {file_name}\nResolution: {width}x{height}\nLength: {format_duration}"
+        QMessageBox.information(self, "File Information", details)
 
     def copy_external_file_to_internal(self):
         selected_widget = self.media_files_tree_widget.itemAt(self.right_clicked_pos)
@@ -1098,3 +1114,15 @@ class MediaFilesPage(QWidget):
         self.video_crop_y_lineedit.setText(str(self.media_engine.led_video_params.get_media_file_start_y()))
         self.video_crop_w_lineedit.setText(str(self.media_engine.led_video_params.get_media_file_crop_w()))
         self.video_crop_h_lineedit.setText(str(self.media_engine.led_video_params.get_media_file_crop_h()))
+
+def format_file_duration(seconds):
+    hours = seconds // 3600
+    minutes = (seconds % 3600) // 60
+    seconds = seconds % 60
+
+    if hours > 0:
+        return f"{int(hours)}h {int(minutes)}m {int(seconds)}s"
+    elif minutes > 0:
+        return f"{int(minutes)}m {int(seconds)}s"
+    else:
+        return f"{int(seconds)}s"
