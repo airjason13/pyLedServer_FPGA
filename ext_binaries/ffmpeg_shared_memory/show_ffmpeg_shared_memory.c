@@ -15,12 +15,12 @@ int shm_fd = -1;
 
 int preview_fps = 0;
 int frame_id = 0;
-
+#ifdef ENABLE_SDL
 static int filter(const SDL_Event * event){
 	return event->type == SDL_QUIT;
 }
-
-
+#endif
+#ifdef ENABLE_SDL
 static _Bool init_app(const char *name, SDL_Surface *icon, uint32_t flags){
 	printf("init_app start\n");
 	atexit(SDL_Quit);
@@ -32,7 +32,8 @@ static _Bool init_app(const char *name, SDL_Surface *icon, uint32_t flags){
 	SDL_WM_SetIcon(icon, NULL);
 	return 1;
 }
-
+#endif
+#ifdef ENABLE_SDL
 static void render(SDL_Surface *sf){
 	SDL_Surface *screen = SDL_GetVideoSurface();
 	if(SDL_BlitSurface(sf, NULL, screen, NULL) == 0){
@@ -40,14 +41,14 @@ static void render(SDL_Surface *sf){
 		preview_fps += 1;
 	}
 }
-
+#endif
 static uint8_t *init_data(uint8_t *data, int w, int h, int color_channel){
 	for(size_t i = w*h*color_channel; i--; ){
 		data[i] = (i%3 == 0)?(i/3)%w:(i%3 == 1)?(i/3)/w:0;
 	}
 	return data;
 }
-
+#ifdef ENABLE_SDL
 SDL_Surface *init_sdl_window(uint8_t *buf, int w, int h, int cc){
 	_Bool ok = init_app("RAW Frame Preview", NULL, SDL_INIT_VIDEO | SDL_INIT_NOPARACHUTE) && 
 		SDL_SetVideoMode(w, h, 24, SDL_HWSURFACE | SDL_NOFRAME);
@@ -60,7 +61,7 @@ SDL_Surface *init_sdl_window(uint8_t *buf, int w, int h, int cc){
 
 	return data_sf;
 }
-
+#endif
 void get_sigterm(int signum){
 	printf("get_sigterm!\n");
 	flag_exit = 1;
@@ -162,8 +163,10 @@ int main(int argc, char ** argv){
 	log_debug("preview height : %d\n", height);
 	int color_channels = 3; //RGB24
 	char buffer[width*height*3];
+	#ifdef ENABLE_SDL
 	SDL_Surface *sdl_sf;
 	SDL_Event event;
+	#endif
 	struct sigaction action;
 
     memset(&action, 0, sizeof(action));
@@ -196,7 +199,7 @@ int main(int argc, char ** argv){
 	}
 	
 	memset(p, 'A', 0x400000);
-	
+	#ifdef ENABLE_SDL
 	if(show_preview > 0){
 		// init sdl
 		sdl_sf = init_sdl_window(buffer, width, height, 3);
@@ -204,7 +207,7 @@ int main(int argc, char ** argv){
 		//timer_t fps_counter_tid = jset_timer(1, 0, 1, 0, &(fps_counter), 99);
 	
 	}
-
+    #endif
 	// Initial raw socket
 	if(set_raw_socket_init(eth_if)){
 		printf("socket open failed!\n");
@@ -245,11 +248,12 @@ int main(int argc, char ** argv){
 		//
 		py_sem_post(sem_write_flag);
 		//gettimeofday(&memcpy_time, NULL);
+		#ifdef ENABLE_SDL
 		if(show_preview > 0){
 			//printf("render!\n");
 			render(sdl_sf);
 		}
-
+        #endif
 	}
     printf("ready to quit!\n");
 	py_sem_close(sem_write_flag);

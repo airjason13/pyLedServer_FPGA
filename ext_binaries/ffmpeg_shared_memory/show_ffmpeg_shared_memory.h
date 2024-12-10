@@ -7,7 +7,9 @@
 //#include <fcntl.h>
 #include <string.h>
 #include <stdlib.h>
+#ifdef ENABLE_SDL
 #include <SDL/SDL.h>
+#endif
 #include <assert.h>
 #include <sys/time.h>
 #include <signal.h>
