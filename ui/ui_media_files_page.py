@@ -546,14 +546,13 @@ class MediaFilesPage(QWidget):
 
     def mouse_move_on_tree(self, event: QMouseEvent):
         try:
-            self.grabMouse()
+            # self.grabMouse()
             # log.debug("%s, %s", event.x(), event.y())
             if self.preview_file_movie is not None:
                 self.preview_file_movie.stop()
             if self.media_files_tree_widget.itemAt(event.x(), event.y()) is None:
                 if self.media_preview_widget.isVisible() is True:
                     self.media_preview_widget.hide()
-                self.releaseMouse()
                 return
             else:
                 tree_widget_item = self.media_files_tree_widget.itemAt(event.x(), event.y())
@@ -561,7 +560,6 @@ class MediaFilesPage(QWidget):
                         event.x() > len(tree_widget_item.text(0)) * self.File_List_Font_Size:
                     if self.media_preview_widget.isVisible() is True:
                         self.media_preview_widget.hide()
-                    self.releaseMouse()
                     return
             self.preview_file_name = self.media_files_tree_widget.itemAt(event.x(), event.y()).text(0)
             thumbnail_file_name = hashlib.md5(
@@ -570,7 +568,6 @@ class MediaFilesPage(QWidget):
                     self.internal_media_folder[0] + ThumbnailFileFolder + thumbnail_file_name) is False:
                 if self.media_preview_widget.isVisible() is True:
                     self.media_preview_widget.hide()
-                self.releaseMouse()
                 return
             else:
                 self.media_preview_widget.setFixedSize(self.Preview_Widget_Width, self.Preview_Widget_Height)
@@ -591,7 +588,8 @@ class MediaFilesPage(QWidget):
         except Exception as e:
             log.debug(e)
         finally:
-            self.releaseMouse()
+              # self.releaseMouse()
+              return
 
     def internal_media_files_changed(self):
         self.refresh_internal_media_file_list_tree_widget()

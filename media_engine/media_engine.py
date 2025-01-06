@@ -702,10 +702,35 @@ class MediaIpc(QObject):
         log.debug(f"Agent process started with PID: {self.agent_process.pid}")
         time.sleep(1)
 
+    def get_wayland_display_info(self):
+        try:
+            result = subprocess.run(["wayland-info"], stdout=subprocess.PIPE, text=True)
+            output = result.stdout
+
+            preferred_mode_pattern = re.compile(
+                r"flags: current preferred.*?width: (\d+) px, height: (\d+) px, refresh: ([\d.]+) Hz",
+                re.DOTALL
+            )
+            match = preferred_mode_pattern.search(output)
+            if match:
+                width = int(match.group(1))
+                height = int(match.group(2))
+                fps = float(match.group(3))
+                return width, height, fps
+            else:
+                return None, None, None
+
+        except FileNotFoundError:
+            return None, None, None
+
     def calculate_preview_position(self):
         """Calculates and returns agent preview window position."""
-        line = os.popen("xdpyinfo | awk '/dimensions/{print $2}'").read()
-        geo_w, geo_h = map(int, line.split("x"))
+        if "imx8" in platform.node():
+            geo_w , geo_h , _ = self.get_wayland_display_info()
+        else:
+            line = os.popen("xdpyinfo | awk '/dimensions/{print $2}'").read()
+            geo_w, geo_h = map(int, line.split("x"))
+
         return (geo_w - 640, 320) if self.output_width >= 1280 else (geo_w - self.output_width, 320)
 
     def terminate_agent_process(self):

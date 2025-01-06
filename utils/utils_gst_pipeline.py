@@ -2,6 +2,7 @@ from global_def import log
 from threading import Timer, Lock
 import time
 import threading
+import platform
 
 def get_gstreamer_cmd_for_media(video_uri: str, **kwargs):
     width = kwargs.get("width", 1280)
@@ -30,44 +31,86 @@ def get_gstreamer_cmd_for_media(video_uri: str, **kwargs):
     else:
         crop_filter = ""
 
-    scale_filter = f"videoscale ! video/x-raw,format=RGB,width={width},height={height}"
-    filter_chain = ' ! '.join(filter(None, [crop_filter, scale_filter]))
+    # Construct scaling filter
+    scale_filter = f"videoscale ! video/x-raw,width={width},height={height}"
+
+    # RGB conversion at the end of the pipeline
+    rgb_conversion = "videoconvert ! video/x-raw,format=RGB"
+
+    # Combine filters
+    filter_chain = ' ! '.join(filter(None, [crop_filter, scale_filter, rgb_conversion]))
+
 
     # Construct the pipeline based on video URI type
     if "/dev/video" in video_uri:
-        pipeline_str = (
-            f"v4l2src device={video_uri} ! videoconvert ! {filter_chain} "
-            f"! videorate ! video/x-raw,framerate={target_fps} ! appsink name=appsink_sink"
-        )
+        if "imx8" in platform.node().lower():
+            pipeline_str = (
+                f"v4l2src device={video_uri} ! imxvideoconvert_g2d ! {filter_chain} "
+                f"! videorate ! video/x-raw,framerate={target_fps} ! appsink name=appsink_sink"
+            )
+
+        else :
+            pipeline_str = (
+                f"v4l2src device={video_uri} ! videoconvert ! {filter_chain} "
+                f"! videorate ! video/x-raw,framerate={target_fps} ! appsink name=appsink_sink"
+            )
         #if audio_on:
         #    pipeline_str += f" alsasrc device={audio_sink} ! audioconvert ! audioresample ! autoaudiosink"
 
     elif video_uri.endswith(".mp4"):
-        pipeline_str = (
-            f"filesrc location={video_uri} ! decodebin name=demux "
-            f"demux. ! queue ! videoconvert ! {filter_chain} ! videorate ! video/x-raw,framerate={target_fps} ! appsink name=appsink_sink"
-        )
+        if "imx8" in platform.node().lower():
+            pipeline_str = (
+                f"filesrc location={video_uri} ! qtdemux name=d d.video_0 ! queue ! h264parse "
+                f"! v4l2h264dec ! imxvideoconvert_g2d ! {filter_chain} "
+                f"! videorate ! video/x-raw,framerate={target_fps} ! appsink name=appsink_sink"
+            )
+        else:
+            pipeline_str = (
+                f"filesrc location={video_uri} ! decodebin name=demux "
+                f"demux. ! queue ! videoconvert ! {filter_chain} "
+                f"! videorate ! video/x-raw,framerate={target_fps} ! appsink name=appsink_sink"
+            )
         #if audio_on:
         #    pipeline_str += f" demux. ! queue ! audioconvert ! audioresample ! {audio_sink}"
-
     elif video_uri.endswith((".jpeg", ".jpg", ".png")):
-        pipeline_str = (
-            f"filesrc location={video_uri} ! "
-            f"{'jpegdec' if video_uri.endswith(('.jpeg', '.jpg')) else 'pngdec'} ! "
-            f"videoconvert ! imagefreeze !  {filter_chain} !"
-            f"videorate ! video/x-raw,framerate={target_fps} ! "
-            f"appsink name=appsink_sink"
-        )
+        if "imx8" in platform.node().lower():
+            pipeline_str = (
+                f"filesrc location={video_uri} ! "
+                f"{'jpegdec' if video_uri.endswith(('.jpeg', '.jpg')) else 'pngdec'} ! "
+                f"imxvideoconvert_g2d ! imagefreeze ! {filter_chain} ! "
+                f"videorate ! video/x-raw,framerate={target_fps} !"
+                f"videoconvert ! video/x-raw,format=RGB ! "
+                f"appsink name=appsink_sink"
+            )
+        else:
+            pipeline_str = (
+                f"filesrc location={video_uri} ! "
+                f"{'jpegdec' if video_uri.endswith(('.jpeg', '.jpg')) else 'pngdec'} ! "
+                f"videoconvert ! imagefreeze !  {filter_chain} !"
+                f"videorate ! video/x-raw,framerate={target_fps} ! "
+                f"appsink name=appsink_sink"
+            )
     else: # elif video_uri.endswith("CMS"):
-        pipeline_str = (
-            f"ximagesrc display-name={video_uri} startx={window_x} starty={window_y} "
-            f"endx={window_x + window_width} endy={window_y + window_height} "
-            f"! queue "
-            f"! videoconvert "
-            f"! {filter_chain} "
-            f"! videorate ! video/x-raw,framerate={target_fps} "
-            f"! appsink name=appsink_sink"
-        )
+        if "imx8" in platform.node().lower():
+            pipeline_str = (
+                f"ximagesrc display-name={video_uri} startx={window_x} starty={window_y} "
+                f"endx={window_x + window_width} endy={window_y + window_height} "
+                f"! queue "
+                f"! imxvideoconvert_g2d "
+                f"! {filter_chain} "
+                f"! videorate ! video/x-raw,framerate={target_fps} "
+                f"! appsink name=appsink_sink"
+            )
+        else:
+            pipeline_str = (
+                f"ximagesrc display-name={video_uri} startx={window_x} starty={window_y} "
+                f"endx={window_x + window_width} endy={window_y + window_height} "
+                f"! queue "
+                f"! videoconvert "
+                f"! {filter_chain} "
+                f"! videorate ! video/x-raw,framerate={target_fps} "
+                f"! appsink name=appsink_sink"
+            )
     return pipeline_str
 
 class gstreamer_image_period_event:

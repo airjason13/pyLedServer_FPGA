@@ -352,12 +352,13 @@ def get_wifi_bands_channels_tuple():
         # log.debug("channel : %s", channel)
         if "[" in channel:
             tmp_str_channel_number = channel.split("[")[1].split("]")[0]
-            tmp_int_channel_number = int(tmp_str_channel_number)
-            if tmp_int_channel_number in band_channel_not_supported_list:
-                pass
-                # log.debug("channel %d not supported", tmp_int_channel_number)
-            else:
-                tuple.append((channel, channel))
+            if tmp_str_channel_number.isdigit():
+                tmp_int_channel_number = int(tmp_str_channel_number)
+                if tmp_int_channel_number in band_channel_not_supported_list:
+                    pass
+                    # log.debug("channel %d not supported", tmp_int_channel_number)
+                else:
+                    tuple.append((channel, channel))
     return tuple
 
 def get_internal_wifi_ssid_default():
