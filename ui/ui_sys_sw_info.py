@@ -101,27 +101,43 @@ class UiSystemSoftware(QWidget):
         self.frame.layout().addWidget(self)
 
     def update_cpu_ram_usage(self):
+
         self.cpu_percent = psutil.cpu_percent()
         self.ram_percent = psutil.virtual_memory().percent
 
         self.frame_cpu_usage_circular_progress.setValue(self.cpu_percent)
         self.frame_mem_usage_circular_progress.setValue(self.ram_percent)
 
-        if "aarch64" in self.machine_arch:
-            if "pi5" in platform.node() or "pi4" in platform.node():
-                temp_str = os.popen("vcgencmd measure_temp").read()
-                self.label_temperature.setText(temp_str)
-                self.temperature_now = temp_str.strip().split("=")[1].split(".")[0]
-                if int(self.temperature_now) > int(self.max_temperature):
-                    self.max_temperature_time = datetime.now()
-                    self.max_temperature = self.temperature_now
-                    # write temp log
-                    with open(self.temperature_log_file_uri, "w") as f:
-                        data = "max_temp:{};time:{}".format(self.max_temperature, self.max_temperature_time)
-                        f.write(data)
-                        f.truncate()
-                        f.close()
-                        os.system('sync')
+        if "pi5" in platform.node() or "pi4" in platform.node():
+            temp_str = os.popen("vcgencmd measure_temp").read()
+            self.label_temperature.setText(temp_str)
+            self.temperature_now = temp_str.strip().split("=")[1].split(".")[0]
+            if int(self.temperature_now) > int(self.max_temperature):
+                self.max_temperature_time = datetime.now()
+                self.max_temperature = self.temperature_now
+                # write temp log
+                with open(self.temperature_log_file_uri, "w") as f:
+                    data = "max_temp:{};time:{}".format(self.max_temperature, self.max_temperature_time)
+                    f.write(data)
+                    f.truncate()
+                    f.close()
+                    os.system('sync')
+        else:
+            with open("/sys/class/thermal/thermal_zone0/temp", "r") as file:
+                temp = str(int(file.read().strip()) / 1000.0)
+
+            self.label_temperature.setText("Temp:" + str(temp))
+            self.temperature_now = int(float(temp))
+            if int(self.temperature_now) > int(self.max_temperature):
+                self.max_temperature_time = datetime.now()
+                self.max_temperature = self.temperature_now
+                # write temp log
+                with open(self.temperature_log_file_uri, "w") as f:
+                    data = "max_temp:{};time:{}".format(self.max_temperature, self.max_temperature_time)
+                    f.write(data)
+                    f.truncate()
+                    f.close()
+                    os.system('sync')
             return
 
         # self.temperature_log.debug("max_temperature: %d", 88)
