@@ -230,23 +230,23 @@ class MediaFilesPage(QWidget):
 
         ''' Handle Play/Pause/Stop/Preview/Sound Button'''
         self.play_pause_btn = QPushButton()
-        self.play_pause_btn.setFixedSize(128, 128)
-        self.play_icon_pixmap = QPixmap("materials/play_btn.png").scaledToWidth(128)
+        self.play_pause_btn.setFixedSize(64, 64)
+        self.play_icon_pixmap = QPixmap("materials/play_btn.png").scaledToWidth(64)
         self.play_icon = QIcon(self.play_icon_pixmap)
-        self.pause_icon_pixmap = QPixmap("materials/pause_btn.png").scaledToWidth(128)
+        self.pause_icon_pixmap = QPixmap("materials/pause_btn.png").scaledToWidth(64)
         self.pause_icon = QIcon(self.pause_icon_pixmap)
         self.play_pause_btn.setIcon(self.play_icon)
-        self.play_pause_btn.setIconSize(QSize(128, 128))
+        self.play_pause_btn.setIconSize(QSize(64, 64))
         self.play_pause_btn.setStyleSheet(QPushFilePlayButton_Style)
         self.play_pause_btn.clicked.connect(self.pause_btn_clicked)
         self.media_control_panel_layout.addWidget(self.play_pause_btn, 0, 1)
 
         self.play_stop_btn = QPushButton()
-        self.play_stop_btn.setFixedSize(128, 128)
-        self.stop_icon_pixmap = QPixmap("materials/stop_btn.png").scaledToWidth(128)
+        self.play_stop_btn.setFixedSize(64, 64)
+        self.stop_icon_pixmap = QPixmap("materials/stop_btn.png").scaledToWidth(64)
         self.stop_icon = QIcon(self.stop_icon_pixmap)
         self.play_stop_btn.setIcon(self.stop_icon)
-        self.play_stop_btn.setIconSize(QSize(128, 128))
+        self.play_stop_btn.setIconSize(QSize(64, 64))
         self.play_stop_btn.setStyleSheet(QPushFileStopButton_Style)
         self.play_stop_btn.clicked.connect(self.stop_btn_clicked)
 
@@ -550,6 +550,8 @@ class MediaFilesPage(QWidget):
             # log.debug("%s, %s", event.x(), event.y())
             if self.preview_file_movie is not None:
                 self.preview_file_movie.stop()
+                self.preview_file_movie.deleteLater()
+                self.preview_file_movie = None
             if self.media_files_tree_widget.itemAt(event.x(), event.y()) is None:
                 if self.media_preview_widget.isVisible() is True:
                     self.media_preview_widget.hide()

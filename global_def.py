@@ -13,11 +13,14 @@ root_dir = os.path.dirname(sys.modules['__main__'].__file__)
 LD_PATH = root_dir + "/ext_binaries/"
 
 FPGA_START_ID = 2
-
+# lec-imx8mp raspberrypi4-64
 if platform.machine() in ('arm', 'arm64', 'aarch64'):
     if "pi5" in platform.node():  # pi5
         SU_PWD = 'workout13'
         ETH_DEV = 'end0'
+    elif "imx8" in platform.node():
+        SU_PWD = 'workout13'
+        ETH_DEV = 'eth1'
     else:  # pi4-64
         SU_PWD = 'workout13'
         ETH_DEV = 'eth0'
@@ -43,8 +46,10 @@ class VideoBackendType(enum.Enum):
     FFMPEG = "ffmpeg"
     GSTREAMER = "gstreamer"
 
-#VIDEO_BACKEND = VideoBackendType.FFMPEG.value
-VIDEO_BACKEND = VideoBackendType.GSTREAMER.value
+if "imx8" in platform.node():
+    VIDEO_BACKEND = VideoBackendType.GSTREAMER.value
+else:
+    VIDEO_BACKEND = VideoBackendType.FFMPEG.value
 
 class play_type(enum.IntEnum):
     play_none = 0

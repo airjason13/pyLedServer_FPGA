@@ -8,17 +8,20 @@ from global_def import log
 
 
 def mute_audio_sinks(mute=True):
-    result = subprocess.run(['pactl', 'list', 'short', 'sinks'], stdout=subprocess.PIPE, text=True)
-    output = result.stdout
+    try:
+        result = subprocess.run(['pactl', 'list', 'short', 'sinks'], stdout=subprocess.PIPE, text=True)
+        output = result.stdout
 
-    sink_ids = [line.split('\t')[0] for line in output.strip().split('\n') if line]
-    max_sink = 5
-    for sink_id in sink_ids:
-        max_sink = max_sink - 1
-        mute_flag = '1' if mute else '0'
-        subprocess.run(['pactl', 'set-sink-mute', sink_id, mute_flag])
-        if max_sink <= 0:
-            break
+        sink_ids = [line.split('\t')[0] for line in output.strip().split('\n') if line]
+        max_sink = 5
+        for sink_id in sink_ids:
+            max_sink = max_sink - 1
+            mute_flag = '1' if mute else '0'
+            subprocess.run(['pactl', 'set-sink-mute', sink_id, mute_flag])
+            if max_sink <= 0:
+                break
+    except (FileNotFoundError, subprocess.CalledProcessError) as e:
+        log.debug(f"pactl not found or command execution failed: {e}")
 
 
 class SoundDevices:
@@ -38,7 +41,8 @@ class SoundDevices:
         try:
             subprocess.check_call([self.pulseaudio_command, '--check'])
             return True
-        except subprocess.CalledProcessError:
+        except Exception:
+            log.debug("Warning: PulseAudio is not installed or not running. Audio features may be limited.")
             return False
 
     def start_pulse_audio(self):
@@ -50,9 +54,9 @@ class SoundDevices:
                 subprocess.check_call([self.pulseaudio_command, '--start'])
                 log.debug("PulseAudio started successfully.")
                 return True
-            except subprocess.CalledProcessError:
-                log.debug("Failed to start PulseAudio.")
-                return False
+            except Exception:
+                log.debug("Warning: PulseAudio is not available. Skipping audio initialization.")
+            return False
 
     def capture_hdmi_rcv_devices(self):
         result = subprocess.run(['arecord', '-l'], stdout=subprocess.PIPE, text=True)

@@ -79,7 +79,7 @@ def get_gstreamer_cmd_for_media(video_uri: str, **kwargs):
                 f"{'jpegdec' if video_uri.endswith(('.jpeg', '.jpg')) else 'pngdec'} ! "
                 f"imxvideoconvert_g2d ! imagefreeze ! {filter_chain} ! "
                 f"videorate ! video/x-raw,framerate={target_fps} !"
-                f"videoconvert ! video/x-raw,format=RGB ! "
+               # f"videoconvert ! video/x-raw,format=RGB ! "
                 f"appsink name=appsink_sink"
             )
         else:
@@ -93,13 +93,10 @@ def get_gstreamer_cmd_for_media(video_uri: str, **kwargs):
     else: # elif video_uri.endswith("CMS"):
         if "imx8" in platform.node().lower():
             pipeline_str = (
-                f"ximagesrc display-name={video_uri} startx={window_x} starty={window_y} "
-                f"endx={window_x + window_width} endy={window_y + window_height} "
-                f"! queue "
-                f"! imxvideoconvert_g2d "
-                f"! {filter_chain} "
-                f"! videorate ! video/x-raw,framerate={target_fps} "
-                f"! appsink name=appsink_sink"
+                f"fdsrc name=fdsrc ! videoparse width={window_width} height={window_height} format=abgr framerate={target_fps} ! "
+                f"imxvideoconvert_g2d ! {filter_chain} ! "
+                f"videorate ! video/x-raw,framerate={target_fps} ! "
+                f"appsink name=appsink_sink"
             )
         else:
             pipeline_str = (

@@ -18,6 +18,7 @@ from PyQt5.QtCore import QObject, pyqtSignal, QMutex, QThread, pyqtSlot
 import utils.utils_file_access
 from ext_dev.tc358743 import TC358743
 from ext_qt_widgets.playing_preview_widget import PlayingPreviewWindow
+from media_engine.linux_drm_pyapi import LinuxDrmPyapi
 from media_engine.media_engine_def import PlayStatus, RepeatOption
 from media_engine.sound_device import SoundDevices, mute_audio_sinks
 from utils.utils_ffmpy import get_ffmpeg_cmd_for_media
@@ -493,8 +494,11 @@ class MediaEngine(QObject):
                         else:
                             os.kill(self.ff_process.pid, signal.SIGSTOP)
                 else:
-                   if self.gst_pipeline is not None:
-                        self.gst_pipeline.set_state(Gst.State.PAUSED)
+                    if "imx8" in platform.node() and self.play_cms_worker is not None:
+                        log.debug("cms drm capture pause")
+                    else :
+                       if self.gst_pipeline is not None:
+                            self.gst_pipeline.set_state(Gst.State.PAUSED)
 
                 if self.sound_device.audio_process is not None:
                     mute_audio_sinks(True)
@@ -506,6 +510,7 @@ class MediaEngine(QObject):
                    self.play_status_changed(self.playing_status, self.play_playlist_worker.files_in_playlist[self.play_playlist_worker.file_index])
                 if self.play_cms_worker is not None:
                     self.play_status_changed(self.playing_status, self.play_cms_worker.video_src)
+                    self.play_cms_worker.play_status = PlayStatus.Pausing
 
             except Exception as e:
                 log.debug(e)
@@ -523,8 +528,11 @@ class MediaEngine(QObject):
                         else:
                             os.kill(self.ff_process.pid, signal.SIGCONT)
                 else:
-                    if self.gst_pipeline is not None:
-                        self.gst_pipeline.set_state(Gst.State.PLAYING)
+                    if "imx8" in platform.node() and self.play_cms_worker is not None:
+                        log.debug("cms drm capture resume")
+                    else :
+                        if self.gst_pipeline is not None:
+                            self.gst_pipeline.set_state(Gst.State.PLAYING)
 
                 if self.sound_device.audio_process is not None:
                     mute_audio_sinks(False)
@@ -537,6 +545,7 @@ class MediaEngine(QObject):
                         self.play_playlist_worker.file_index])
                 if self.play_cms_worker is not None:
                     self.play_status_changed(self.playing_status, self.play_cms_worker.video_src)
+                    self.play_cms_worker.play_status = PlayStatus.Playing
 
             except Exception as e:
                 log.debug(e)
@@ -1911,6 +1920,7 @@ class PlayCMSWorker(QObject):
                  c_width: int, c_height: int, c_pos_x: int, c_pos_y: int, ):
         super().__init__()
 
+        self.drm_capture_status = None
         self.media_engine = media_engine
         self.media_ipc = MediaIpc(media_engine)
         self.video_params = self.media_engine.led_video_params
@@ -1941,6 +1951,10 @@ class PlayCMSWorker(QObject):
         self.image_from_pipe = None
         self.raw_image = None
         self.preview_window = None
+        self.drm = None
+        self.drm_device_flag = None
+        self.drm_color_space = None
+        self.drm_pipeline = None
         log.debug("CMS Instruction!")
         # To be implemented
 
@@ -1955,6 +1969,37 @@ class PlayCMSWorker(QObject):
     def install_send_raw_frame_slot(self, slot_func):
         log.debug("install_send_raw_frame_slot!")
         self.pysignal_send_raw_frame.connect(slot_func)
+
+    def initialize_drm_subsystem(self):
+
+        if not "imx8" in platform.node():
+            return
+        '''
+        # Configure cropping dimensions based on media and crop parameters
+        if (self.video_params.get_cms_crop_w() is not None and
+                self.video_params.get_cms_crop_h() is not None and
+                self.media_active_width and self.media_active_height):
+            self.crop_visible_area_width = min(self.video_params.get_cms_crop_w(), self.media_active_width)
+            self.crop_visible_area_height = min(self.video_params.get_cms_crop_h(), self.media_active_height)
+            self.crop_position_x = self.video_params.get_cms_start_x()
+            self.crop_position_y = self.video_params.get_cms_start_y()
+
+        if self.video_params.get_cms_crop_w() <= self.media_active_width :
+            drm_capture_width = self.video_params.get_cms_crop_w()
+        else:
+            drm_capture_width = self.window_width
+
+        if self.video_params.get_cms_crop_h() <= self.media_active_height :
+            drm_capture_height = self.video_params.get_cms_crop_h()
+        else:
+            drm_capture_height = self.window_height
+        '''
+        self.drm = LinuxDrmPyapi()
+        self.drm_device_flag= self.drm.open()
+        if self.drm_device_flag:
+            self.drm.configure_fb(self.window_width,self.window_height,4,100,100)
+            self.drm_color_space = "ABGR"
+            self.drm.color_space(self.drm_color_space)
 
     def play_status_change(self, status: int, src: str):
         self.play_status = status
@@ -2199,9 +2244,128 @@ class PlayCMSWorker(QObject):
             #     break
             if self.force_stop is True:
                 break
+
+    def start_GStreamer_stream_from_drm(self):
+        # Fetch the video resolution from media engine
+        resolution = self.media_engine.get_cms_resolution()
+
+        # Update active media width and height if resolution is obtained
+        if resolution:
+            self.media_active_width, self.media_active_height = resolution
+
+        # Debug output for active resolution
+        log.debug("Active resolution - Width: %d, Height: %d", self.media_active_width, self.media_active_height)
+
+        # Debug output for crop parameters
+        log.debug("Configured crop dimensions - Width: %d, Height: %d",
+                  self.video_params.get_cms_crop_w(),
+                  self.video_params.get_cms_crop_h())
+
+        # Configure cropping dimensions based on media and crop parameters
+        if (self.video_params.get_cms_crop_w() is not None and
+                self.video_params.get_cms_crop_h() is not None and
+                self.media_active_width and self.media_active_height):
+            self.crop_visible_area_width = min(self.video_params.get_cms_crop_w(), self.media_active_width)
+            self.crop_visible_area_height = min(self.video_params.get_cms_crop_h(), self.media_active_height)
+            self.crop_position_x = self.video_params.get_cms_start_x()
+            self.crop_position_y = self.video_params.get_cms_start_y()
+
+        # Debug output for final crop parameters
+        log.debug("Crop configuration - Width: %d, Height: %d, Position X: %d, Position Y: %d",
+                  self.crop_visible_area_width,
+                  self.crop_visible_area_height,
+                  self.crop_position_x,
+                  self.crop_position_y)
+
+        # Prepare audio and target frame rate settings
+        audio_sink_str = 'default'
+        if platform.machine() in ('arm', 'arm64', 'aarch64'):
+            if self.media_engine.headphone_sound is not None:
+                sink_card, sink_device = self.media_engine.headphone_sound
+                audio_sink_str = f'hw:{sink_card},{sink_device}'
+        target_fps_str = f"{self.output_fps}/1"
+
+        # Construct GStreamer pipeline command
+        gst_pipeline_str = get_gstreamer_cmd_for_media(
+            self.video_src,
+            width=self.output_width,
+            height=self.output_height,
+            target_fps=target_fps_str,
+            i_width=self.media_active_width,
+            i_height=self.media_active_height,
+            c_width=self.crop_visible_area_width,
+            c_height=self.crop_visible_area_height,
+            c_pos_x=self.crop_position_x,
+            c_pos_y=self.crop_position_y,
+            window_x=self.window_x,
+            window_y=self.window_y,
+            audio_sink=audio_sink_str,
+            audio_on=self.video_params.get_play_with_audio()
+        )
+
+        log.debug("gst-launch-1.0 %s", gst_pipeline_str)
+
+        log.debug("Initializing GStreamer pipeline.")
+        self.gst_pipeline = subprocess.Popen(
+            gst_pipeline_str, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True,
+            text=False
+        )
+        self.media_engine.gst_pipeline = self.gst_pipeline
+
+        # Set the pipeline to PLAYING state and start monitoring bus messages
+        self.play_status_change(PlayStatus.Playing, self.video_src)
+
+        # Main loop to check for playback status and handle errors/stream end
+        while not self.force_stop:
+
+            if self.play_status == PlayStatus.Stop:
+                log.debug("self.force_stop is True, stopping gst_pipeline")
+                break
+            elif self.play_status == PlayStatus.Pausing:
+                time.sleep(0.1)
+                continue
+
+            self.drm_capture_status = self.drm.capture_frame()
+            if not self.drm_capture_status:
+                log.debug("Failed to capture DRM frame.")
+            else :
+                # Retrieve the video frame sample
+                self.worker_status = 1
+
+                # Convert video frame data to RGB and emit the updated frame
+                if self.drm_color_space == "ABGR":
+                    raw_data = np.ascontiguousarray(self.drm.fb_image_data[:, :, [2, 1, 0]])
+                    self.raw_image = np.copy(raw_data)
+                else:
+                    self.raw_image = np.copy(self.drm.fb_image_data)
+
+                if self.raw_image.dtype != np.uint8:
+                    self.raw_image = self.raw_image.astype(np.uint8)
+
+                self.pysignal_refresh_image_pixmap.emit(self.raw_image)
+
+                if len(self.raw_image) <= 0:
+                    log.debug("play end")
+                    # self.media_ipc.terminate_agent_process()
+                    return Gst.FlowReturn.EOS
+
+                if not self.media_ipc.wait_sem_write_access():
+                    pass
+                else:
+                    try:
+                        memory_view = memoryview(self.raw_image).cast('B')
+                        self.media_ipc.write_to_shared_memory(memory_view)
+                    except Exception as e:
+                        log.debug(f"Error writing to shared memory: {e}")
+
+                if self.output_fps > 0:
+                    time.sleep(1 / self.output_fps)
+
+        log.debug("GStreamer cms play end")
+
     def run(self):
         log.debug("cms go run!")
-
+        self.initialize_drm_subsystem()
         self.media_engine.sync_output_streaming_resolution()  # venom for output resolution correction
         self.worker_status = 1
 
@@ -2210,7 +2374,12 @@ class PlayCMSWorker(QObject):
             if self.media_engine.video_backend == VideoBackendType.FFMPEG.value:
                 self.start_ffmpeg_stream()
             else:
-                self.start_GStreamer_stream()
+                if self.drm_device_flag:
+                    self.start_GStreamer_stream_from_drm()
+                    log.debug("Shutting down drm pipeline.")
+                else:
+                    self.start_GStreamer_stream()
+
         else:
             log.debug("initialize_ipc_resources failed")
 
@@ -2237,14 +2406,27 @@ class PlayCMSWorker(QObject):
             self.ff_process = None
             self.media_engine.ff_process = self.ff_process
         else:
-            if self.gst_pipeline is not None:
-                self.gst_pipeline.set_state(Gst.State.NULL)
-                self.gst_pipeline = None
-                self.media_engine.gst_pipeline = self.gst_pipeline
+            if "imx8" in platform.node():
+                if self.drm is not None:
+                    self.drm.release_drm()
+                    self.drm = None
+                if self.gst_pipeline is not None:
+                    try:
+                        self.gst_pipeline.terminate()
+                        self.gst_pipeline.wait()
+                    except Exception as e:
+                        log.debug(f"Error terminating Popen pipeline: {e}")
+                    self.gst_pipeline = None
+                    self.media_engine.gst_pipeline = self.gst_pipeline
+            else :
+                if self.gst_pipeline is not None:
+                    self.gst_pipeline.set_state(Gst.State.NULL)
+                    self.gst_pipeline = None
+                    self.media_engine.gst_pipeline = self.gst_pipeline
 
-                if self.gst_appsink and self.gst_appsink.handler_is_connected(
-                        self.gst_appsink.connect('new-sample', self.process_gst_frame_sample)):
-                    self.gst_appsink.disconnect_by_func(self.process_gst_frame_sample)
+                    if self.gst_appsink and self.gst_appsink.handler_is_connected(
+                            self.gst_appsink.connect('new-sample', self.process_gst_frame_sample)):
+                        self.gst_appsink.disconnect_by_func(self.process_gst_frame_sample)
 
 def test(self):
     log.debug("")
