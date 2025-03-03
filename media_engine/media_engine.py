@@ -14,6 +14,7 @@ from time import sleep
 import numpy as np
 import psutil
 from PyQt5.QtCore import QObject, pyqtSignal, QMutex, QThread, pyqtSlot
+from PyQt5.QtWidgets import QApplication
 
 import utils.utils_file_access
 from ext_dev.tc358743 import TC358743
@@ -673,6 +674,9 @@ class MediaIpc(QObject):
             try:
                 self.restart_agent_process()
                 self.shm = self.create_shared_memory()
+                if self.shm is None:
+                    log.debug("Shared memory initialization failed, skipping semaphore setup.")
+                    continue
                 if self.initialize_semaphores():
                     return True
             except Exception as e:
@@ -690,6 +694,7 @@ class MediaIpc(QObject):
         self.shm_sem = LinuxIpcSemaphorePyapi()
         self.sem_write_flag = self.open_semaphore(self.shm_sem_write_uri, 1)
         self.sem_read_flag = self.open_semaphore(self.shm_sem_read_uri, 0)
+        log.debug(f"sem_write_flag={self.sem_write_flag}, sem_read_flag={self.sem_read_flag}")
         return self.sem_write_flag is not None and self.sem_read_flag is not None
 
     def open_semaphore(self, uri, initial_value):
@@ -713,29 +718,19 @@ class MediaIpc(QObject):
 
     def get_wayland_display_info(self):
         try:
-            result = subprocess.run(["wayland-info"], stdout=subprocess.PIPE, text=True)
-            output = result.stdout
-
-            preferred_mode_pattern = re.compile(
-                r"flags: current preferred.*?width: (\d+) px, height: (\d+) px, refresh: ([\d.]+) Hz",
-                re.DOTALL
-            )
-            match = preferred_mode_pattern.search(output)
-            if match:
-                width = int(match.group(1))
-                height = int(match.group(2))
-                fps = float(match.group(3))
-                return width, height, fps
-            else:
-                return None, None, None
-
-        except FileNotFoundError:
-            return None, None, None
+            output = subprocess.check_output("fbset", shell=True, text=True)
+            for line in output.splitlines():
+                if "geometry" in line:
+                    _, width, height, *_ = line.split()
+                    return int(width), int(height)
+        except Exception as e:
+            log.debug(f"Error: {e}")
+            return None, None
 
     def calculate_preview_position(self):
         """Calculates and returns agent preview window position."""
         if "imx8" in platform.node():
-            geo_w , geo_h , _ = self.get_wayland_display_info()
+            geo_w , geo_h  = self.get_wayland_display_info()
         else:
             line = os.popen("xdpyinfo | awk '/dimensions/{print $2}'").read()
             geo_w, geo_h = map(int, line.split("x"))
