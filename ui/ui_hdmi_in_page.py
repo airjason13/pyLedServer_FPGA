@@ -1026,13 +1026,18 @@ class HDMIInPage(QWidget):
 
 
 def ensure_edid_validity(self):
-    p = os.popen("v4l2-ctl --get-edid")
-    preproc = p.read()
-    if "failed" in preproc:
+    if "imx8" in platform.node():
         p = os.popen("write_tc358743_edid.sh")
         time.sleep(5)
         p.close()
-    p.close()
+    else:
+        p = os.popen("v4l2-ctl --get-edid")
+        preproc = p.read()
+        if "failed" in preproc:
+            p = os.popen("write_tc358743_edid.sh")
+            time.sleep(5)
+            p.close()
+        p.close()
 
 
 def parse_pid(line):

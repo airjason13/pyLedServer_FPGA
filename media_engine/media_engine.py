@@ -1992,7 +1992,8 @@ class PlayCMSWorker(QObject):
         self.drm = LinuxDrmPyapi()
         self.drm_device_flag= self.drm.open()
         if self.drm_device_flag:
-            self.drm.configure_fb(self.window_width,self.window_height,4,100,100)
+            # Chromium will launch at position (50, 50) on the screen.
+            self.drm.configure_fb(self.window_width,self.window_height,4,60,60)
             self.drm_color_space = "ABGR"
             self.drm.color_space(self.drm_color_space)
 
@@ -2329,8 +2330,9 @@ class PlayCMSWorker(QObject):
 
                 # Convert video frame data to RGB and emit the updated frame
                 if self.drm_color_space == "ABGR":
-                    raw_data = np.ascontiguousarray(self.drm.fb_image_data[:, :, [2, 1, 0]])
-                    self.raw_image = np.copy(raw_data)
+                    if self.drm :
+                        raw_data = np.ascontiguousarray(self.drm.fb_image_data[:, :, [2, 1, 0]])
+                        self.raw_image = np.copy(raw_data)
                 else:
                     self.raw_image = np.copy(self.drm.fb_image_data)
 

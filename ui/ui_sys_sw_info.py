@@ -8,7 +8,7 @@ from qt_ui_style.button_qss import *
 from global_def import *
 from ext_qt_widgets.qround_progress_bar import QRoundProgressBar
 import psutil
-
+from PyQt5.QtGui import QFont
 
 class UiSystemSoftware(QWidget):
 
@@ -94,6 +94,9 @@ class UiSystemSoftware(QWidget):
             self.vertical_layout.addWidget(cp)
 
         self.label_temperature = QLabel(self)
+        font = QFont()
+        font.setPointSize(18)
+        self.label_temperature.setFont(font)
         self.label_temperature.setText("Temp:--")
         self.vertical_layout.addWidget(self.label_temperature)
 

@@ -100,14 +100,16 @@ class TC358743(QObject):
             connected, width, height, fps = self.x86_get_video_timing()
             return connected, width, height, fps
         self.check_hdmi_status_lock()
-        dv_timings = os.popen("v4l2-ctl --query-dv-timings").read()
+        if "imx8" in platform.node():
+            dv_timings = os.popen("v4l2-ctl --device=/dev/v4l-subdev1 --query-dv-timings").read()
+        else :
+            dv_timings = os.popen("v4l2-ctl --query-dv-timings").read()
         self.check_hdmi_status_unlock()
         list_dv_timings = dv_timings.split("\n")
 
         if 'fail' in list_dv_timings[0]:
             log.debug("not connected")
             connected = False
-
             self.signal_refresh_tc358743_param.emit(connected, width, height, fps)
             return connected, width, height, fps
         else:
@@ -133,7 +135,10 @@ class TC358743(QObject):
         else:
             return True
         self.check_hdmi_status_lock()
-        res_set_dv_bt_timing = os.popen("v4l2-ctl --set-dv-bt-timings query").read()
+        if "imx8" in platform.node():
+            res_set_dv_bt_timing = os.popen("v4l2-ctl -d /dev/v4l-subdev1 --set-dv-bt-timings query").read()
+        else :
+            res_set_dv_bt_timing = os.popen("v4l2-ctl --set-dv-bt-timings query").read()
         self.check_hdmi_status_unlock()
         # log.debug("res_set_dv_bt_timing = %s", res_set_dv_bt_timing)
         if 'BT timings set' in res_set_dv_bt_timing:
@@ -161,9 +166,13 @@ class TC358743(QObject):
 
         return connected, width, height, fps
 
-
     def get_video_device(self):
-        preferred_video = "/dev/video0" if platform.machine() in ('arm', 'arm64', 'aarch64') else "/dev/video10"
+        preferred_video = "/dev/video10"
+        if platform.machine() in ('arm', 'arm64', 'aarch64'):
+            if "imx8" in platform.node():
+                preferred_video = "/dev/video2"
+            else:
+                preferred_video = "/dev/video0"
         if os.path.exists(preferred_video):
             return preferred_video
         else:
